@@ -198,9 +198,7 @@
       var savedToken = localStorage.getItem('de_token');
       var savedUser = localStorage.getItem('de_username');
       if (savedToken && savedUser) {
-        // Verify token is still valid by redirecting to game
         window.location.href = '/game';
-        return;
       }
     } catch(e) {}
 
