@@ -68,93 +68,48 @@ window.App = (function () {
     render();
   }
 
-    function setupAuth() {
-    var authOverlay = document.getElementById('authOverlay');
-    var authError = document.getElementById('authError');
-    var authUsername = document.getElementById('authUsername');
-    var authPassword = document.getElementById('authPassword');
-    var authActionBtn = document.getElementById('authActionBtn');
-    var authToggleBtn = document.getElementById('authToggleBtn');
-    var authStatus = document.getElementById('authStatus');
-    var isLogin = true;
-
-    function showError(msg) {
-      if (authError) { authError.textContent = msg; authError.style.display = 'block'; }
-    }
-    function hideError() {
-      if (authError) { authError.style.display = 'none'; }
-    }
-    function onAuthSuccess() {
-      if (authOverlay) authOverlay.style.display = 'none';
-      if (authStatus) authStatus.textContent = 'Connected as ' + Network.username;
-      // Render chat UI
-      var container = document.getElementById('chatContainer');
-      if (container) {
-        container.innerHTML = UIChat.render();
-        UIChat.bind();
-      }
-      // Wire up network events
-      Network.on('chat', function (msg) {
-        UIChat.addMessage(msg);
-      });
-      Network.on('presence', function (players) {
-        UIChat.setOnlineCount(players.length);
-        window._onlinePlayers = players;
-      });
-      Network.on('system', function (msg) {
-        UIChat.addMessage(msg);
-      });
-      // Send initial position update
-      if (window.gameState && window.gameState.universe) {
-        Network.updatePosition(
-          window.gameState.universe.activeGalaxyId,
-          window.gameState.universe.activeSectorId,
-          window.gameState.universe.activePlanetId
-        );
-      }
-    }
-
-    if (authToggleBtn) {
-      authToggleBtn.onclick = function () {
-        isLogin = !isLogin;
-        authActionBtn.textContent = isLogin ? 'Login' : 'Register';
-        authToggleBtn.textContent = isLogin ? 'Create New Account' : 'Back to Login';
-        hideError();
-      };
-    }
-
-    if (authActionBtn) {
-      authActionBtn.onclick = function () {
-        var u = authUsername ? authUsername.value.trim() : '';
-        var p = authPassword ? authPassword.value : '';
-        if (!u || !p) { showError('Please fill in all fields'); return; }
-        hideError();
-        if (authStatus) authStatus.textContent = 'Connecting...';
-        var cb = function (err, res) {
-          if (err) {
-            showError(err);
-            if (authStatus) authStatus.textContent = 'Failed';
-            return;
-          }
-          onAuthSuccess();
-        };
-        if (isLogin) {
-          Network.login(u, p, cb);
-        } else {
-          Network.register(u, p, cb);
-        }
-      };
-    }
-
-    // Try auto-login with saved credentials
+      function setupNetwork() {
+    // Connect with saved credentials
     Network.init();
+    
     setTimeout(function () {
       if (Network.isConnected) {
-        onAuthSuccess();
-      } else if (authStatus) {
-        authStatus.textContent = 'Server offline — enter credentials to connect';
+        // Render chat UI
+        var container = document.getElementById('chatContainer');
+        if (container) {
+          container.innerHTML = UIChat.render();
+          UIChat.bind();
+        }
+        // Wire up network events
+        Network.on('chat', function (msg) {
+          UIChat.addMessage(msg);
+        });
+        Network.on('presence', function (players) {
+          UIChat.setOnlineCount(players.length);
+          window._onlinePlayers = players;
+        });
+        Network.on('system', function (msg) {
+          UIChat.addMessage(msg);
+        });
+        // Send initial position update
+        if (window.gameState && window.gameState.universe) {
+          Network.updatePosition(
+            window.gameState.universe.activeGalaxyId,
+            window.gameState.universe.activeSectorId,
+            window.gameState.universe.activePlanetId
+          );
+        }
       }
     }, 2000);
+
+    // Reconnect handler - if auth fails, redirect to login
+    Network.on('auth_error', function () {
+      try { localStorage.removeItem('de_token'); localStorage.removeItem('de_username'); } catch(e) {}
+      window.location.href = '/login';
+    });
+    Network.on('disconnect', function () {
+      // Will auto-reconnect
+    });
   }
 
   function init() {
@@ -165,7 +120,7 @@ window.App = (function () {
     render();
     
     // Setup multiplayer auth
-    setupAuth();
+    setupNetwork();
 
     if (tickHandle) clearInterval(tickHandle);
     tickHandle = setInterval(gameLoop, 1000);

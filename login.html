@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dead Earth Protocol — Login</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0a0d14, #1a1f2e);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ddeeff;
+    }
+    .auth-box {
+      background: rgba(20, 28, 45, 0.95);
+      border: 1px solid rgba(88, 214, 255, 0.2);
+      border-radius: 16px;
+      padding: 48px 40px;
+      width: 400px;
+      max-width: 92vw;
+      box-shadow: 0 0 80px rgba(0, 0, 0, 0.6);
+      text-align: center;
+    }
+    .auth-logo {
+      font-size: 56px;
+      margin-bottom: 8px;
+    }
+    .auth-box h1 {
+      margin: 0 0 4px 0;
+      font-size: 26px;
+      color: #58d6ff;
+    }
+    .auth-box .subtitle {
+      color: #667788;
+      font-size: 14px;
+      margin-bottom: 28px;
+    }
+    .auth-error {
+      color: #ff6b6b;
+      font-size: 13px;
+      text-align: center;
+      margin-bottom: 12px;
+      padding: 8px 12px;
+      background: rgba(255, 107, 107, 0.1);
+      border-radius: 6px;
+      display: none;
+    }
+    .auth-box label {
+      display: block;
+      text-align: left;
+      color: #8899aa;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .auth-box input {
+      width: 100%;
+      padding: 11px 14px;
+      margin-bottom: 18px;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(88, 214, 255, 0.12);
+      border-radius: 8px;
+      color: #ddeeff;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .auth-box input:focus {
+      border-color: #58d6ff;
+    }
+    .auth-btn {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, #58d6ff, #3b82f6);
+      border: none;
+      border-radius: 8px;
+      color: #000;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .auth-btn:hover { opacity: 0.9; }
+    .auth-btn.secondary {
+      background: transparent;
+      border: 1px solid rgba(88, 214, 255, 0.25);
+      color: #58d6ff;
+      margin-top: 10px;
+    }
+    .auth-toggle {
+      margin-top: 20px;
+      font-size: 13px;
+      color: #667788;
+    }
+    .auth-toggle a {
+      color: #58d6ff;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    .auth-status {
+      font-size: 12px;
+      color: #556677;
+      margin-top: 12px;
+    }
+    .auth-loading {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(88, 214, 255, 0.3);
+      border-top-color: #58d6ff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 6px;
+      vertical-align: middle;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .features {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      margin-top: 24px;
+      font-size: 12px;
+      color: #556677;
+    }
+    .features span { cursor: default; }
+    .features span:hover { color: #88aacc; }
+  </style>
+</head>
+<body>
+  <div class="auth-box">
+    <div class="auth-logo">⚔</div>
+    <h1>Dead Earth Protocol</h1>
+    <p class="subtitle">Multiplayer Universe</p>
+
+    <div id="authError" class="auth-error"></div>
+
+    <form id="authForm" onsubmit="return false;">
+      <label>Username</label>
+      <input type="text" id="authUsername" placeholder="Choose a username..." required minlength="2" autocomplete="username">
+      
+      <label>Password</label>
+      <input type="password" id="authPassword" placeholder="Choose a password..." required minlength="3" autocomplete="current-password">
+      
+      <button id="authActionBtn" class="auth-btn" type="submit">Enter the Universe</button>
+      <button id="authToggleBtn" class="auth-btn secondary" type="button">Create New Account</button>
+    </form>
+
+    <div class="auth-toggle">
+      <span id="authToggleText">New here?</span> <a id="authToggleLink">Create an account</a>
+    </div>
+    <div id="authStatus" class="auth-status">
+      <span class="auth-loading" id="authSpinner"></span>
+      <span id="authStatusText">Connecting to server...</span>
+    </div>
+
+    <div class="features">
+      <span>🌌 Shared Universe</span>
+      <span>💬 Global Chat</span>
+      <span>⚔ Real-time</span>
+    </div>
+  </div>
+
+  <script>
+    // ─── Auth flow ─────────────────────────────────────────
+    var isLogin = true;
+    var authError = document.getElementById('authError');
+    var authUsername = document.getElementById('authUsername');
+    var authPassword = document.getElementById('authPassword');
+    var authActionBtn = document.getElementById('authActionBtn');
+    var authToggleBtn = document.getElementById('authToggleBtn');
+    var authToggleText = document.getElementById('authToggleText');
+    var authToggleLink = document.getElementById('authToggleLink');
+    var authStatusText = document.getElementById('authStatusText');
+    var authSpinner = document.getElementById('authSpinner');
+    var serverUrl = window.location.protocol + '//' + window.location.host;
+
+    function showError(msg) {
+      authError.textContent = msg;
+      authError.style.display = 'block';
+    }
+    function hideError() {
+      authError.style.display = 'none';
+    }
+    function setLoading(loading) {
+      authSpinner.style.display = loading ? 'inline-block' : 'none';
+      authActionBtn.disabled = loading;
+      authActionBtn.style.opacity = loading ? 0.7 : 1;
+    }
+
+    // Check if already logged in
+    try {
+      var savedToken = localStorage.getItem('de_token');
+      var savedUser = localStorage.getItem('de_username');
+      if (savedToken && savedUser) {
+        // Verify token is still valid by redirecting to game
+        window.location.href = '/game';
+        return;
+      }
+    } catch(e) {}
+
+    authToggleBtn.onclick = function () {
+      isLogin = !isLogin;
+      hideError();
+      if (isLogin) {
+        authActionBtn.textContent = 'Enter the Universe';
+        authToggleBtn.textContent = 'Create New Account';
+        authToggleText.textContent = 'New here?';
+        authToggleLink.textContent = 'Create an account';
+        authPassword.placeholder = 'Your password...';
+        authUsername.placeholder = 'Your username...';
+      } else {
+        authActionBtn.textContent = 'Create Account';
+        authToggleBtn.textContent = 'Back to Login';
+        authToggleText.textContent = 'Already have an account?';
+        authToggleLink.textContent = 'Log in';
+        authPassword.placeholder = 'Choose a password...';
+        authUsername.placeholder = 'Choose a username...';
+      }
+    };
+
+    authToggleLink.onclick = function () {
+      authToggleBtn.click();
+    };
+
+    authActionBtn.onclick = function () {
+      var u = authUsername.value.trim();
+      var p = authPassword.value;
+      if (!u || !p) { showError('Please fill in all fields'); return; }
+      if (u.length < 2) { showError('Username must be at least 2 characters'); return; }
+      if (p.length < 3) { showError('Password must be at least 3 characters'); return; }
+      hideError();
+      setLoading(true);
+      authStatusText.textContent = isLogin ? 'Logging in...' : 'Creating account...';
+
+      var endpoint = isLogin ? '/api/login' : '/api/register';
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', serverUrl + endpoint, true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.onload = function () {
+        setLoading(false);
+        try {
+          var res = JSON.parse(xhr.responseText);
+          if (res.ok) {
+            try {
+              localStorage.setItem('de_token', res.token);
+              localStorage.setItem('de_username', res.username);
+            } catch(e) {}
+            authStatusText.textContent = 'Welcome, ' + res.username + '!';
+            // Redirect to game
+            window.location.href = '/game';
+          } else {
+            showError(res.error || 'Server error');
+            authStatusText.textContent = 'Failed';
+          }
+        } catch (e) {
+          showError('Server error');
+          authStatusText.textContent = 'Failed';
+        }
+      };
+      xhr.onerror = function () {
+        setLoading(false);
+        showError('Cannot reach server. Is it running?');
+        authStatusText.textContent = 'Connection failed';
+      };
+      xhr.send(JSON.stringify({ username: u, password: p }));
+    };
+
+    // Allow Enter key to submit
+    authPassword.onkeydown = function (e) {
+      if (e.key === 'Enter') authActionBtn.click();
+    };
+    authUsername.onkeydown = function (e) {
+      if (e.key === 'Enter') authActionBtn.click();
+    };
+
+    // Check server is alive
+    var healthCheck = new XMLHttpRequest();
+    healthCheck.open('GET', serverUrl + '/api/health', true);
+    healthCheck.onload = function () {
+      authStatusText.textContent = 'Server online — ready to play';
+    };
+    healthCheck.onerror = function () {
+      authStatusText.textContent = 'Server offline — start the server first';
+    };
+    healthCheck.send();
+  </script>
+</body>
+</html>

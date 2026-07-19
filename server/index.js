@@ -20,9 +20,9 @@ const path = require('path');
 const crypto = require('crypto');
 
 // ─── Config ───────────────────────────────────────────────
-const PORT = parseInt(process.argv[2] || '3000', 10);
+const PORT = parseInt(process.env.PORT || process.argv[2] || '3000', 10);
 const STATIC_DIR = path.resolve(__dirname, '..');
-const DB_PATH = path.join(__dirname, 'db.json');
+const DB_PATH = path.join(STATIC_DIR, 'data', 'db.json');
 
 // MIME types for static serving
 const MIME_TYPES = {
@@ -56,6 +56,12 @@ function saveDB(db) {
 }
 
 const db = loadDB();
+
+// Ensure data directory exists
+(function ensureDataDir() {
+  const dir = path.dirname(DB_PATH);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+})();
 
 // ─── WebSocket RFC 6455 Implementation ───────────────────
 const WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
@@ -202,7 +208,14 @@ const server = http.createServer((req, res) => {
   }
 
   // ── Static files ──
-  let filePath = pathname === '/' ? '/index.html' : pathname;
+  let filePath;
+  if (pathname === '/' || pathname === '/login') {
+    filePath = path.join(STATIC_DIR, 'login.html');
+  } else if (pathname === '/game') {
+    filePath = path.join(STATIC_DIR, 'game.html');
+  } else {
+    filePath = pathname;
+  }
   filePath = path.join(STATIC_DIR, filePath);
   if (!filePath.startsWith(STATIC_DIR)) {
     res.writeHead(403);
