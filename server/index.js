@@ -168,9 +168,9 @@ const server = http.createServer((req, res) => {
         }
         const salt = crypto.randomBytes(16).toString('hex');
         const hash = crypto.createHash('sha256').update(password + salt).digest('hex');
-        db.users[username] = { username, hash, salt, created: Date.now() };
-        saveDB(db);
         const token = crypto.createHash('sha256').update(username + Date.now() + crypto.randomBytes(8).toString('hex')).digest('hex');
+        db.users[username] = { username, hash, salt, token, created: Date.now() };
+        saveDB(db);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true, token, username }));
       } catch (e) {
@@ -207,6 +207,8 @@ const server = http.createServer((req, res) => {
           return;
         }
         const token = crypto.createHash('sha256').update(user.username + Date.now() + crypto.randomBytes(8).toString('hex')).digest('hex');
+        db.users[user.username].token = token;
+        saveDB(db);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true, token, username }));
       } catch (e) {
@@ -299,8 +301,7 @@ server.on('upgrade', (req, socket, head) => {
         switch (msg.type) {
           case 'auth':
             const user = db.users[msg.username];
-            const expectedToken = crypto.createHash('sha256').update(msg.username + 'DEPAUTH' + (user?.hash || '').slice(0, 16)).digest('hex').slice(0, 32);
-            if (!user || msg.token !== expectedToken) {
+            if (!user || msg.token !== user.token) {
               socket.write(wsEncodeFrame(JSON.stringify({ type: 'auth_error', error: 'Invalid token' })));
               socket.end();
               return;
