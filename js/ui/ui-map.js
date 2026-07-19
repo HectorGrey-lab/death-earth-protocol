@@ -837,6 +837,7 @@ window.UIMap = (function () {
           <div class="galaxy-camera-controls">
             <button class="btn small" id="uvZoomInBtn" ${canGalZoomIn ? '' : 'disabled'}>Zoom In</button>
             <button class="btn small" id="uvZoomOutBtn" ${canGalZoomOut ? '' : 'disabled'}>◀ Back</button>
+            <button class="btn small" id="uvGoHomeBtn">⌂ Home</button>
             <button class="btn small" id="uvResetBtn">Reset</button>
             <span class="small" style="margin-left:10px;font-weight:bold;">${getViewLabel(state)}</span>
           </div>
@@ -991,6 +992,21 @@ window.UIMap = (function () {
         const stage = document.getElementById('galaxyStage');
         if (stage) { stage.style.transform = 'scale(1) translate(0,0)'; }
         uvZoom = 1; uvPanX = 0; uvPanY = 0;
+        window.App.render();
+      };
+    }
+
+    // Go Home button — zoom to your home planet
+    const goHomeBtn = document.getElementById('uvGoHomeBtn');
+    if (goHomeBtn) {
+      goHomeBtn.onclick = function () {
+        const home = GalaxySystem.getHomePlanet(state);
+        if (home) {
+          state.universe.activeGalaxyId = home.galaxyId;
+          state.universe.activeSectorId = home.sectorId;
+          state.universe.activePlanetId = home.id;
+          state.universe.zoomLevel = 'sector';
+        }
         window.App.render();
       };
     }

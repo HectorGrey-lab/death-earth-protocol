@@ -115,6 +115,12 @@ window.App = (function () {
   function init() {
     window.gameState = GameState.load();
     window.gameState = GameState.normalizeState(window.gameState);
+    // Override commander name with the logged-in user
+    var loggedUser = null;
+    try { loggedUser = localStorage.getItem('de_username'); } catch(e) {}
+    if (loggedUser) {
+      window.gameState.commander.name = 'Commander ' + loggedUser;
+    }
     CommanderSystem.applyTheme(window.gameState);
     bindGlobalUI();
     render();
