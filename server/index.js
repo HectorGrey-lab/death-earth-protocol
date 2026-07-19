@@ -143,8 +143,11 @@ function removeClient(socket) {
 
 // ─── HTTP Server ─────────────────────────────────────────
 const server = http.createServer((req, res) => {
+  try {
   const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
   const pathname = parsedUrl.pathname;
+  // Log requests for debugging
+  console.log('[' + new Date().toISOString() + '] ' + req.method + ' ' + pathname);
 
   // ── REST API Routes ──
   if (pathname === '/api/register' && req.method === 'POST') {
@@ -175,6 +178,13 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify({ ok: false, error: 'Invalid request' }));
       }
     });
+    return;
+  }
+
+  // ── Health check ──
+  if (pathname === '/api/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, uptime: process.uptime(), players: Object.keys(db.users).length }));
     return;
   }
 
@@ -214,9 +224,8 @@ const server = http.createServer((req, res) => {
   } else if (pathname === '/game') {
     filePath = path.join(STATIC_DIR, 'game.html');
   } else {
-    filePath = pathname;
+    filePath = path.join(STATIC_DIR, pathname);
   }
-  filePath = path.join(STATIC_DIR, filePath);
   if (!filePath.startsWith(STATIC_DIR)) {
     res.writeHead(403);
     res.end('Forbidden');
@@ -233,6 +242,11 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': contentType });
     res.end(data);
   });
+  } catch (e) {
+    console.error('Request handler error:', e.message);
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: false, error: 'Internal server error' }));
+  }
 });
 
 // ─── WebSocket Upgrade Handler ──────────────────────────
@@ -321,6 +335,11 @@ server.on('upgrade', (req, socket, head) => {
 
   socket.on('close', () => { removeClient(socket); });
   socket.on('error', () => { removeClient(socket); });
+});
+
+// ─── Error handling ──────────────────────────────────
+server.on('error', (err) => {
+  console.error('Server error:', err.message);
 });
 
 // ─── Start ──────────────────────────────────────────────
