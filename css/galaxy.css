@@ -1,0 +1,340 @@
+/* ──────────────────────────────────────────
+   galaxy.css — Galaxy Map Styles
+   Phase 2 — Universe System
+   Only adds new styles, never modifies existing ones.
+   ────────────────────────────────────────── */
+
+/* ── Layout ── */
+.galaxy-map-layout {
+  display: grid;
+  grid-template-columns: 1.45fr 0.75fr;
+  gap: 14px;
+}
+
+.galaxy-camera-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+/* ── Viewport (the map surface) ── */
+.galaxy-viewport {
+  position: relative;
+  min-height: 700px;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background:
+    radial-gradient(circle at 20% 70%, rgba(88,214,255,0.04), transparent 30%),
+    radial-gradient(circle at 70% 20%, rgba(191,123,255,0.04), transparent 30%),
+    linear-gradient(180deg, rgba(5,12,18,0.98), rgba(10,20,30,1));
+  box-shadow:
+    inset 0 0 80px rgba(0,0,0,0.52),
+    inset 0 0 30px rgba(88,214,255,0.04),
+    var(--shadow);
+}
+
+.galaxy-stage {
+  position: absolute;
+  inset: 0;
+  min-width: 100%;
+  min-height: 700px;
+}
+
+.galaxy-surface {
+  position: absolute;
+  inset: 0;
+  cursor: default;
+}
+
+/* Scan sweep effect (shared concept from tactical map) */
+.galaxy-scan-sweep {
+  position: absolute;
+  inset: -25%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(88,214,255,0.03) 25deg,
+    rgba(88,214,255,0.08) 45deg,
+    transparent 70deg
+  );
+  animation: galSweep 14s linear infinite;
+  transform-origin: center;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  z-index: 1;
+}
+
+@keyframes galSweep {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ── Galaxy region highlight (when zoomed into a galaxy) ── */
+.galaxy-region {
+  position: absolute;
+  inset: 3%;
+  border-radius: 40px;
+  border: 1px dashed rgba(255,255,255,0.12);
+  background: radial-gradient(circle at 50% 50%, rgba(88,214,255,0.06), transparent 70%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── Galaxy/Sector/Planet nodes ── */
+.galaxy-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  cursor: pointer;
+  z-index: 6;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.galaxy-node:hover {
+  transform: translate(-50%, -50%) scale(1.08);
+  filter: brightness(1.1);
+}
+
+.galaxy-node.universe { width: 160px; }
+.galaxy-node.sector { width: 130px; }
+.galaxy-node.planet { width: 90px; }
+
+.galaxy-node .galaxy-name {
+  font-size: 12px;
+  color: var(--text);
+  text-shadow: 0 0 10px rgba(0,0,0,0.8);
+  line-height: 1.2;
+  margin-top: 4px;
+  pointer-events: none;
+}
+
+.galaxy-node .galaxy-meta {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 2px;
+  pointer-events: none;
+}
+
+/* ── Galaxy cluster core ── */
+.galaxy-core {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  margin: 0 auto 8px;
+  display: grid;
+  place-items: center;
+  border: 2px solid rgba(255,255,255,0.15);
+  position: relative;
+}
+
+.galaxy-core-inner {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: radial-gradient(circle at 40% 40%, rgba(255,255,255,0.25), transparent);
+}
+
+/* ── Sector core ── */
+.sector-core {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  margin: 0 auto 6px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: bold;
+  border: 2px solid rgba(255,255,255,0.2);
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.15), rgba(0,0,0,0.5));
+  box-shadow: 0 0 12px rgba(88,214,255,0.12);
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.sector-core.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 20px rgba(88,214,255,0.3);
+}
+
+.galaxy-node.sector:hover .sector-core {
+  border-color: var(--accent);
+  box-shadow: 0 0 18px rgba(88,214,255,0.2);
+}
+
+/* ── Planet core ── */
+.planet-core {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  margin: 0 auto 4px;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  border: 2px solid rgba(255,255,255,0.25);
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.galaxy-node.planet:hover .planet-core {
+  transform: scale(1.15);
+}
+
+.galaxy-node.planet.selected .planet-core {
+  box-shadow: 0 0 18px var(--accent), 0 0 35px rgba(88,214,255,0.25) !important;
+}
+
+.galaxy-node.planet.selected::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--accent);
+  opacity: 0.6;
+  animation: planetSelectedPulse 1.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes planetSelectedPulse {
+  0%, 100% { transform: translateX(-50%) scale(0.95); opacity: 0.4; }
+  50% { transform: translateX(-50%) scale(1.1); opacity: 0.8; }
+}
+
+/* ── Player base on planet ── */
+.galaxy-node.planet.player .planet-core {
+  border-color: var(--green);
+  box-shadow: 0 0 18px rgba(105,240,174,0.35) !important;
+}
+
+/* ── Undiscovered planet ── */
+.galaxy-node.planet.fogged {
+  opacity: 0.65;
+  filter: grayscale(0.3);
+}
+
+.galaxy-node.planet.fogged .galaxy-name,
+.galaxy-node.planet.fogged .galaxy-meta {
+  color: #aab5c3;
+}
+
+/* ── Selected galaxy (universe view) ── */
+.galaxy-node.universe.selected .galaxy-core {
+  border-color: var(--accent);
+  box-shadow: 0 0 40px rgba(88,214,255,0.25), 0 0 80px rgba(88,214,255,0.1);
+}
+
+.galaxy-node.universe.selected .galaxy-name {
+  color: var(--accent);
+}
+
+/* ── Backdrop grid (subtle scan lines) ── */
+.galaxy-viewport::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(88,214,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(88,214,255,0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Universe/Tactical mode toggle ── */
+.map-mode-toggle {
+  margin-bottom: 4px;
+}
+
+/* ── Fleet markers (Phase 3) ── */
+.fleet-marker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  pointer-events: none;
+  animation: fleetMarkerFloat 2s ease-in-out infinite;
+}
+
+@keyframes fleetMarkerFloat {
+  0%, 100% { transform: translate(-50%, -50%) translateY(0); }
+  50% { transform: translate(-50%, -50%) translateY(-4px); }
+}
+
+.fleet-marker-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent);
+  border: 2px solid rgba(255,255,255,0.3);
+}
+
+.fleet-marker-dot.scout {
+  background: var(--purple);
+  box-shadow: 0 0 12px rgba(191,123,255,0.6);
+}
+
+.fleet-marker-dot.colony {
+  background: var(--green);
+  box-shadow: 0 0 12px rgba(105,240,174,0.6);
+}
+
+.fleet-marker-dot.expedition {
+  background: var(--yellow);
+  box-shadow: 0 0 12px rgba(255,209,102,0.6);
+}
+
+.fleet-marker-label {
+  position: absolute;
+  top: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 14px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* ── Fleet trails ── */
+.fleet-trail {
+  position: absolute;
+  height: 2px;
+  transform-origin: left center;
+  z-index: 8;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.fleet-trail.scout {
+  background: linear-gradient(90deg, rgba(191,123,255,0), rgba(191,123,255,0.7));
+  box-shadow: 0 0 8px rgba(191,123,255,0.2);
+}
+
+.fleet-trail.colony {
+  background: linear-gradient(90deg, rgba(105,240,174,0), rgba(105,240,174,0.7));
+  box-shadow: 0 0 8px rgba(105,240,174,0.2);
+}
+
+/* ── Fleet queue item ── */
+.fleet-queue-item {
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.025);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 1180px) {
+  .galaxy-map-layout {
+    grid-template-columns: 1fr;
+  }
+  .galaxy-viewport {
+    min-height: 520px;
+  }
+  .galaxy-stage {
+    min-height: 520px;
+  }
+}

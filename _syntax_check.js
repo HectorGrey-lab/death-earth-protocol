@@ -1,0 +1,4 @@
+try{new Function(require('fs').readFileSync('C:/Users/byron/OneDrive/Desktop/death-earth-prototypeV1/js/app.js','utf8'));console.log('OK js/app.js')}catch(e){console.log('FAIL js/app.js: '+e.message)}
+try{new Function(require('fs').readFileSync('C:/Users/byron/OneDrive/Desktop/death-earth-prototypeV1/js/network.js','utf8'));console.log('OK js/network.js')}catch(e){console.log('FAIL js/network.js: '+e.message)}
+try{new Function(require('fs').readFileSync('C:/Users/byron/OneDrive/Desktop/death-earth-prototypeV1/js/ui/ui-chat.js','utf8'));console.log('OK js/ui/ui-chat.js')}catch(e){console.log('FAIL js/ui/ui-chat.js: '+e.message)}
+try{new Function(require('fs').readFileSync('C:/Users/byron/OneDrive/Desktop/death-earth-prototypeV1/js/ui/ui-map.js','utf8'));console.log('OK js/ui/ui-map.js')}catch(e){console.log('FAIL js/ui/ui-map.js: '+e.message)}
