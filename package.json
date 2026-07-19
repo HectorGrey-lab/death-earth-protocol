@@ -1,0 +1,11 @@
+{
+  "name": "death-earth-protocol",
+  "version": "1.0.0",
+  "description": "Dead Earth Protocol — Multiplayer Universe Strategy Game",
+  "scripts": {
+    "start": "node server/index.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
