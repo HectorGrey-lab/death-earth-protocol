@@ -1,0 +1,85 @@
+{
+  "resources": {
+    "ore": { "name": "Ore", "capBase": 1200, "color": "#c7d3dd" },
+    "solar": { "name": "Solar", "capBase": 1100, "color": "#ffd166" },
+    "crystal": { "name": "Crystal", "capBase": 900, "color": "#bf7bff" },
+    "isotopes": { "name": "Isotopes", "capBase": 700, "color": "#69f0ae" }
+  },
+  "buildings": {
+    "extractionGrid": {
+      "name": "Extraction Grid",
+      "baseCost": { "ore": 80, "solar": 80, "crystal": 60, "isotopes": 10 },
+      "timeBase": 28,
+      "stat": "economy"
+    },
+    "trainingFacility": {
+      "name": "Training Facility",
+      "baseCost": { "ore": 140, "solar": 70, "crystal": 30, "isotopes": 20 },
+      "timeBase": 35,
+      "stat": "training"
+    },
+    "communicationsHub": {
+      "name": "Communications Hub",
+      "baseCost": { "ore": 120, "solar": 90, "crystal": 40, "isotopes": 20 },
+      "timeBase": 30,
+      "stat": "signal"
+    },
+    "radarArray": {
+      "name": "Radar Array",
+      "baseCost": { "ore": 100, "solar": 100, "crystal": 50, "isotopes": 20 },
+      "timeBase": 30,
+      "stat": "recon"
+    },
+    "defenseBunker": {
+      "name": "Defense Bunker",
+      "baseCost": { "ore": 160, "solar": 60, "crystal": 20, "isotopes": 25 },
+      "timeBase": 40,
+      "stat": "defense"
+    },
+    "shieldGenerator": {
+      "name": "Shield Generator",
+      "baseCost": { "ore": 100, "solar": 140, "crystal": 60, "isotopes": 30 },
+      "timeBase": 42,
+      "stat": "shield"
+    },
+    "researchLab": {
+      "name": "Research Lab",
+      "baseCost": { "ore": 100, "solar": 80, "crystal": 100, "isotopes": 20 },
+      "timeBase": 45,
+      "stat": "research"
+    },
+    "marketNexus": {
+      "name": "Market Nexus",
+      "baseCost": { "ore": 110, "solar": 110, "crystal": 80, "isotopes": 25 },
+      "timeBase": 38,
+      "stat": "market"
+    },
+    "tradePodTerminal": {
+      "name": "Trade Pod Terminal",
+      "baseCost": { "ore": 90, "solar": 100, "crystal": 70, "isotopes": 25 },
+      "timeBase": 36,
+      "stat": "expedition"
+    }
+  },
+  "troops": {
+    "reconScout": { "name": "Recon Scout", "cost": { "ore": 30, "solar": 20, "crystal": 8, "isotopes": 2 }, "upkeep": 0.3, "power": 8, "defense": 4, "role": "Scout", "trainTime": 12, "traits": ["scout"] },
+    "rifleUnit": { "name": "Rifle Unit", "cost": { "ore": 40, "solar": 25, "crystal": 10, "isotopes": 3 }, "upkeep": 0.4, "power": 12, "defense": 8, "role": "Line", "trainTime": 15, "traits": [] },
+    "heavyTrooper": { "name": "Heavy Trooper", "cost": { "ore": 55, "solar": 30, "crystal": 14, "isotopes": 4 }, "upkeep": 0.6, "power": 18, "defense": 13, "role": "Assault", "trainTime": 20, "traits": [] },
+    "siegeMech": { "name": "Siege Mech", "cost": { "ore": 90, "solar": 45, "crystal": 24, "isotopes": 7 }, "upkeep": 1.1, "power": 28, "defense": 18, "role": "Siege", "trainTime": 35, "traits": ["siege"] },
+    "droneSwarm": { "name": "Drone Swarm", "cost": { "ore": 50, "solar": 45, "crystal": 16, "isotopes": 4 }, "upkeep": 0.5, "power": 14, "defense": 7, "role": "Harass", "trainTime": 18, "traits": ["swarm"] },
+    "sniperCell": { "name": "Sniper Cell", "cost": { "ore": 48, "solar": 30, "crystal": 18, "isotopes": 4 }, "upkeep": 0.5, "power": 17, "defense": 6, "role": "Precision", "trainTime": 19, "traits": ["precision"] },
+    "shieldGuard": { "name": "Shield Guard", "cost": { "ore": 60, "solar": 35, "crystal": 20, "isotopes": 5 }, "upkeep": 0.7, "power": 13, "defense": 19, "role": "Defense", "trainTime": 22, "traits": ["supportShield"] },
+    "plasmaTank": { "name": "Plasma Tank", "cost": { "ore": 120, "solar": 70, "crystal": 28, "isotopes": 9 }, "upkeep": 1.4, "power": 36, "defense": 25, "role": "Armor", "trainTime": 42, "traits": ["shieldBreak"] },
+    "empSpecialist": { "name": "EMP Specialist", "cost": { "ore": 68, "solar": 45, "crystal": 22, "isotopes": 6 }, "upkeep": 0.8, "power": 16, "defense": 10, "role": "Tech", "trainTime": 24, "traits": ["shieldBreak"] },
+    "prototypeUnit": { "name": "Prototype Unit", "cost": { "ore": 180, "solar": 110, "crystal": 50, "isotopes": 15 }, "upkeep": 2, "power": 55, "defense": 34, "role": "Prototype", "trainTime": 65, "traits": ["siege", "shieldBreak"] }
+  },
+  "research": {
+    "economy": { "name": "Economy Research", "desc": "Increases overall resource production.", "baseCost": { "ore": 120, "solar": 100, "crystal": 90, "isotopes": 20 }, "durationBase": 45 },
+    "military": { "name": "Military Research", "desc": "Increases troop combat power.", "baseCost": { "ore": 130, "solar": 90, "crystal": 100, "isotopes": 25 }, "durationBase": 50 },
+    "defense": { "name": "Defense Research", "desc": "Improves shield and defensive resilience.", "baseCost": { "ore": 110, "solar": 110, "crystal": 95, "isotopes": 20 }, "durationBase": 48 }
+  },
+  "universe": {
+    "planetsPerSector": 20,
+    "sectorsPerGalaxy": 10
+  }
+}

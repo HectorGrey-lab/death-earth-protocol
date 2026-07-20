@@ -18,6 +18,11 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const GameLoop = require('./game-loop');
+const Universe = require('./universe');
+const ResourceSystem = require('./systems/resources');
+const BuildingSystem = require('./systems/buildings');
+const TroopSystem = require('./systems/troops');
 
 // ─── Config ───────────────────────────────────────────────
 const PORT = parseInt(process.env.PORT || process.argv[2] || '3000', 10);
@@ -155,7 +160,7 @@ const server = http.createServer((req, res) => {
     req.on('data', chunk => body += chunk);
     req.on('end', () => {
       try {
-        const { username, password } = JSON.parse(body);
+        const { username, password, planetName } = JSON.parse(body);
         if (!username || !password || username.length < 2 || password.length < 3) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ ok: false, error: 'Invalid username or password (min 2/3 chars)' }));
@@ -166,13 +171,45 @@ const server = http.createServer((req, res) => {
           res.end(JSON.stringify({ ok: false, error: 'Username already taken' }));
           return;
         }
+        // Assign a planet from the expanding universe
+        const planetInfo = Universe.ensurePlanetAvailable(db.universe);
+        if (!planetInfo) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: 'Universe is full' }));
+          return;
+        }
+        Universe.claimPlanet(db.universe, planetInfo, username);
+        const pName = planetName || (username + "'s Planet");
+        // Create initial colony
+        const colony = {
+          planetName: pName,
+          homeGalaxy: planetInfo.galaxyId,
+          homeSector: planetInfo.sectorId,
+          homePlanet: planetInfo.planetId,
+          resources: {
+            ore: { amount: 0, cap: 1200 },
+            solar: { amount: 0, cap: 1100 },
+            crystal: { amount: 0, cap: 900 },
+            isotopes: { amount: 0, cap: 700 }
+          },
+          buildings: {},
+          troops: { counts: {}, queue: [] },
+          research: { levels: {}, queue: null },
+          lastTick: Date.now(),
+          shield: { current: 120, max: 120 }
+        };
+        // Initialize buildings
+        const gameData = require('./game-data.json');
+        Object.keys(gameData.buildings).forEach(key => {
+          colony.buildings[key] = { level: 0, upgrading: null, integrity: 100 };
+        });
         const salt = crypto.randomBytes(16).toString('hex');
         const hash = crypto.createHash('sha256').update(password + salt).digest('hex');
         const token = crypto.createHash('sha256').update(username + Date.now() + crypto.randomBytes(8).toString('hex')).digest('hex');
-        db.users[username] = { username, hash, salt, token, created: Date.now() };
+        db.users[username] = { username, hash, salt, token, colony, created: Date.now() };
         saveDB(db);
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: true, token, username }));
+        res.end(JSON.stringify({ ok: true, token, username, planetName: pName }));
       } catch (e) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: false, error: 'Invalid request' }));
@@ -208,6 +245,31 @@ const server = http.createServer((req, res) => {
         }
         const token = crypto.createHash('sha256').update(user.username + Date.now() + crypto.randomBytes(8).toString('hex')).digest('hex');
         db.users[user.username].token = token;
+        // Migrate: create colony for existing users without one
+        if (!db.users[user.username].colony) {
+          const planetInfo = Universe.ensurePlanetAvailable(db.universe);
+          if (planetInfo) {
+            Universe.claimPlanet(db.universe, planetInfo, user.username);
+            const pName = user.username + "'s Planet";
+            const colony = {
+              planetName: pName,
+              homeGalaxy: planetInfo.galaxyId,
+              homeSector: planetInfo.sectorId,
+              homePlanet: planetInfo.planetId,
+              resources: { ore: { amount: 0, cap: 1200 }, solar: { amount: 0, cap: 1100 }, crystal: { amount: 0, cap: 900 }, isotopes: { amount: 0, cap: 700 } },
+              buildings: {},
+              troops: { counts: {}, queue: [] },
+              research: { levels: {}, queue: null },
+              lastTick: Date.now(),
+              shield: { current: 120, max: 120 }
+            };
+            const gameData = require('./game-data.json');
+            Object.keys(gameData.buildings).forEach(key => {
+              colony.buildings[key] = { level: 0, upgrading: null, integrity: 100 };
+            });
+            db.users[user.username].colony = colony;
+          }
+        }
         saveDB(db);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true, token, username }));
@@ -306,9 +368,42 @@ server.on('upgrade', (req, socket, head) => {
               socket.end();
               return;
             }
+            // Migrate: ensure logged-in users have a colony
+            if (!user.colony) {
+              const planetInfo = Universe.ensurePlanetAvailable(db.universe);
+              if (planetInfo) {
+                Universe.claimPlanet(db.universe, planetInfo, user.username);
+                const colony = {
+                  planetName: user.username + "'s Planet",
+                  homeGalaxy: planetInfo.galaxyId,
+                  homeSector: planetInfo.sectorId,
+                  homePlanet: planetInfo.planetId,
+                  resources: { ore: { amount: 0, cap: 1200 }, solar: { amount: 0, cap: 1100 }, crystal: { amount: 0, cap: 900 }, isotopes: { amount: 0, cap: 700 } },
+                  buildings: {},
+                  troops: { counts: {}, queue: [] },
+                  research: { levels: {}, queue: null },
+                  lastTick: Date.now(),
+                  shield: { current: 120, max: 120 }
+                };
+                const gameData = require('./game-data.json');
+                Object.keys(gameData.buildings).forEach(key => {
+                  colony.buildings[key] = { level: 0, upgrading: null, integrity: 100 };
+                });
+                user.colony = colony;
+                saveDB(db);
+              }
+            }
             clientInfo.username = msg.username;
             clients.set(socket, clientInfo);
+            wsClients.set(socket, { username: msg.username, colony: user.colony || null });
             socket.write(wsEncodeFrame(JSON.stringify({ type: 'auth_ok', username: msg.username })));
+            if (user.colony) {
+              socket.write(wsEncodeFrame(JSON.stringify({
+                type: 'colony_state',
+                colony: user.colony,
+                universe: db.universe
+              })));
+            }
             broadcast({ type: 'system', message: msg.username + ' has joined the universe' });
             broadcastPresence();
             break;
@@ -351,8 +446,10 @@ server.listen(PORT, () => {
   console.log('  \x1b[90m' + '-'.repeat(48) + '\x1b[0m');
   console.log('  \x1b[33mServer:\x1b[0m   ' + addr);
   console.log('  \x1b[33mPlayers:\x1b[0m  ' + Object.keys(db.users).length + ' registered users');
-  console.log('  \x1b[33mShare:\x1b[0m    Use ngrok or deploy to Railway/Render');
+  console.log('  \x1b[33mUniverse:\x1b[0m ' + Universe.getClaimedCount(db.universe) + ' planets claimed');
   console.log('');
   console.log('  Give this URL to friends so they can join!');
   console.log('');
+  // Start world game loop
+  GameLoop.startLoop(db, { broadcast: broadcastAll });
 });

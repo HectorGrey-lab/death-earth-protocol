@@ -82,6 +82,18 @@ window.Network = (function () {
           case 'system':
             trigger('system', msg);
             break;
+          case 'colony_state':
+            trigger('colony_state', msg);
+            break;
+          case 'build_result':
+            trigger('build_result', msg);
+            break;
+          case 'train_result':
+            trigger('train_result', msg);
+            break;
+          case 'world_tick':
+            trigger('world_tick', msg);
+            break;
           case 'pong':
             break;
         }
@@ -210,6 +222,30 @@ window.Network = (function () {
     connected = false;
   }
 
+  // ── Game Actions ──────────────────────────────────
+  function getColony() {
+    return send({ type: 'get_colony' });
+  }
+
+  function build(buildingKey) {
+    return send({ type: 'build', buildingKey: buildingKey });
+  }
+
+  function train(troopKey, qty) {
+    return send({ type: 'train', troopKey: troopKey, qty: qty || 1 });
+  }
+
+  // State callback — called when full colony state is received
+  let onColonyState = null;
+  function setColonyStateCallback(cb) { onColonyState = cb; }
+
+  // Parse incoming messages for game state
+  var _origOnMessage = null;
+  function _setupGameHandlers() {
+    if (_origOnMessage) return; // already set up
+    // We'll use the listeners pattern from app.js instead
+  }
+
   // Auto-connect on load if credentials exist
   function init() {
     var savedToken = null;
@@ -234,6 +270,10 @@ window.Network = (function () {
     on: on,
     disconnect: disconnect,
     init: init,
+    getColony: getColony,
+    build: build,
+    train: train,
+    setColonyStateCallback: setColonyStateCallback,
     get isConnected() { return connected; },
     get username() { return username; },
   };

@@ -10,17 +10,13 @@ window.App = (function () {
     EventSystem.tick(state, dt);
     CombatSystem.tick(state, dt);
     MapSystem.tickScanPulses(state, dt);
-    TravelSystem.tick(state, dt);
+
     state.tickCount += 1;
   }
 
-  function save(state) {
-    state.lastAutosave = Date.now();
-    GameState.save(state);
-  }
+
 
   function render() {
-    CommanderSystem.applyTheme(window.gameState);
     UICore.renderAll(window.gameState);
   }
 

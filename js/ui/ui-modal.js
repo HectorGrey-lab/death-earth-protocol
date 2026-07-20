@@ -46,8 +46,8 @@ window.UIModal = (function () {
           <div class="small">Upgrade time: ${Utils.formatTime(BuildingSystem.getUpgradeTime(buildingKey, b.level))}</div>
           <div class="small">Status: ${b.upgrading ? `Upgrading • ${Utils.formatTime(b.upgrading.remaining)}` : "Operational"}</div>
           <div class="row" style="margin-top:10px;">
-            <button class="btn" ${b.upgrading ? "disabled" : ""} onclick="BuildingSystem.startUpgrade(window.gameState, '${buildingKey}'); UIModal.close(); window.App.render();">Upgrade</button>
-            <button class="btn warn" onclick="BuildingSystem.repairBuilding(window.gameState, '${buildingKey}'); UIModal.close(); window.App.render();">Repair</button>
+            <button class="btn" ${b.upgrading ? "disabled" : ""} onclick="Network.build('${buildingKey}'); UIModal.close();">Upgrade</button>
+            <button class="btn warn" onclick="UIModal.close();">Repair</button>
           </div>
         </div>
         ${special}

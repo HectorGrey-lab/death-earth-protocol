@@ -266,7 +266,8 @@
         showError('Cannot reach server. Is it running?');
         authStatusText.textContent = 'Connection failed';
       };
-      xhr.send(JSON.stringify({ username: u, password: p }));
+      var pName = document.getElementById('planetName') ? document.getElementById('planetName').value.trim() : '';
+      xhr.send(JSON.stringify({ username: u, password: p, planetName: pName }));
     };
 
     // Allow Enter key to submit
