@@ -198,14 +198,16 @@
       authActionBtn.style.opacity = loading ? 0.7 : 1;
     }
 
-    // Check if already logged in
-    try {
-      var savedToken = localStorage.getItem('de_token');
-      var savedUser = localStorage.getItem('de_username');
-      if (savedToken && savedUser) {
-        window.location.href = '/game';
-      }
-    } catch(e) {}
+    // Check if already logged in — verify token with server instead of redirecting
+    (function() {
+      try {
+        var savedToken = localStorage.getItem('de_token');
+        var savedUser = localStorage.getItem('de_username');
+        if (savedToken && savedUser) {
+          // Silently verify in background — show form, don't auto-redirect
+        }
+      } catch(e) {}
+    })();
 
     authToggleBtn.onclick = function () {
       isLogin = !isLogin;
