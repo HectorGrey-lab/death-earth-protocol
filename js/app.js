@@ -1,27 +1,10 @@
 window.App = (function () {
-  let tickHandle = null;
-
-  function processTick(state, dt) {
-    ResourceSystem.tick(state, dt);
-    BuildingSystem.tick(state, dt);
-    TroopSystem.tick(state, dt);
-    ResearchSystem.tick(state, dt);
-    ExpeditionSystem.tick(state, dt);
-    EventSystem.tick(state, dt);
-    CombatSystem.tick(state, dt);
-    MapSystem.tickScanPulses(state, dt);
-
-    state.tickCount += 1;
-  }
-
-
-
   function render() {
     UICore.renderAll(window.gameState);
   }
 
   function bindNav() {
-    document.querySelectorAll(".nav-btn").forEach(btn => {
+    document.querySelectorAll(".nav-btn").forEach(function (btn) {
       btn.onclick = function () {
         window.gameState.ui.currentPage = btn.dataset.page;
         render();
@@ -30,108 +13,107 @@ window.App = (function () {
   }
 
   function bindGlobalUI() {
-    Utils.el("saveBtn").onclick = function () {
-      save(window.gameState);
-      MailboxSystem.addSystemMail(window.gameState, "Manual save completed.");
-      render();
-    };
-
-    Utils.el("resetSaveBtn").onclick = function () {
-      if (!confirm("Reset Dead Earth Protocol save data?")) return;
-      window.gameState = GameState.reset();
-      CommanderSystem.applyTheme(window.gameState);
-      save(window.gameState);
-      render();
-    };
-
     bindNav();
     UIModal.bind();
   }
 
-  function gameLoop() {
-    const now = Date.now();
-    const elapsed = Math.max(1, Math.floor((now - window.gameState.lastTick) / 1000));
-    window.gameState.lastTick = now;
-
-    for (let i = 0; i < elapsed; i++) {
-      processTick(window.gameState, 1);
-    }
-
-    if (now - window.gameState.lastAutosave > 10000) {
-      save(window.gameState);
-    }
-
-    render();
-  }
-
-      function setupNetwork() {
-    // Connect with saved credentials
+  function setupNetwork() {
     Network.init();
-    
+
     setTimeout(function () {
       if (Network.isConnected) {
-        // Render chat UI
-        var container = document.getElementById('chatContainer');
+        var container = document.getElementById("chatContainer");
         if (container) {
           container.innerHTML = UIChat.render();
           UIChat.bind();
         }
-        // Wire up network events
-        Network.on('chat', function (msg) {
-          UIChat.addMessage(msg);
-        });
-        Network.on('presence', function (players) {
+        Network.on("chat", function (msg) { UIChat.addMessage(msg); });
+        Network.on("presence", function (players) {
           UIChat.setOnlineCount(players.length);
           window._onlinePlayers = players;
         });
-        Network.on('system', function (msg) {
-          UIChat.addMessage(msg);
-        });
-        // Send initial position update
-        if (window.gameState && window.gameState.universe) {
-          Network.updatePosition(
-            window.gameState.universe.activeGalaxyId,
-            window.gameState.universe.activeSectorId,
-            window.gameState.universe.activePlanetId
-          );
-        }
+        Network.on("system", function (msg) { UIChat.addMessage(msg); });
       }
     }, 2000);
 
-    // Reconnect handler - if auth fails, redirect to login
-    Network.on('auth_error', function () {
-      try { localStorage.removeItem('de_token'); localStorage.removeItem('de_username'); } catch(e) {}
-      window.location.href = '/login';
+    Network.on("auth_error", function () {
+      try { localStorage.removeItem("de_token"); localStorage.removeItem("de_username"); } catch(e) {}
+      window.location.href = "/login";
     });
-    Network.on('disconnect', function () {
-      // Will auto-reconnect
+
+    // Receive colony state from server
+    Network.on("colony_state", function (msg) {
+      if (msg.colony) {
+        var c = msg.colony;
+        window.gameState.resources = c.resources;
+        window.gameState.buildings = c.buildings;
+        window.gameState.troops = c.troops;
+        window.gameState.research = c.research || { levels: {}, queue: null };
+        window.gameState.commander.planetName = c.planetName;
+        if (msg.universe && msg.universe.galaxies) {
+          window.gameState.universe.galaxies = msg.universe.galaxies;
+        }
+        render();
+      }
+    });
+
+    // Build result
+    Network.on("build_result", function (msg) {
+      if (msg.colony) {
+        window.gameState.resources = msg.colony.resources;
+        window.gameState.buildings = msg.colony.buildings;
+        render();
+      }
+    });
+
+    // Train result
+    Network.on("train_result", function (msg) {
+      if (msg.colony) {
+        window.gameState.resources = msg.colony.resources;
+        window.gameState.troops = msg.colony.troops;
+        render();
+      }
     });
   }
 
   function init() {
-    window.gameState = GameState.load();
-    window.gameState = GameState.normalizeState(window.gameState);
-    // Override commander name with the logged-in user
     var loggedUser = null;
-    try { loggedUser = localStorage.getItem('de_username'); } catch(e) {}
-    if (loggedUser) {
-      window.gameState.commander.name = 'Commander ' + loggedUser;
+    try { loggedUser = localStorage.getItem("de_username"); } catch(e) {}
+
+    window.gameState = {
+      ui: { currentPage: "home" },
+      resources: { ore: { amount: 0, cap: 1200 }, solar: { amount: 0, cap: 1100 }, crystal: { amount: 0, cap: 900 }, isotopes: { amount: 0, cap: 700 } },
+      buildings: {},
+      troops: { counts: {}, queue: [] },
+      research: { levels: {}, queue: null },
+      commander: { name: loggedUser ? "Commander " + loggedUser : "Commander Unknown", factionTitle: "Awaiting Server...", emblem: "\u25B3", theme: "cyan" },
+      universe: { galaxies: [], zoomLevel: "universe", activeGalaxyId: null, activeSectorId: null, activePlanetId: null, showUniverseView: false, fleets: [], discoveredPlanets: {}, hasWarpGate: false },
+      events: { active: null },
+      combat: { scoutsCompleted: 0, attackWins: 0, defenseWins: 0, incomingAttacks: [], lastScouted: 0 },
+      expeditions: { active: null, completed: [] },
+      inventory: { artifacts: [] },
+      mailbox: { mail: [] },
+      map: { nodes: [], scanProgress: 0 },
+      statusFlags: {},
+      lastTick: Date.now(),
+      tickCount: 0
+    };
+
+    // Initialize empty building entries so UI has something to render
+    if (window.GameData && window.GameData.buildings) {
+      Object.keys(window.GameData.buildings).forEach(function (key) {
+        if (!window.gameState.buildings[key]) {
+          window.gameState.buildings[key] = { level: 0, upgrading: null, integrity: 100 };
+        }
+      });
     }
-    CommanderSystem.applyTheme(window.gameState);
+
     bindGlobalUI();
     render();
-    
-    // Setup multiplayer auth
     setupNetwork();
-
-    if (tickHandle) clearInterval(tickHandle);
-    tickHandle = setInterval(gameLoop, 1000);
   }
 
-  return {
-    init,
-    render
-  };
+  return { init: init, render: render };
 })();
 
 window.addEventListener("DOMContentLoaded", function () {
