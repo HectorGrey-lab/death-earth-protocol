@@ -17,7 +17,9 @@ const GameLoop = require('./game-loop.js');
 
 // ─── Config ───────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
-const DATA_DIR = path.join(__dirname, 'data');
+// Use RAILWAY_VOLUME_MOUNT_PATH if set (Railway persistent volume),
+// otherwise DATA_DIR env var, else default to server/data/ for local dev
+const DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || process.env.DATA_DIR || path.join(__dirname, 'data');
 const DB_PATH = path.join(DATA_DIR, 'db.json');
 const CHAT_PATH = path.join(DATA_DIR, 'chat.json');
 
