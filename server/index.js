@@ -338,11 +338,13 @@ const server = http.createServer(function(req, res) {
 
   fs.readFile(fullPath, function(err, data) {
     if (err) {
-      const fallback = path.join(__dirname, '..', 'login.html');
-      fs.readFile(fallback, function(err2, data2) {
+      // Try appending .html for extensionless paths (e.g. /game -> game.html)
+      const htmlPath = path.join(__dirname, '..', filePath + '.html');
+      fs.readFile(htmlPath, function(err2, data2) {
         if (err2) {
-          res.writeHead(404);
-          res.end('Not Found');
+          // Real 404
+          res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' });
+          res.end('<h1>Not Found</h1><p>The page you requested does not exist.</p>');
           return;
         }
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
