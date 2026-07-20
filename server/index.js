@@ -203,12 +203,13 @@ const server = http.createServer(function(req, res) {
         const pName = planetName || (username + "'s Planet");
 
         // Assign next free planet
-        const planetInfo = DB.ensurePlanetAvailable(db, username, pName);
+        const planetInfo = Universe.ensurePlanetAvailable(db.universe);
         if (!planetInfo) {
           res.writeHead(507, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ ok: false, error: 'No free planets available' }));
           return;
         }
+        Universe.claimPlanet(db.universe, planetInfo, username);
 
         const colony = {
           planetName: pName,
@@ -261,8 +262,9 @@ const server = http.createServer(function(req, res) {
         // Migrate old users without colony
         if (!user.colony) {
           const pName = username + "'s Planet";
-          const planetInfo = DB.ensurePlanetAvailable(db, username, pName);
+          const planetInfo = Universe.ensurePlanetAvailable(db.universe);
           if (planetInfo) {
+            Universe.claimPlanet(db.universe, planetInfo, username);
             user.colony = {
               planetName: pName,
               homeGalaxy: planetInfo.galaxyId,
