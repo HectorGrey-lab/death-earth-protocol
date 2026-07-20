@@ -53,7 +53,7 @@ function loadDB() {
       return JSON.parse(data);
     }
   } catch (e) { /* corrupted db, reset */ }
-  return { users: {}, planets: {} };
+  return { users: {}, universe: { galaxies: [], nextId: 1, claimedPlanets: {} } };
 }
 
 function saveDB(db) {
@@ -67,6 +67,20 @@ const db = loadDB();
   const dir = path.dirname(DB_PATH);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 })();
+
+// ─── WebSocket broadcast helpers ──────────────────────────
+const wsClients = new Map(); // socket -> { username }
+
+function broadcastAll(msg) {
+  const data = JSON.stringify(msg);
+  wsClients.forEach((info, socket) => {
+    try { socket.write(wsEncodeFrame(data)); } catch(e) {}
+  });
+}
+
+function broadcastToUser(socket, msg) {
+  try { socket.write(wsEncodeFrame(JSON.stringify(msg))); } catch(e) {}
+}
 
 // ─── WebSocket RFC 6455 Implementation ───────────────────
 const WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
