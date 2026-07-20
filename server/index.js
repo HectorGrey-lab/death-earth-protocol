@@ -229,8 +229,9 @@ const server = http.createServer(function(req, res) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true, token: token, username: username, planetName: pName }));
       } catch (e) {
+        log(ip, 'REGISTER ERROR: ' + e.message + ' body=' + body.substring(0, 200));
         res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: false, error: 'Invalid request' }));
+        res.end(JSON.stringify({ ok: false, error: 'Invalid request body: ' + e.message }));
       }
     });
     return;
@@ -282,8 +283,9 @@ const server = http.createServer(function(req, res) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true, token: token, username: username }));
       } catch (e) {
+        log(ip, 'LOGIN ERROR: ' + e.message + ' body=' + body.substring(0, 200));
         res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: false, error: 'Invalid request' }));
+        res.end(JSON.stringify({ ok: false, error: 'Invalid request: ' + e.message }));
       }
     });
     return;

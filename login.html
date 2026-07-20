@@ -140,7 +140,7 @@
 
     <div id="authError" class="auth-error"></div>
 
-    <form id="authForm" onsubmit="return false;">
+    <form id="authForm">
       <label>Username</label>
       <input type="text" id="authUsername" placeholder="Choose a username..." required minlength="2" autocomplete="username">
       
@@ -152,7 +152,7 @@
         <input type="text" id="planetName" placeholder="Name your home planet..." />
       </div>
       
-      <button id="authActionBtn" class="auth-btn" type="submit">Enter the Universe</button>
+      <button id="authActionBtn" class="auth-btn" type="button">Enter the Universe</button>
       <button id="authToggleBtn" class="auth-btn secondary" type="button">Create New Account</button>
     </form>
 
@@ -217,6 +217,7 @@
         authToggleLink.textContent = 'Create an account';
         authPassword.placeholder = 'Your password...';
         authUsername.placeholder = 'Your username...';
+        document.getElementById('planetNameGroup').style.display = 'none';
       } else {
         authActionBtn.textContent = 'Create Account';
         authToggleBtn.textContent = 'Back to Login';
@@ -224,6 +225,7 @@
         authToggleLink.textContent = 'Log in';
         authPassword.placeholder = 'Choose a password...';
         authUsername.placeholder = 'Choose a username...';
+        document.getElementById('planetNameGroup').style.display = 'block';
       }
     };
 
