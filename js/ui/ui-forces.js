@@ -15,8 +15,8 @@ window.UIForces = (function () {
           <div class="small">Train Time ${Utils.formatTime(t.trainTime)}</div>
           <div class="small">Cost: ${Utils.costToHtml(t.cost)}</div>
           <div class="row" style="margin-top:8px;">
-            <button class="btn small" onclick="TroopSystem.queueTrain(window.gameState, '${key}', 1); window.App.render();">Train 1</button>
-            <button class="btn small" onclick="TroopSystem.queueTrain(window.gameState, '${key}', 5); window.App.render();">Train 5</button>
+            <button class="btn small" onclick="Network.train('${key}', 1);">Train 1</button>
+            <button class="btn small" onclick="Network.train('${key}', 5);">Train 5</button>
           </div>
         </div>
       `;
