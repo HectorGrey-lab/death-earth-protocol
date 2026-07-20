@@ -1091,21 +1091,21 @@ window.UIMap = (function () {
 
     document.querySelectorAll("[data-scout]").forEach(el => {
       el.onclick = function () {
-        CombatSystem.scout(state, el.dataset.scout);
+        Network.send({ type: 'scout', nodeId: el.dataset.scout });
         window.App.render();
       };
     });
 
     document.querySelectorAll("[data-raid]").forEach(el => {
       el.onclick = function () {
-        CombatSystem.raid(state, el.dataset.raid);
+        Network.send({ type: 'raid', nodeId: el.dataset.raid });
         window.App.render();
       };
     });
 
     document.querySelectorAll("[data-expedition]").forEach(el => {
       el.onclick = function () {
-        ExpeditionSystem.launch(state, el.dataset.expedition);
+        Network.send({ type: 'expedition', nodeId: el.dataset.expedition });
         window.App.render();
       };
     });

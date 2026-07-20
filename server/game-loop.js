@@ -6,6 +6,9 @@
 const ResourceSystem = require('./systems/resources');
 const BuildingSystem = require('./systems/buildings');
 const TroopSystem = require('./systems/troops');
+const ResearchSystem = require('./systems/research');
+const CombatSystem = require('./systems/combat');
+const ExpeditionSystem = require('./systems/expeditions');
 
 const TICK_INTERVAL = 2; // seconds
 const SAVE_INTERVAL = 10; // auto-save every 10 ticks
@@ -13,7 +16,7 @@ const SAVE_INTERVAL = 10; // auto-save every 10 ticks
 let tickCount = 0;
 let intervalHandle = null;
 
-function tickAllPlayers(db, wsServer) {
+function tickAllPlayers(db, wsServer, saveCallback) {
   tickCount++;
   const now = Date.now();
   const usernameSet = new Set();
@@ -28,7 +31,7 @@ function tickAllPlayers(db, wsServer) {
     if (elapsed < 1) return;
     user.colony.lastTick = now;
 
-    // Tick resource production first
+    // Tick resource production
     ResourceSystem.tick(user.colony, elapsed);
 
     // Tick building construction
@@ -36,12 +39,20 @@ function tickAllPlayers(db, wsServer) {
 
     // Tick troop training
     TroopSystem.tick(user.colony, elapsed);
+
+    // Tick research
+    ResearchSystem.tick(user.colony, elapsed);
+
+    // Tick combat (incoming attacks)
+    CombatSystem.tick(user.colony, elapsed);
+
+    // Tick expeditions
+    ExpeditionSystem.tick(user.colony, elapsed);
   });
 
   // Auto-save periodically
-  if (tickCount % SAVE_INTERVAL === 0) {
-    const Database = require('./db');
-    Database.saveDB();
+  if (tickCount % SAVE_INTERVAL === 0 && saveCallback) {
+    saveCallback();
   }
 
   // Send state updates to connected clients
@@ -50,11 +61,11 @@ function tickAllPlayers(db, wsServer) {
   }
 }
 
-function startLoop(db, wsServer) {
+function startLoop(db, wsServer, saveCallback) {
   if (intervalHandle) return;
   console.log('  [Tick] World loop started (every ' + TICK_INTERVAL + 's)');
   intervalHandle = setInterval(() => {
-    tickAllPlayers(db, wsServer);
+    tickAllPlayers(db, wsServer, saveCallback);
   }, TICK_INTERVAL * 1000);
 }
 

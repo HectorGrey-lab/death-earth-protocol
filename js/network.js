@@ -190,16 +190,16 @@ window.Network = (function () {
     xhr.send(JSON.stringify({ username: username_, password: password_ }));
   }
 
-  function sendChat(message) {
-    return send({ type: 'chat', message: message });
+  function sendChat(text) {
+    return send({ type: 'chat', text: text });
   }
 
-  function updatePosition(galaxyId, sectorId, planetId) {
+  function updatePosition(galaxy, sector, planet) {
     return send({
       type: 'position',
-      galaxyId: galaxyId,
-      sectorId: sectorId,
-      planetId: planetId
+      galaxy: galaxy,
+      sector: sector,
+      planet: planet
     });
   }
 
@@ -227,12 +227,12 @@ window.Network = (function () {
     return send({ type: 'get_colony' });
   }
 
-  function build(buildingKey) {
-    return send({ type: 'build', buildingKey: buildingKey });
+  function build(buildingId) {
+    return send({ type: 'build', buildingId: buildingId });
   }
 
-  function train(troopKey, qty) {
-    return send({ type: 'train', troopKey: troopKey, qty: qty || 1 });
+  function train(troopId, qty) {
+    return send({ type: 'train', troopId: troopId, qty: qty || 1 });
   }
 
   // State callback — called when full colony state is received

@@ -14,7 +14,7 @@ window.UIResearch = (function () {
         <div class="small">${def.desc}</div>
         <div class="small">Cost: ${Utils.costToHtml(cost)}</div>
         <div class="small">Duration: ${Utils.formatTime(dur)}</div>
-        <button class="btn small" ${state.research.active ? "disabled" : ""} onclick="ResearchSystem.startResearch(window.gameState, '${key}'); window.App.render();">Start Research</button>
+        <button class="btn small" ${state.research.active ? "disabled" : ""} onclick="Network.send({type:'research', category:'${key}'}); window.App.render();">Start Research</button>
       </div>
     `;
   }

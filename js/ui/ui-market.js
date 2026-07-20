@@ -30,7 +30,7 @@ window.UIMarket = (function () {
           </div>
           <div class="small">${art.type}</div>
           <div class="small">Price: ${Utils.costToHtml(l.price)}</div>
-          <button class="btn small" onclick="MarketSystem.buyArtifact(window.gameState, '${l.id}'); window.App.render();">Buy</button>
+          <button class="btn small" onclick="Network.send({type:'buy_artifact', listingId:'${l.id}'}); window.App.render();">Buy</button>
         </div>
       `;
     }).join("");
@@ -85,12 +85,12 @@ window.UIMarket = (function () {
     const btn = Utils.el("marketExchangeBtn");
     if (btn) {
       btn.onclick = function () {
-        MarketSystem.exchange(
-          state,
-          Utils.el("marketFrom").value,
-          Utils.el("marketTo").value,
-          parseInt(Utils.el("marketAmount").value, 10)
-        );
+        Network.send({
+          type: 'exchange',
+          from: Utils.el("marketFrom").value,
+          to: Utils.el("marketTo").value,
+          amount: parseInt(Utils.el("marketAmount").value, 10)
+        });
         window.App.render();
       };
     }

@@ -51,6 +51,39 @@ window.App = (function () {
         window.gameState.research = c.research || { levels: {}, active: null, completedTotal: 0 };
         window.gameState.commander.planetName = c.planetName;
 
+        // Store missions state if sent by server
+        if (c.missions) {
+          window.gameState.missions = c.missions;
+        }
+        // Store inventory if sent by server
+        if (c.inventory) {
+          window.gameState.inventory = c.inventory;
+        }
+        // Store combat stats if sent by server
+        if (c.combat) {
+          window.gameState.combat = c.combat;
+        }
+        // Store mailbox messages if sent by server
+        if (c.mailbox) {
+          window.gameState.mailbox = c.mailbox;
+        }
+        // Store alliance if sent by server
+        if (c.alliance) {
+          window.gameState.alliance = c.alliance;
+        }
+        // Store events if sent by server
+        if (c.events) {
+          window.gameState.events = c.events;
+        }
+        // Store market if sent by server
+        if (c.market) {
+          window.gameState.market = c.market;
+        }
+        // Store expeditions if sent by server
+        if (c.expeditions) {
+          window.gameState.expeditions = c.expeditions;
+        }
+
         // Store production rates from server
         window.gameState._productionRates = c.productionRates || null;
 
@@ -89,6 +122,95 @@ window.App = (function () {
       if (msg.colony) {
         window.gameState.resources = msg.colony.resources;
         window.gameState.troops = msg.colony.troops;
+        window.gameState._productionRates = msg.colony.productionRates || null;
+        render();
+      }
+    });
+
+    // World tick — re-render to show resource updates from server
+    Network.on("world_tick", function () {
+      // Periodically request fresh colony state (every 10 ticks = ~10s)
+      if (!window._tickCounter) window._tickCounter = 0;
+      window._tickCounter++;
+      if (window._tickCounter % 5 === 0) {
+        Network.getColony();
+      }
+      render();
+    });
+
+    // Disconnect handler
+    Network.on("disconnect", function () {
+      var statusEl = document.getElementById("connectionStatus");
+      if (!statusEl) {
+        var div = document.createElement("div");
+        div.id = "connectionStatus";
+        div.style.cssText = "position:fixed;bottom:10px;right:10px;background:#ff4444;color:#fff;padding:6px 14px;border-radius:6px;font-size:13px;z-index:9999;";
+        div.textContent = "⚠ Disconnected from server";
+        document.body.appendChild(div);
+      }
+    });
+
+    // Research result
+    Network.on("research_result", function (msg) {
+      if (msg.colony) {
+        window.gameState.research = msg.colony.research || window.gameState.research;
+        window.gameState.resources = msg.colony.resources;
+        window.gameState._productionRates = msg.colony.productionRates || null;
+        render();
+      }
+    });
+
+    // Scout result
+    Network.on("scout_result", function (msg) {
+      if (msg.colony) {
+        window.gameState.combat = msg.colony.combat || window.gameState.combat;
+        window.gameState.resources = msg.colony.resources;
+        window.gameState._productionRates = msg.colony.productionRates || null;
+        // Add scout report to mailbox
+        if (msg.intel) {
+          MailboxSystem.addMessage(window.gameState, "Attack", "Scout Report", "Intel received: Power " + msg.intel.power + ", Shield " + msg.intel.shield + ", Bunker " + msg.intel.bunker);
+        }
+        render();
+      }
+    });
+
+    // Raid result
+    Network.on("raid_result", function (msg) {
+      if (msg.colony) {
+        window.gameState.combat = msg.colony.combat || window.gameState.combat;
+        window.gameState.resources = msg.colony.resources;
+        window.gameState._productionRates = msg.colony.productionRates || null;
+        render();
+      }
+    });
+
+    // Expedition result
+    Network.on("expedition_result", function (msg) {
+      if (msg.colony) {
+        window.gameState.expeditions = msg.colony.expeditions || window.gameState.expeditions;
+        window.gameState.resources = msg.colony.resources;
+        window.gameState.inventory = msg.colony.inventory || window.gameState.inventory;
+        window.gameState._productionRates = msg.colony.productionRates || null;
+        render();
+      }
+    });
+
+    // Exchange result
+    Network.on("exchange_result", function (msg) {
+      if (msg.colony) {
+        window.gameState.resources = msg.colony.resources;
+        window.gameState.market = msg.colony.market || window.gameState.market;
+        window.gameState._productionRates = msg.colony.productionRates || null;
+        render();
+      }
+    });
+
+    // Buy artifact result
+    Network.on("buy_artifact_result", function (msg) {
+      if (msg.colony) {
+        window.gameState.resources = msg.colony.resources;
+        window.gameState.inventory = msg.colony.inventory || window.gameState.inventory;
+        window.gameState.market = msg.colony.market || window.gameState.market;
         window.gameState._productionRates = msg.colony.productionRates || null;
         render();
       }
