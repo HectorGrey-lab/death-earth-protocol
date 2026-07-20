@@ -93,7 +93,7 @@ window.App = (function () {
       combat: { scoutsCompleted: 0, attackWins: 0, defenseWins: 0, incomingAttacks: [], lastScouted: 0 },
       expeditions: { active: null, completed: [], queue: [] },
       inventory: { artifacts: [] },
-      mailbox: { mail: [] },
+      mailbox: { messages: [] },
       map: { nodes: [], scanProgress: 0 },
       player: { alliance: { joinedId: null } },
       log: [],
