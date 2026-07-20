@@ -86,6 +86,7 @@ window.App = (function () {
       buildings: {},
       troops: { counts: {}, queue: [] },
       research: { levels: {}, queue: null },
+      commanderStats: { rankPoints: 0 },
       commander: { name: loggedUser ? "Commander " + loggedUser : "Commander Unknown", factionTitle: "Awaiting Server...", emblem: "\u25B3", theme: "cyan" },
       universe: { galaxies: [], zoomLevel: "universe", activeGalaxyId: null, activeSectorId: null, activePlanetId: null, showUniverseView: false, fleets: [], discoveredPlanets: {}, hasWarpGate: false },
       events: { active: null },
@@ -94,6 +95,7 @@ window.App = (function () {
       inventory: { artifacts: [] },
       mailbox: { mail: [] },
       map: { nodes: [], scanProgress: 0 },
+      player: { alliance: { joinedId: null } },
       statusFlags: {},
       lastTick: Date.now(),
       tickCount: 0

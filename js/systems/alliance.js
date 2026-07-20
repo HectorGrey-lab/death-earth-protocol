@@ -1,5 +1,6 @@
 window.AllianceSystem = (function () {
   function getJoinedAlliance(state) {
+    if (!state.alliance || !state.alliance.joinedId) return null;
     return GameData.alliances.find(a => a.id === state.alliance.joinedId) || null;
   }
 

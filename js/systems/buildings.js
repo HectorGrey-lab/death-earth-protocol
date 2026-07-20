@@ -56,7 +56,7 @@ window.BuildingSystem = (function () {
   function getBasePower(state) {
     const buildingPower = Object.values(state.buildings).reduce((sum, b) => sum + b.level * 18, 0);
     const troopPower = TroopSystem.getTotalPower(state);
-    const researchPower = state.research.completedTotal * 20;
+    const researchPower = (state.research && state.research.completedTotal || 0) * 20;
     return buildingPower + troopPower + researchPower;
   }
 
