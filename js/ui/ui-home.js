@@ -58,6 +58,8 @@ window.UIHome = (function () {
             <div class="small">Commander</div>
             <h3>${state.commander.emblem} ${state.commander.name}</h3>
           </div>
+          <div class="small">Planet: ${state.commander.planetName || "Unknown"}</div>
+          </div>
           <span class="badge">${CommanderSystem.getRank(state)}</span>
         </div>
         <div class="small">Faction: ${state.commander.factionTitle}</div>

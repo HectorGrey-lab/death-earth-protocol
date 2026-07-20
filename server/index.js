@@ -1,51 +1,27 @@
-/**
- * Dead Earth Protocol — Multiplayer Server
- * Zero external dependencies. Uses only Node.js built-in modules.
- * 
- * Features:
- *   - HTTP static file server
- *   - WebSocket (RFC 6455) for real-time communication
- *   - Player authentication (register/login via REST)
- *   - Presence tracking (who's online, where in the universe)
- *   - Global chat
- * 
- * Usage: node server/index.js [port]
- *   Default port: 3000
- *   Open http://localhost:3000 in browser
- */
-
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const GameLoop = require('./game-loop');
-const Universe = require('./universe');
-const ResourceSystem = require('./systems/resources');
-const BuildingSystem = require('./systems/buildings');
-const TroopSystem = require('./systems/troops');
+const url = require('url');
 
-// ─── Config ───────────────────────────────────────────────
-const PORT = parseInt(process.env.PORT || process.argv[2] || '3000', 10);
-const STATIC_DIR = path.resolve(__dirname, '..');
-const DB_PATH = path.join(STATIC_DIR, 'data', 'db.json');
+// ─── Game Modules ─────────────────────────────────────────────────
+const Universe = require('./universe.js');
+const DB = require('./db.js');
+const ResourceSystem = require('./systems/resources.js');
+const BuildingSystem = require('./systems/buildings.js');
+const TroopSystem = require('./systems/troops.js');
+const GameLoop = require('./game-loop.js');
 
-// MIME types for static serving
-const MIME_TYPES = {
-  '.html': 'text/html; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.js': 'application/javascript; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif',
-  '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon',
-  '.woff': 'font/woff',
-  '.woff2': 'font/woff2',
-};
+// ─── Config ───────────────────────────────────────────────────────
+const PORT = process.env.PORT || 3000;
+const DATA_DIR = path.join(__dirname, 'data');
+const DB_PATH = path.join(DATA_DIR, 'db.json');
+const CHAT_PATH = path.join(DATA_DIR, 'chat.json');
 
-// ─── Simple JSON Database ────────────────────────────────
+// ─── Data ─────────────────────────────────────────────────────────
+const gameData = JSON.parse(fs.readFileSync(path.join(__dirname, 'game-data.json'), 'utf-8'));
+
+// ─── Database ─────────────────────────────────────────────────────
 function loadDB() {
   try {
     if (fs.existsSync(DB_PATH)) {
@@ -56,20 +32,27 @@ function loadDB() {
   return { users: {}, universe: { galaxies: [], nextId: 1, claimedPlanets: {} } };
 }
 
-function saveDB(db) {
-  fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2), 'utf8');
+function saveDB(data) {
+  const dir = path.dirname(DB_PATH);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
 }
 
 const db = loadDB();
 
-// Ensure data directory exists
+// Ensure universe structure exists
+if (!db.universe) db.universe = { galaxies: [], nextId: 1, claimedPlanets: {} };
+if (!db.universe.galaxies) db.universe.galaxies = [];
+if (!db.universe.nextId) db.universe.nextId = db.universe.galaxies.length + 1;
+if (!db.universe.claimedPlanets) db.universe.claimedPlanets = {};
+
 (function ensureDataDir() {
   const dir = path.dirname(DB_PATH);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 })();
 
-// ─── WebSocket broadcast helpers ──────────────────────────
-const wsClients = new Map(); // socket -> { username }
+// ─── WebSocket broadcast helpers ──────────────────────────────────
+const wsClients = new Map(); // socket -> { username, colony }
 
 function broadcastAll(msg) {
   const data = JSON.stringify(msg);
@@ -82,7 +65,7 @@ function broadcastToUser(socket, msg) {
   try { socket.write(wsEncodeFrame(JSON.stringify(msg))); } catch(e) {}
 }
 
-// ─── WebSocket RFC 6455 Implementation ───────────────────
+// ─── WebSocket RFC 6455 Implementation ────────────────────────────
 const WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 
 function wsAcceptKey(key) {
@@ -113,68 +96,98 @@ function wsEncodeFrame(data) {
   return Buffer.concat([header, payload]);
 }
 
-function wsParseFrame(buffer) {
-  if (buffer.length < 2) return null;
-  const firstByte = buffer[0];
-  const opcode = firstByte & 0x0F;
-  const isMasked = (buffer[1] & 0x80) !== 0;
-  let payloadLen = buffer[1] & 0x7F;
-  let offset = 2;
-  if (payloadLen === 126) { payloadLen = buffer.readUInt16BE(offset); offset += 2; }
-  else if (payloadLen === 127) { payloadLen = Number(buffer.readBigUInt64BE(offset)); offset += 8; }
-  let maskKey = null;
-  if (isMasked) { maskKey = buffer.slice(offset, offset + 4); offset += 4; }
-  if (buffer.length < offset + payloadLen) return null;
-  let payload = buffer.slice(offset, offset + payloadLen);
-  if (maskKey) {
-    for (let i = 0; i < payload.length; i++) payload[i] ^= maskKey[i % 4];
+// ─── Helpers ──────────────────────────────────────────────────────
+function makeToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+function hashPassword(password, salt) {
+  return crypto.createHash('sha256').update(password + salt).digest('hex');
+}
+
+function log(ip, msg) {
+  const ts = new Date().toISOString().replace('T', ' ').substring(0, 19);
+  console.log('[' + ts + '] ' + ip + ' ' + msg);
+}
+
+function getStarterResources() {
+  return {
+    ore: { amount: 1500, cap: 1200 },
+    solar: { amount: 1500, cap: 1100 },
+    crystal: { amount: 1500, cap: 900 },
+    isotopes: { amount: 1500, cap: 700 }
+  };
+}
+
+function createInitialBuildings() {
+  const bDefs = gameData.buildings || {};
+  const b = {};
+  Object.keys(bDefs).forEach(function(key) {
+    b[key] = {
+      level: key === 'commandCenter' ? 2 : 1,
+      integrity: 100,
+      upgrading: null
+    };
+  });
+  return b;
+}
+
+function createInitialTroops() {
+  return { counts: {}, queue: [] };
+}
+
+function createInitialResearch() {
+  return { levels: {}, active: null, completedTotal: 0 };
+}
+
+// ─── Token management ─────────────────────────────────────────────
+function generateToken(username) {
+  const token = makeToken();
+  const user = db.users[username];
+  if (user) {
+    user.token = token;
+    user.tokenExpires = Date.now() + 86400000; // 24h
+    saveDB(db);
   }
-  return { opcode, payload: payload.toString('utf8'), closeCode: opcode === 8 && payload.length >= 2 ? payload.readUInt16BE(0) : null };
+  return token;
 }
 
-// ─── Connected Clients ──────────────────────────────────
-const clients = new Map();
-
-function broadcast(message, excludeSocket = null) {
-  const frame = wsEncodeFrame(JSON.stringify(message));
-  for (const [sock] of clients) {
-    if (sock !== excludeSocket && sock.writable) sock.write(frame);
+function validateToken(token) {
+  for (const username in db.users) {
+    const u = db.users[username];
+    if (u.token === token && u.tokenExpires > Date.now()) {
+      return username;
+    }
   }
+  return null;
 }
 
-function broadcastPresence() {
-  const online = [];
-  for (const [, info] of clients) {
-    online.push({
-      username: info.username,
-      galaxyId: info.galaxyId || null,
-      sectorId: info.sectorId || null,
-      planetId: info.planetId || null,
-    });
-  }
-  broadcast({ type: 'presence', players: online });
-}
+// ─── HTTP Server ──────────────────────────────────────────────────
+const MIME = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.md': 'text/markdown; charset=utf-8'
+};
 
-function removeClient(socket) {
-  clients.delete(socket);
-  broadcastPresence();
-}
+const server = http.createServer(function(req, res) {
+  const ip = req.connection.remoteAddress || 'unknown';
 
-// ─── HTTP Server ─────────────────────────────────────────
-const server = http.createServer((req, res) => {
-  try {
-  const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
-  const pathname = parsedUrl.pathname;
-  // Log requests for debugging
-  console.log('[' + new Date().toISOString() + '] ' + req.method + ' ' + pathname);
-
-  // ── REST API Routes ──
-  if (pathname === '/api/register' && req.method === 'POST') {
+  // ── API Routes ──
+  if (req.method === 'POST' && req.url === '/api/register') {
     let body = '';
-    req.on('data', chunk => body += chunk);
-    req.on('end', () => {
+    req.on('data', function(c) { body += c; });
+    req.on('end', function() {
       try {
-        const { username, password, planetName } = JSON.parse(body);
+        const parsed = JSON.parse(body);
+        const username = parsed.username;
+        const password = parsed.password;
+        const planetName = parsed.planetName;
         if (!username || !password || username.length < 2 || password.length < 3) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ ok: false, error: 'Invalid username or password (min 2/3 chars)' }));
@@ -182,48 +195,39 @@ const server = http.createServer((req, res) => {
         }
         if (db.users[username]) {
           res.writeHead(409, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ ok: false, error: 'Username already taken' }));
+          res.end(JSON.stringify({ ok: false, error: 'Username already exists' }));
           return;
         }
-        // Assign a planet from the expanding universe
-        const planetInfo = Universe.ensurePlanetAvailable(db.universe);
-        if (!planetInfo) {
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ ok: false, error: 'Universe is full' }));
-          return;
-        }
-        Universe.claimPlanet(db.universe, planetInfo, username);
+        const salt = makeToken().substring(0, 16);
+        const hash = hashPassword(password, salt);
         const pName = planetName || (username + "'s Planet");
-        // Create initial colony
+
+        // Assign next free planet
+        const planetInfo = DB.ensurePlanetAvailable(db, username, pName);
+        if (!planetInfo) {
+          res.writeHead(507, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: 'No free planets available' }));
+          return;
+        }
+
         const colony = {
           planetName: pName,
           homeGalaxy: planetInfo.galaxyId,
           homeSector: planetInfo.sectorId,
           homePlanet: planetInfo.planetId,
-          resources: {
-            ore: { amount: 0, cap: 1200 },
-            solar: { amount: 0, cap: 1100 },
-            crystal: { amount: 0, cap: 900 },
-            isotopes: { amount: 0, cap: 700 }
-          },
-          buildings: {},
-          troops: { counts: {}, queue: [] },
-          research: { levels: {}, queue: null },
-          lastTick: Date.now(),
-          shield: { current: 120, max: 120 }
+          resources: getStarterResources(),
+          buildings: createInitialBuildings(),
+          troops: createInitialTroops(),
+          research: createInitialResearch(),
+          queue: []
         };
-        // Initialize buildings
-        const gameData = require('./game-data.json');
-        Object.keys(gameData.buildings).forEach(key => {
-          colony.buildings[key] = { level: 0, upgrading: null, integrity: 100 };
-        });
-        const salt = crypto.randomBytes(16).toString('hex');
-        const hash = crypto.createHash('sha256').update(password + salt).digest('hex');
-        const token = crypto.createHash('sha256').update(username + Date.now() + crypto.randomBytes(8).toString('hex')).digest('hex');
-        db.users[username] = { username, hash, salt, token, colony, created: Date.now() };
+
+        db.users[username] = { username: username, password: hash, salt: salt, colony: colony, createdAt: Date.now() };
         saveDB(db);
+        const token = generateToken(username);
+        log(ip, 'POST /api/register (' + username + ') planet=' + pName + ' G' + planetInfo.galaxyId + 'S' + planetInfo.sectorId + 'P' + planetInfo.planetId);
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: true, token, username, planetName: pName }));
+        res.end(JSON.stringify({ ok: true, token: token, username: username, planetName: pName }));
       } catch (e) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: false, error: 'Invalid request' }));
@@ -232,238 +236,295 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // ── Health check ──
-  if (pathname === '/api/health') {
+  if (req.method === 'POST' && req.url === '/api/login') {
+    let body = '';
+    req.on('data', function(c) { body += c; });
+    req.on('end', function() {
+      try {
+        const parsed = JSON.parse(body);
+        const username = parsed.username;
+        const password = parsed.password;
+        const user = db.users[username];
+        if (!user) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: 'Invalid username or password' }));
+          return;
+        }
+        const hash = hashPassword(password, user.salt);
+        if (hash !== user.password) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: 'Invalid username or password' }));
+          return;
+        }
+
+        // Migrate old users without colony
+        if (!user.colony) {
+          const pName = username + "'s Planet";
+          const planetInfo = DB.ensurePlanetAvailable(db, username, pName);
+          if (planetInfo) {
+            user.colony = {
+              planetName: pName,
+              homeGalaxy: planetInfo.galaxyId,
+              homeSector: planetInfo.sectorId,
+              homePlanet: planetInfo.planetId,
+              resources: getStarterResources(),
+              buildings: createInitialBuildings(),
+              troops: createInitialTroops(),
+              research: createInitialResearch(),
+              queue: []
+            };
+            saveDB(db);
+          }
+        }
+
+        const token = generateToken(username);
+        log(ip, 'POST /api/login (' + username + ')');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, token: token, username: username }));
+      } catch (e) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'Invalid request' }));
+      }
+    });
+    return;
+  }
+
+  if (req.method === 'POST' && req.url === '/api/validate') {
+    let body = '';
+    req.on('data', function(c) { body += c; });
+    req.on('end', function() {
+      try {
+        const parsed = JSON.parse(body);
+        const token = parsed.token;
+        const username = validateToken(token);
+        if (username) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: true, username: username }));
+        } else {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false }));
+        }
+      } catch (e) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false }));
+      }
+    });
+    return;
+  }
+
+  if (req.url === '/api/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true, uptime: process.uptime(), players: Object.keys(db.users).length }));
     return;
   }
 
-  if (pathname === '/api/login' && req.method === 'POST') {
-    let body = '';
-    req.on('data', chunk => body += chunk);
-    req.on('end', () => {
-      try {
-        const { username, password } = JSON.parse(body);
-        const user = db.users[username];
-        if (!user) {
-          res.writeHead(401, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ ok: false, error: 'Invalid credentials' }));
-          return;
-        }
-        const hash = crypto.createHash('sha256').update(password + user.salt).digest('hex');
-        if (hash !== user.hash) {
-          res.writeHead(401, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ ok: false, error: 'Invalid credentials' }));
-          return;
-        }
-        const token = crypto.createHash('sha256').update(user.username + Date.now() + crypto.randomBytes(8).toString('hex')).digest('hex');
-        db.users[user.username].token = token;
-        // Migrate: create colony for existing users without one
-        if (!db.users[user.username].colony) {
-          const planetInfo = Universe.ensurePlanetAvailable(db.universe);
-          if (planetInfo) {
-            Universe.claimPlanet(db.universe, planetInfo, user.username);
-            const pName = user.username + "'s Planet";
-            const colony = {
-              planetName: pName,
-              homeGalaxy: planetInfo.galaxyId,
-              homeSector: planetInfo.sectorId,
-              homePlanet: planetInfo.planetId,
-              resources: { ore: { amount: 0, cap: 1200 }, solar: { amount: 0, cap: 1100 }, crystal: { amount: 0, cap: 900 }, isotopes: { amount: 0, cap: 700 } },
-              buildings: {},
-              troops: { counts: {}, queue: [] },
-              research: { levels: {}, queue: null },
-              lastTick: Date.now(),
-              shield: { current: 120, max: 120 }
-            };
-            const gameData = require('./game-data.json');
-            Object.keys(gameData.buildings).forEach(key => {
-              colony.buildings[key] = { level: 0, upgrading: null, integrity: 100 };
-            });
-            db.users[user.username].colony = colony;
-          }
-        }
-        saveDB(db);
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: true, token, username }));
-      } catch (e) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: false, error: 'Invalid request' }));
-      }
-    });
-    return;
-  }
+  // ── Static Files ──
+  let filePath = req.url === '/' ? '/login.html' : req.url;
+  filePath = path.normalize(filePath).replace(/^(\.[/\\])+/, '');
+  const fullPath = path.join(__dirname, '..', filePath);
 
-  // ── Static files ──
-  let filePath;
-  if (pathname === '/' || pathname === '/login') {
-    filePath = path.join(STATIC_DIR, 'login.html');
-  } else if (pathname === '/game') {
-    filePath = path.join(STATIC_DIR, 'game.html');
-  } else {
-    filePath = path.join(STATIC_DIR, pathname);
-  }
-  if (!filePath.startsWith(STATIC_DIR)) {
+  if (!fullPath.startsWith(path.resolve(__dirname, '..'))) {
     res.writeHead(403);
     res.end('Forbidden');
     return;
   }
-  const ext = path.extname(filePath).toLowerCase();
-  const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-  fs.readFile(filePath, (err, data) => {
+
+  const ext = path.extname(fullPath).toLowerCase();
+  const mime = MIME[ext] || 'application/octet-stream';
+
+  fs.readFile(fullPath, function(err, data) {
     if (err) {
-      res.writeHead(404);
-      res.end('Not found: ' + pathname);
+      const fallback = path.join(__dirname, '..', 'login.html');
+      fs.readFile(fallback, function(err2, data2) {
+        if (err2) {
+          res.writeHead(404);
+          res.end('Not Found');
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(data2);
+      });
       return;
     }
-    res.writeHead(200, { 'Content-Type': contentType });
+    res.writeHead(200, { 'Content-Type': mime });
     res.end(data);
   });
-  } catch (e) {
-    console.error('Request handler error:', e.message);
-    res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: false, error: 'Internal server error' }));
-  }
 });
 
-// ─── WebSocket Upgrade Handler ──────────────────────────
-server.on('upgrade', (req, socket, head) => {
+// ─── WebSocket Upgrade ────────────────────────────────────────────
+server.on('upgrade', function(req, socket, head) {
+  const ip = req.connection.remoteAddress || 'unknown';
   const key = req.headers['sec-websocket-key'];
   if (!key) { socket.destroy(); return; }
 
-  const acceptKey = wsAcceptKey(key);
-  socket.write([
-    'HTTP/1.1 101 Switching Protocols',
-    'Upgrade: websocket',
-    'Connection: Upgrade',
-    'Sec-WebSocket-Accept: ' + acceptKey,
-    '', '',
-  ].join('\r\n'));
+  const accept = wsAcceptKey(key);
+  socket.write(
+    'HTTP/1.1 101 Switching Protocols\r\n' +
+    'Upgrade: websocket\r\n' +
+    'Connection: Upgrade\r\n' +
+    'Sec-WebSocket-Accept: ' + accept + '\r\n\r\n'
+  );
+
+  let authenticated = false;
+  let username = null;
+
+  // Send welcome
+  socket.write(wsEncodeFrame(JSON.stringify({ type: 'system', message: 'Connected to Dead Earth Protocol' })));
 
   let buffer = Buffer.alloc(0);
-  let clientInfo = { username: null, galaxyId: null, sectorId: null, planetId: null };
+  let authChecked = false;
 
-  socket.on('data', (chunk) => {
-    buffer = Buffer.concat([buffer, chunk]);
-    while (buffer.length >= 2) {
-      const frame = wsParseFrame(buffer);
-      if (!frame) break;
-      const headerLen = (buffer[1] & 0x80 ? 4 : 0) + 2 +
-        ((buffer[1] & 0x7F) === 126 ? 2 : (buffer[1] & 0x7F) === 127 ? 8 : 0);
-      const maskLen = (buffer[1] & 0x80) ? 4 : 0;
-      const payloadLen = (buffer[1] & 0x7F) === 126
-        ? buffer.readUInt16BE(2)
-        : (buffer[1] & 0x7F) === 127
-          ? Number(buffer.readBigUInt64BE(2))
-          : (buffer[1] & 0x7F);
-      const totalFrameLen = headerLen + maskLen + payloadLen;
-      buffer = buffer.slice(Math.min(totalFrameLen, buffer.length));
+  function tryAuth(data) {
+    try {
+      const msg = JSON.parse(data);
+      if (msg.type === 'auth') {
+        const uname = validateToken(msg.token);
+        if (uname) {
+          authenticated = true;
+          username = uname;
+          const user = db.users[username];
+          wsClients.set(socket, { username: username, colony: user && user.colony ? user.colony : null });
+          socket.write(wsEncodeFrame(JSON.stringify({ type: 'auth_ok', username: username })));
 
-      if (frame.opcode === 8) {
-        try { socket.write(wsEncodeFrame('')); } catch(e) {}
-        removeClient(socket);
-        socket.end();
-        return;
-      }
-      if (frame.opcode === 9) {
-        try { socket.write(Buffer.from([0x8A, 0x00])); } catch(e) {}
-        continue;
-      }
-      if (frame.opcode !== 1) continue;
-
-      try {
-        const msg = JSON.parse(frame.payload);
-        switch (msg.type) {
-          case 'auth':
-            const user = db.users[msg.username];
-            if (!user || msg.token !== user.token) {
-              socket.write(wsEncodeFrame(JSON.stringify({ type: 'auth_error', error: 'Invalid token' })));
-              socket.end();
-              return;
-            }
-            // Migrate: ensure logged-in users have a colony
-            if (!user.colony) {
-              const planetInfo = Universe.ensurePlanetAvailable(db.universe);
-              if (planetInfo) {
-                Universe.claimPlanet(db.universe, planetInfo, user.username);
-                const colony = {
-                  planetName: user.username + "'s Planet",
-                  homeGalaxy: planetInfo.galaxyId,
-                  homeSector: planetInfo.sectorId,
-                  homePlanet: planetInfo.planetId,
-                  resources: { ore: { amount: 0, cap: 1200 }, solar: { amount: 0, cap: 1100 }, crystal: { amount: 0, cap: 900 }, isotopes: { amount: 0, cap: 700 } },
-                  buildings: {},
-                  troops: { counts: {}, queue: [] },
-                  research: { levels: {}, queue: null },
-                  lastTick: Date.now(),
-                  shield: { current: 120, max: 120 }
-                };
-                const gameData = require('./game-data.json');
-                Object.keys(gameData.buildings).forEach(key => {
-                  colony.buildings[key] = { level: 0, upgrading: null, integrity: 100 };
-                });
-                user.colony = colony;
-                saveDB(db);
-              }
-            }
-            clientInfo.username = msg.username;
-            clients.set(socket, clientInfo);
-            wsClients.set(socket, { username: msg.username, colony: user.colony || null });
-            socket.write(wsEncodeFrame(JSON.stringify({ type: 'auth_ok', username: msg.username })));
-            if (user.colony) {
-              socket.write(wsEncodeFrame(JSON.stringify({
-                type: 'colony_state',
-                colony: user.colony,
-                universe: db.universe
-              })));
-            }
-            broadcast({ type: 'system', message: msg.username + ' has joined the universe' });
-            broadcastPresence();
-            break;
-
-          case 'position':
-            clientInfo.galaxyId = msg.galaxyId || null;
-            clientInfo.sectorId = msg.sectorId || null;
-            clientInfo.planetId = msg.planetId || null;
-            broadcastPresence();
-            break;
-
-          case 'chat':
-            if (clientInfo.username) {
-              broadcast({ type: 'chat', username: clientInfo.username, message: msg.message, timestamp: Date.now() });
-            }
-            break;
-
-          case 'ping':
-            socket.write(wsEncodeFrame(JSON.stringify({ type: 'pong' })));
-            break;
+          // Send colony state with production rates
+          if (user && user.colony) {
+            var colony = JSON.parse(JSON.stringify(user.colony));
+            colony.productionRates = ResourceSystem.getProductionRates(user.colony);
+            socket.write(wsEncodeFrame(JSON.stringify({
+              type: 'colony_state',
+              colony: colony,
+              universe: db.universe
+            })));
+          }
+          log(ip, 'WS auth (' + uname + ')');
+          broadcastAll({ type: 'system', message: username + ' has joined the universe' });
+        } else {
+          socket.write(wsEncodeFrame(JSON.stringify({ type: 'auth_error', message: 'Invalid token' })));
         }
-      } catch (e) {}
+        authChecked = true;
+      }
+    } catch(e) {}
+  }
+
+  socket.on('data', function(chunk) {
+    buffer = Buffer.concat([buffer, chunk]);
+    if (buffer.length < 2) return;
+    const opcode = buffer[0] & 0x0f;
+    if (opcode === 0x08) { // close
+      if (username) {
+        wsClients.delete(socket);
+        broadcastAll({ type: 'system', message: username + ' has left the universe' });
+      }
+      socket.end();
+      return;
     }
+    if (opcode === 0x09) { // ping
+      socket.write(Buffer.from([0x8a, 0x00]));
+      return;
+    }
+    if (opcode !== 0x01 && opcode !== 0x02) return;
+
+    const masked = buffer[1] & 0x80;
+    let payloadLen = buffer[1] & 0x7f;
+    let offset = 2;
+    if (payloadLen === 126) { offset += 2; payloadLen = buffer.readUInt16BE(2); }
+    else if (payloadLen === 127) { offset += 8; payloadLen = Number(buffer.readBigUInt64BE(2)); }
+
+    const maskKey = masked ? buffer.slice(offset, offset + 4) : null;
+    offset += masked ? 4 : 0;
+
+    if (buffer.length < offset + payloadLen) return;
+    var payload = buffer.slice(offset, offset + payloadLen);
+    if (masked) {
+      for (var i = 0; i < payload.length; i++) payload[i] ^= maskKey[i % 4];
+    }
+
+    buffer = buffer.slice(offset + payloadLen);
+    var text = payload.toString('utf8');
+
+    if (!authChecked) { tryAuth(text); return; }
+    if (!authenticated) return;
+
+    try {
+      var msg = JSON.parse(text);
+
+      if (msg.type === 'chat') {
+        var chatMsg = { type: 'chat', username: username, text: msg.text.substring(0, 500), time: Date.now() };
+        broadcastAll(chatMsg);
+        log(ip, 'chat ' + username + ': ' + msg.text.substring(0, 50));
+      }
+
+      if (msg.type === 'position') {
+        var info = wsClients.get(socket);
+        if (info) {
+          info.position = { galaxy: msg.galaxy, sector: msg.sector, planet: msg.planet };
+          wsClients.set(socket, info);
+        }
+      }
+
+      if (msg.type === 'get_colony') {
+        var user = db.users[username];
+        if (user && user.colony) {
+          var colony = JSON.parse(JSON.stringify(user.colony));
+          colony.productionRates = ResourceSystem.getProductionRates(user.colony);
+          socket.write(wsEncodeFrame(JSON.stringify({ type: 'colony_state', colony: colony, universe: db.universe })));
+        }
+      }
+
+      if (msg.type === 'build') {
+        var user = db.users[username];
+        if (user && user.colony) {
+          var result = BuildingSystem.startUpgrade(user.colony, msg.buildingId);
+          if (result.ok) {
+            saveDB(db);
+            var colony = JSON.parse(JSON.stringify(user.colony));
+            colony.productionRates = ResourceSystem.getProductionRates(user.colony);
+            socket.write(wsEncodeFrame(JSON.stringify({ type: 'build_result', ok: true, colony: colony })));
+            log(ip, 'build ' + username + ' ' + msg.buildingId);
+          } else {
+            socket.write(wsEncodeFrame(JSON.stringify({ type: 'build_result', ok: false, error: result.error })));
+          }
+        }
+      }
+
+      if (msg.type === 'train') {
+        var user = db.users[username];
+        if (user && user.colony) {
+          var result = TroopSystem.startTraining(user.colony, msg.troopId, msg.qty || 1);
+          if (result.ok) {
+            saveDB(db);
+            var colony = JSON.parse(JSON.stringify(user.colony));
+            colony.productionRates = ResourceSystem.getProductionRates(user.colony);
+            socket.write(wsEncodeFrame(JSON.stringify({ type: 'train_result', ok: true, colony: colony })));
+            log(ip, 'train ' + username + ' ' + msg.troopId + ' x' + (msg.qty || 1));
+          } else {
+            socket.write(wsEncodeFrame(JSON.stringify({ type: 'train_result', ok: false, error: result.error })));
+          }
+        }
+      }
+
+    } catch(e) {}
   });
 
-  socket.on('close', () => { removeClient(socket); });
-  socket.on('error', () => { removeClient(socket); });
+  socket.on('close', function() {
+    if (username) {
+      wsClients.delete(socket);
+      broadcastAll({ type: 'system', message: username + ' has left the universe' });
+    }
+  });
 });
 
-// ─── Error handling ──────────────────────────────────
-server.on('error', (err) => {
-  console.error('Server error:', err.message);
-});
-
-// ─── Start ──────────────────────────────────────────────
-server.listen(PORT, () => {
-  const addr = `http://localhost:${PORT}`;
+server.listen(PORT, '0.0.0.0', function() {
   console.log('');
-  console.log('  \x1b[36m\uD83D\uDE80 Dead Earth Protocol \u2014 Multiplayer Server\x1b[0m');
-  console.log('  \x1b[90m' + '-'.repeat(48) + '\x1b[0m');
-  console.log('  \x1b[33mServer:\x1b[0m   ' + addr);
-  console.log('  \x1b[33mPlayers:\x1b[0m  ' + Object.keys(db.users).length + ' registered users');
-  console.log('  \x1b[33mUniverse:\x1b[0m ' + Universe.getClaimedCount(db.universe) + ' planets claimed');
+  console.log('  \u{1F680} Dead Earth Protocol \u2014 Multiplayer Server');
+  console.log('  ------------------------------------------------');
+  console.log('  Server:   http://localhost:' + PORT);
+  console.log('  Players:  ' + Object.keys(db.users).length + ' registered users');
+  console.log('  Universe: ' + Universe.getClaimedCount(db.universe) + ' planets claimed');
   console.log('');
   console.log('  Give this URL to friends so they can join!');
   console.log('');
-  // Start world game loop
+
+  // Start game loop
   GameLoop.startLoop(db, { broadcast: broadcastAll });
 });

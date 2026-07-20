@@ -1,79 +1,54 @@
 window.ResourceSystem = (function () {
-  function getAllianceEconomyBonus(state) {
-    const joined = AllianceSystem.getJoinedAlliance(state);
-    return joined && joined.perkType === "economy" ? joined.perkValue : 0;
-  }
-
-  function getEventEffects(state) {
-    return state.events.active ? state.events.active.effect || {} : {};
-  }
-
+  // Use server-provided production rates if available
   function getProductionRates(state) {
-    const extLevel = state.buildings.extractionGrid.level;
-    const ecoResearch = state.research.levels.economy || 0;
-    const allianceBonus = getAllianceEconomyBonus(state);
-    const event = getEventEffects(state);
-
-    const mult = 1 + (extLevel - 1) * 0.12 + ecoResearch * 0.08 + allianceBonus;
-
-    return {
-      ore: 8 * mult,
-      solar: 7 * mult,
-      crystal: 5 * mult,
-      isotopes: 3.2 * mult * (1 + (event.isotopeBoost || 0))
-    };
-  }
-
-  function updateCaps(state) {
-    const levelSum = Object.values(state.buildings).reduce((s, b) => s + b.level, 0);
-    Object.keys(state.resources).forEach((key) => {
-      const resDef = GameData.resources[key];
-      if (!resDef) return;
-      const baseCap = resDef.capBase;
-      state.resources[key].cap = Math.floor(baseCap + levelSum * 35);
-      state.resources[key].amount = Math.min(state.resources[key].cap, state.resources[key].amount);
-    });
+    if (state._productionRates) {
+      return state._productionRates;
+    }
+    // Fallback: calculate from building levels
+    var rates = { ore: 0, solar: 0, crystal: 0, isotopes: 0 };
+    if (state.buildings.extractionGrid) {
+      rates.ore = state.buildings.extractionGrid.level * 5;
+    }
+    if (state.buildings.solarCollector) {
+      rates.solar = state.buildings.solarCollector.level * 4;
+    }
+    if (state.buildings.crystalLab) {
+      rates.crystal = state.buildings.crystalLab.level * 3;
+    }
+    return rates;
   }
 
   function getUpkeep(state) {
-    let total = 0;
-    Object.keys(state.troops.counts).forEach((key) => {
-      total += state.troops.counts[key] * GameData.troops[key].upkeep;
-    });
+    var total = 0;
+    if (state.troops && state.troops.counts) {
+      Object.keys(state.troops.counts).forEach(function (key) {
+        var tData = window.GameData && window.GameData.troops && window.GameData.troops[key];
+        total += state.troops.counts[key] * (tData ? tData.upkeep : 1);
+      });
+    }
     return total;
   }
 
+  function updateCaps(state) {
+    // Caps are managed server-side, but update from building levels as fallback
+    if (!state.buildings || !state.resources) return;
+    var oreBonus = (state.buildings.extractionGrid ? state.buildings.extractionGrid.level * 50 : 0);
+    var solarBonus = (state.buildings.solarCollector ? state.buildings.solarCollector.level * 40 : 0);
+    var crystalBonus = (state.buildings.crystalLab ? state.buildings.crystalLab.level * 30 : 0);
+    if (state.resources.ore) state.resources.ore.cap = 1200 + oreBonus;
+    if (state.resources.solar) state.resources.solar.cap = 1100 + solarBonus;
+    if (state.resources.crystal) state.resources.crystal.cap = 900 + crystalBonus;
+  }
+
   function tick(state, dt) {
-    updateCaps(state);
-    const rates = getProductionRates(state);
-
-    Object.keys(rates).forEach((key) => {
-      state.resources[key].amount = Math.min(
-        state.resources[key].cap,
-        state.resources[key].amount + rates[key] * dt
-      );
-    });
-
-    const upkeep = getUpkeep(state) * dt;
-    state.resources.isotopes.amount = Math.max(0, state.resources.isotopes.amount - upkeep);
-
-    const depletedNow = state.resources.isotopes.amount <= 0;
-
-    if (depletedNow && !state.statusFlags.isotopeDepleted) {
-      state.statusFlags.isotopeDepleted = true;
-      MailboxSystem.addLog(state, "Isotope reserves depleted. Operational strain increasing.", "danger");
-    }
-
-    if (!depletedNow && state.statusFlags.isotopeDepleted) {
-      state.statusFlags.isotopeDepleted = false;
-      MailboxSystem.addLog(state, "Isotope reserves restored. Operational stability recovering.", "success");
-    }
+    // Client-side tick is disabled — server handles all production
+    // This function is kept as a no-op for compatibility
   }
 
   return {
-    getProductionRates,
-    getUpkeep,
-    updateCaps,
-    tick
+    getProductionRates: getProductionRates,
+    getUpkeep: getUpkeep,
+    updateCaps: updateCaps,
+    tick: tick
   };
 })();
