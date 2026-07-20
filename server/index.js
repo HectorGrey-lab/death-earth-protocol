@@ -115,10 +115,10 @@ function log(ip, msg) {
 
 function getStarterResources() {
   return {
-    ore: { amount: 1500, cap: 1200 },
-    solar: { amount: 1500, cap: 1100 },
-    crystal: { amount: 1500, cap: 900 },
-    isotopes: { amount: 1500, cap: 700 }
+    ore: { amount: 1500, cap: 1500 },
+    solar: { amount: 1500, cap: 1500 },
+    crystal: { amount: 1500, cap: 1500 },
+    isotopes: { amount: 1500, cap: 1500 }
   };
 }
 

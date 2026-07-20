@@ -22,8 +22,10 @@ function updateCaps(colony) {
     const resDef = GAME.resources[key];
     if (!resDef) return;
     const baseCap = resDef.capBase;
-    colony.resources[key].cap = Math.floor(baseCap + levelSum * 35);
-    colony.resources[key].amount = Math.min(colony.resources[key].cap, colony.resources[key].amount);
+    const newCap = Math.floor(baseCap + levelSum * 35);
+    colony.resources[key].cap = Math.max(colony.resources[key].cap || 0, newCap);
+    // Only clamp from above if player's amount exceeds the new cap
+    colony.resources[key].amount = Math.min(colony.resources[key].amount, colony.resources[key].cap);
   });
 }
 
