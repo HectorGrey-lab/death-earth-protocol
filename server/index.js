@@ -350,6 +350,27 @@ const server = http.createServer(function(req, res) {
     return;
   }
 
+  // ─── Debug: user colony data ──────────────────────────────────
+  if (req.url === '/api/debug/users') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    const users = {};
+    for (const [name, data] of Object.entries(DB.db.users)) {
+      users[name] = {
+        colony: data.colony ? {
+          planetId: data.colony.planetId,
+          planetName: data.colony.planetName,
+          galaxyId: data.colony.galaxyId,
+          sectorId: data.colony.sectorId
+        } : null,
+        resources: data.resources,
+        registerTime: data.registerTime,
+        lastSeen: data.lastSeen
+      };
+    }
+    res.end(JSON.stringify(users, null, 2));
+    return;
+  }
+
   // ── Static Files ──
   let filePath = req.url === '/' ? '/login.html' : req.url;
   filePath = path.normalize(filePath).replace(/^(\.[\\/])+/, '');
