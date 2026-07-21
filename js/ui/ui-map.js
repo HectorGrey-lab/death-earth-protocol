@@ -1051,6 +1051,31 @@ window.UIMap = (function () {
         }
       });
 
+      // Touch support for mobile pan (universe view)
+      viewport.addEventListener('touchstart', function (e) {
+        if (e.touches.length === 1) {
+          isDragging = true;
+          dragStartX = e.touches[0].clientX - uvPanX;
+          dragStartY = e.touches[0].clientY - uvPanY;
+        }
+      }, { passive: false });
+
+      document.addEventListener('touchmove', function (e) {
+        if (!isDragging) return;
+        if (e.touches.length === 1) {
+          uvPanX = e.touches[0].clientX - dragStartX;
+          uvPanY = e.touches[0].clientY - dragStartY;
+          stage.style.transform = 'scale(' + uvZoom + ') translate(' + uvPanX + 'px, ' + uvPanY + 'px)';
+          stage.style.transformOrigin = '0 0';
+        }
+      }, { passive: false });
+
+      document.addEventListener('touchend', function () {
+        if (isDragging) {
+          isDragging = false;
+        }
+      });
+
       viewport.style.cursor = 'grab';
     }
 
@@ -1164,6 +1189,36 @@ window.UIMap = (function () {
         dragState.active = false;
         if (surface) surface.classList.remove("dragging");
       };
+
+      // Touch support for tactical map pan
+      surface.addEventListener('touchstart', function (e) {
+        if (e.target.closest("[data-node-id]")) return;
+        if (e.touches.length === 1) {
+          dragState.active = true;
+          dragState.startX = e.touches[0].clientX;
+          dragState.startY = e.touches[0].clientY;
+          dragState.originX = state.map.camera.offsetX;
+          dragState.originY = state.map.camera.offsetY;
+          surface.classList.add("dragging");
+        }
+      }, { passive: false });
+
+      window.addEventListener('touchmove', function (e) {
+        if (!dragState.active) return;
+        if (e.touches.length === 1) {
+          state.map.camera.offsetX = dragState.originX + (e.touches[0].clientX - dragState.startX);
+          state.map.camera.offsetY = dragState.originY + (e.touches[0].clientY - dragState.startY);
+          const stage = document.getElementById("mapStage");
+          if (stage) {
+            stage.style.transform = `translate(${state.map.camera.offsetX}px, ${state.map.camera.offsetY}px) scale(${state.map.camera.zoom})`;
+          }
+        }
+      }, { passive: false });
+
+      window.addEventListener('touchend', function () {
+        dragState.active = false;
+        if (surface) surface.classList.remove("dragging");
+      });
     }
   }
 

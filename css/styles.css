@@ -1253,3 +1253,407 @@ hr.sep {
   50% { box-shadow: 0 0 20px currentColor; }
 }
 
+/* ════════════════════════════
+   MOBILE RESPONSIVE — < 768px
+   ════════════════════════════ */
+@media (max-width: 768px) {
+  .app-shell {
+    padding: 8px;
+  }
+
+  .top-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  #gameTitle {
+    font-size: 18px;
+  }
+
+  .subtitle {
+    font-size: 12px;
+  }
+
+  .header-stats {
+    gap: 6px;
+  }
+
+  .stat-chip {
+    min-width: auto;
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .sidebar > .panel {
+    padding: 10px;
+  }
+
+  .page-panel {
+    min-height: auto;
+  }
+
+  .command-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 6px;
+    padding-bottom: 6px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .command-nav::-webkit-scrollbar {
+    height: 3px;
+  }
+
+  .nav-btn {
+    flex-shrink: 0;
+    padding: 8px 10px;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+  }
+
+  .card-grid.cols-2,
+  .card-grid.cols-3,
+  .card-grid.cols-4 {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .two-col,
+  .three-col,
+  .four-col,
+  .intel-stat-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .mail-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .mail-list {
+    max-height: 280px;
+  }
+
+  .tactical-map-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .map-stage-viewport {
+    min-height: 360px;
+  }
+
+  .map-stage {
+    min-width: 100%;
+    min-height: 360px;
+  }
+
+  .galaxy-viewport {
+    min-height: 360px;
+  }
+
+  .galaxy-stage {
+    min-height: 360px;
+  }
+
+  .galaxy-node.universe {
+    width: 100px;
+  }
+
+  .galaxy-node.sector {
+    width: 90px;
+  }
+
+  .galaxy-node.planet {
+    width: 64px;
+  }
+
+  .galaxy-core {
+    width: 52px;
+    height: 52px;
+  }
+
+  .galaxy-core-inner {
+    width: 28px;
+    height: 28px;
+  }
+
+  .sector-core {
+    width: 28px;
+    height: 28px;
+  }
+
+  .planet-core {
+    width: 12px;
+    height: 12px;
+  }
+
+  .shield-ring {
+    width: 100px;
+    height: 100px;
+  }
+
+  .shield-ring-inner {
+    width: 60px;
+    height: 60px;
+  }
+
+  .shield-ring-inner strong {
+    font-size: 14px;
+  }
+
+  .map-camera-controls {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 6px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .galaxy-camera-controls {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 6px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .map-node {
+    width: 64px;
+  }
+
+  .map-node-core {
+    width: 20px;
+    height: 20px;
+  }
+
+  .map-node.player .map-node-core {
+    width: 24px;
+    height: 24px;
+  }
+
+  .fleet-marker {
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+  }
+
+  .fleet-queue-item {
+    padding: 8px;
+  }
+
+  .panel {
+    padding: 10px;
+  }
+
+  .modal {
+    width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+    padding: 12px;
+  }
+
+  .auth-box {
+    padding: 24px;
+    width: 300px;
+  }
+
+  .chat-panel {
+    width: calc(100vw - 32px);
+    right: 8px;
+    bottom: 60px;
+  }
+
+  .chat-toggle-btn {
+    bottom: 8px;
+    right: 8px;
+  }
+
+  .btn {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  .resource-row,
+  .log-item,
+  .queue-item,
+  .mail-item,
+  .mission-item,
+  .alert-item {
+    padding: 8px;
+  }
+
+  .card {
+    padding: 8px;
+  }
+
+  .region-control-grid {
+    gap: 6px;
+  }
+
+  .region-control-card {
+    padding: 8px;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .page-header h2 {
+    font-size: 16px;
+  }
+
+  .region-overlay {
+    display: none;
+  }
+
+  .map-scan-sweep,
+  .galaxy-scan-sweep {
+    display: none;
+  }
+}
+
+/* ════════════════════════════
+   SMALL PHONE — < 480px
+   ════════════════════════════ */
+@media (max-width: 480px) {
+  .sidebar {
+    grid-template-columns: 1fr;
+  }
+
+  .card-grid.cols-2,
+  .card-grid.cols-3,
+  .card-grid.cols-4 {
+    grid-template-columns: 1fr;
+  }
+
+  .map-stage-viewport {
+    min-height: 280px;
+  }
+
+  .map-stage {
+    min-height: 280px;
+  }
+
+  .galaxy-viewport {
+    min-height: 280px;
+  }
+
+  .galaxy-stage {
+    min-height: 280px;
+  }
+
+  .galaxy-node.universe {
+    width: 72px;
+  }
+
+  .galaxy-node.sector {
+    width: 64px;
+  }
+
+  .galaxy-node.planet {
+    width: 52px;
+  }
+
+  .galaxy-core {
+    width: 40px;
+    height: 40px;
+  }
+
+  .galaxy-core-inner {
+    width: 22px;
+    height: 22px;
+  }
+
+  .sector-core {
+    width: 22px;
+    height: 22px;
+  }
+
+  .planet-core {
+    width: 10px;
+    height: 10px;
+  }
+
+  .galaxy-node .galaxy-name {
+    font-size: 10px;
+  }
+
+  .galaxy-node .galaxy-meta {
+    font-size: 8px;
+  }
+
+  .shield-ring {
+    width: 80px;
+    height: 80px;
+  }
+
+  .shield-ring-inner {
+    width: 48px;
+    height: 48px;
+  }
+
+  .shield-ring-inner strong {
+    font-size: 12px;
+  }
+
+  .stat-chip {
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+
+  .stat-chip .label {
+    font-size: 9px;
+  }
+
+  .page-panel {
+    padding: 6px;
+  }
+
+  .panel-title {
+    font-size: 11px;
+    margin-bottom: 8px;
+  }
+
+  .nav-btn {
+    padding: 6px 8px;
+    font-size: 9px;
+  }
+
+  .map-node {
+    width: 48px;
+  }
+
+  .map-node-core {
+    width: 16px;
+    height: 16px;
+  }
+
+  .map-node.player .map-node-core {
+    width: 20px;
+    height: 20px;
+  }
+
+  .map-node-name {
+    font-size: 9px;
+  }
+
+  .map-node-meta {
+    font-size: 8px;
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
