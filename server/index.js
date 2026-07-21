@@ -199,8 +199,6 @@ const server = http.createServer(function(req, res) {
         }
         const salt = makeToken().substring(0, 16);
         const hash = hashPassword(password, salt);
-        const pName = planetName || (username + "'s Planet");
-
         // Assign next free planet
         const planetInfo = Universe.ensurePlanetAvailable(DB.db.universe);
         if (!planetInfo) {
@@ -208,9 +206,10 @@ const server = http.createServer(function(req, res) {
           res.end(JSON.stringify({ ok: false, error: 'No free planets available' }));
           return;
         }
-        Universe.claimPlanet(DB.db.universe, planetInfo, username);
+        const claim = Universe.claimPlanet(DB.db.universe, planetInfo, username);
+        const pName = planetName || claim.planetName;
 
-        const colony = createInitialColony(username, pName, planetInfo.galaxyId, planetInfo.sectorId, planetInfo.planetId);
+        const colony = createInitialColony(username, pName, claim.galaxyId, claim.sectorId, claim.planetId);
 
         // Initialize missions from GameData
         if (gameData.missions) {
@@ -258,11 +257,10 @@ const server = http.createServer(function(req, res) {
 
         // Migrate old users without colony
         if (!user.colony) {
-          const pName = username + "'s Planet";
           const planetInfo = Universe.ensurePlanetAvailable(DB.db.universe);
           if (planetInfo) {
-            Universe.claimPlanet(DB.db.universe, planetInfo, username);
-            user.colony = createInitialColony(username, pName, planetInfo.galaxyId, planetInfo.sectorId, planetInfo.planetId);
+            const claim = Universe.claimPlanet(DB.db.universe, planetInfo, username);
+            user.colony = createInitialColony(username, claim.planetName, claim.galaxyId, claim.sectorId, claim.planetId);
             if (gameData.missions) {
               user.colony.missions = {};
               gameData.missions.forEach(m => {

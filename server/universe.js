@@ -1,105 +1,158 @@
 /**
- * universe.js — Server-side universe expansion
- * Grows galaxies/sectors/planets as players register.
+ * universe.js — Server-side universe generation
+ * Generates a full galaxy/sector/planet hierarchy matching the client format.
+ *
+ * All 9 galaxies are generated on first universe initialization.
+ * Planets are claimed individually as players register.
+ *
+ * CLIENT-COMPATIBLE FORMAT:
+ *  - Galaxy:  { id, name, color, index, sectors: [...] }
+ *  - Sector:  { id, galaxyId, index, label, name, x, y, planets: [...] }
+ *  - Planet:  { id, galaxyId, sectorId, index, name, type, typeName, color, x, y,
+ *               oreBonus, solarBonus, crystalBonus, isotopeBonus,
+ *               isPlayerBase, isColonized, colonizedBy, baseLevel }
  */
 
-const GAME = require('./game-data.json');
-
-const PLANETS_PER_SECTOR = GAME.universe.planetsPerSector;  // 20
-const SECTORS_PER_GALAXY = GAME.universe.sectorsPerGalaxy;  // 10
-
-// ─── Planet type pool ───────────────────────────────────
-const PLANET_TYPES = [
-  { id: 'terran', name: 'Terran', icon: '🌍', color: '#4ade80' },
-  { id: 'desert', name: 'Desert', icon: '🏜️', color: '#fbbf24' },
-  { id: 'ocean', name: 'Ocean', icon: '🌊', color: '#60a5fa' },
-  { id: 'barren', name: 'Barren', icon: '🌑', color: '#9ca3af' },
-  { id: 'gas-giant', name: 'Gas Giant', icon: '🪐', color: '#c084fc' },
-  { id: 'volcanic', name: 'Volcanic', icon: '🌋', color: '#f87171' },
-  { id: 'ice', name: 'Ice', icon: '❄️', color: '#67e8f9' },
-  { id: 'forest', name: 'Forest', icon: '🌲', color: '#22c55e' }
+// ─── Galaxy definitions (matches client js/universe.js) ─────────
+const GALAXY_NAMES = [
+  'Andromeda Prime', 'Centauri Reach', 'Sol Dominion',
+  'Lyra Expanse', 'Orion Verge', 'Cygnus Rift',
+  'Draco Marches', 'Phoenix Gate', 'Vela Corridor'
 ];
 
-// ─── Generate names ─────────────────────────────────────
-const PREFIXES = ['Nova', 'Astra', 'Void', 'Crimson', 'Iron', 'Helix', 'Obsidian', 'Solar', 'Shadow', 'Aeon', 'Kestrel', 'Null', 'Proxy', 'Morrow', 'Sable', 'Crest', 'Dawn', 'Harbor', 'Vortex', 'Zenith'];
-const SUFFIXES = ['Prime', 'Major', 'Minor', 'Station', 'Outpost', 'Hold', 'Gate', 'Reach', 'Deep', 'Ridge', 'Falls', 'Haven', 'Spire', 'March', 'Pulse'];
+const GALAXY_COLORS = [
+  '#58d6ff', '#69f0ae', '#ffd166',
+  '#bf7bff', '#ff6b6b', '#4fc3f7',
+  '#ff8a65', '#aed581', '#f06292'
+];
 
-function randomName(rng) {
-  return PREFIXES[rng() % PREFIXES.length] + ' ' + SUFFIXES[rng() % SUFFIXES.length];
-}
+const SECTOR_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O'];
+const SECTOR_NAMES = [
+  'Ash Meridian', 'Glass Barrens', 'Black Scar', 'Iron Reach', 'Cinder Vale',
+  'Obsidian Deep', 'Rust Fields', 'Crystal Drift', 'Shadow Expanse', 'Bone Plains',
+  'Violet Marches', 'Scorch Basin', 'Frost Rim', 'Thorn Wastes', 'Pulse Belt'
+];
 
-function randomInt(max, rng) {
-  return rng() % max;
-}
+const PLANET_TYPES = [
+  { id: 'barren', name: 'Barren', color: '#b8a99a', oreMult: 1.2, solarMult: 0.6, crystalMult: 0.4, isotopeMult: 0.3 },
+  { id: 'terran', name: 'Terran', color: '#69f0ae', oreMult: 1.0, solarMult: 1.2, crystalMult: 0.8, isotopeMult: 0.6 },
+  { id: 'ocean', name: 'Ocean', color: '#4fc3f7', oreMult: 0.6, solarMult: 0.8, crystalMult: 1.0, isotopeMult: 1.2 },
+  { id: 'volcanic', name: 'Volcanic', color: '#ff6b6b', oreMult: 1.4, solarMult: 0.5, crystalMult: 0.6, isotopeMult: 1.5 },
+  { id: 'gas', name: 'Gas Giant', color: '#ffd166', oreMult: 0.4, solarMult: 1.4, crystalMult: 0.5, isotopeMult: 0.8 },
+  { id: 'forest', name: 'Forest', color: '#66bb6a', oreMult: 0.8, solarMult: 1.0, crystalMult: 1.2, isotopeMult: 0.5 },
+  { id: 'tundra', name: 'Tundra', color: '#90a4ae', oreMult: 0.9, solarMult: 0.7, crystalMult: 1.1, isotopeMult: 0.7 },
+  { id: 'desert', name: 'Desert', color: '#ffe082', oreMult: 1.1, solarMult: 1.3, crystalMult: 0.3, isotopeMult: 0.4 }
+];
 
-// Simple seeded RNG (pass in counter to get deterministic results)
+const PREFIXES = ['Prox', 'Noct', 'Vela', 'Cygn', 'Rig', 'Alde', 'Lyra', 'Orph', 'Titan', 'Ereb', 'Nova', 'Stel', 'Astr', 'Cosm', 'Nebl', 'Gal', 'Quan', 'Phas', 'Zeph', 'Oriz', 'Kryp', 'Xeno', 'Pyro', 'Hade'];
+const SUFFIXES = ['ia', 'on', 'ar', 'is', 'um', 'an', 'os', 'us', 'or', 'ax', 'en', 'ix', 'a', 'is-3', 'os-5', 'ar-2', 'ia Prime', 'Minor', 'Major', 'Secundus'];
+
+const SECTORS_PER_GALAXY = 15;
+const PLANETS_PER_SECTOR = 20;
+
+// ─── Seeded PRNG (mulberry32, matches client) ───────────────────
 function makeRNG(seed) {
   let s = seed;
   return function() {
-    s = (s * 1664525 + 1013904223) >>> 0;
-    return s;
+    const t = (s += 0x6D2B79F5) >>> 0;
+    let r = t ^ (t >>> 15);
+    r = Math.imul(r, r | 1);
+    r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
   };
 }
 
-// ─── Planet generation ───────────────────────────────────
-function generatePlanet(galaxyId, sectorId, planetIndex, rng) {
-  const pType = PLANET_TYPES[rng() % PLANET_TYPES.length];
-  const names = ['Aeon', 'Nova', 'Crimson', 'Helix', 'Void'];
-  const subs = ['Prime', 'Station', 'Outpost', 'Haven', 'Gate'];
-  const name = names[rng() % names.length] + ' ' + subs[rng() % subs.length] + ' ' + (planetIndex + 1);
+function randomInt(max, rng) {
+  return Math.floor(rng() * max);
+}
+
+function pick(arr, rng) {
+  return arr[Math.floor(rng() * arr.length)];
+}
+
+// ─── Planet generation ──────────────────────────────────────────
+function generatePlanet(galaxyIndex, sectorIndex, planetIndex, rng) {
+  const typeIdx = randomInt(PLANET_TYPES.length, rng);
+  const type = PLANET_TYPES[typeIdx];
+  const name = pick(PREFIXES, rng) + ' ' + pick(SUFFIXES, rng);
+
   return {
-    id: 'p-' + galaxyId + '-' + sectorId + '-' + (planetIndex + 1),
-    index: planetIndex + 1,
+    id: 'planet-' + galaxyIndex + '-' + sectorIndex + '-' + planetIndex,
+    galaxyId: 'galaxy-' + galaxyIndex,
+    sectorId: 'sector-' + galaxyIndex + '-' + sectorIndex,
+    index: planetIndex,
     name: name,
-    typeId: pType.id,
-    typeName: pType.name,
-    icon: pType.icon,
-    color: pType.color,
-    occupied: false,
-    owner: null,
-    x: 5 + (rng() % 90),
-    y: 5 + (rng() % 90)
+    type: type.id,
+    typeName: type.name,
+    color: type.color,
+    x: 5 + rng() * 90,
+    y: 5 + rng() * 90,
+    oreBonus: (type.oreMult - 1) * 100,
+    solarBonus: (type.solarMult - 1) * 100,
+    crystalBonus: (type.crystalMult - 1) * 100,
+    isotopeBonus: (type.isotopeMult - 1) * 100,
+    isPlayerBase: false,
+    isColonized: false,
+    colonizedBy: null,
+    baseLevel: 0
   };
 }
 
-// ─── Sector generation ───────────────────────────────────
-function generateSector(galaxyId, sectorIndex, rng) {
-  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const name = galaxyId + '-' + letters[sectorIndex % 26];
+// ─── Sector generation ──────────────────────────────────────────
+function generateSector(galaxyIndex, sectorIndex, rng) {
   const planets = [];
   for (let i = 0; i < PLANETS_PER_SECTOR; i++) {
-    planets.push(generatePlanet(galaxyId, name, i, rng));
+    planets.push(generatePlanet(galaxyIndex, sectorIndex, i, rng));
   }
+
   return {
-    id: name,
-    name: name,
-    planets,
-    full: false
+    id: 'sector-' + galaxyIndex + '-' + sectorIndex,
+    galaxyId: 'galaxy-' + galaxyIndex,
+    index: sectorIndex,
+    label: SECTOR_LETTERS[sectorIndex] + '-' + String(sectorIndex + 1).padStart(2, '0'),
+    name: SECTOR_NAMES[sectorIndex],
+    x: 5 + (sectorIndex % 5) * 22 + rng() * 8,
+    y: 5 + Math.floor(sectorIndex / 5) * 32 + rng() * 10,
+    planets: planets
   };
 }
 
-// ─── Galaxy generation ───────────────────────────────────
-function generateGalaxy(galaxyIndex, rng) {
-  const name = 'Galaxy ' + galaxyIndex;
+// ─── Galaxy generation ──────────────────────────────────────────
+function generateGalaxy(index, rng) {
+  const sectors = [];
+  for (let s = 0; s < SECTORS_PER_GALAXY; s++) {
+    sectors.push(generateSector(index, s, rng));
+  }
+
   return {
-    id: 'galaxy-' + galaxyIndex,
-    name: name,
-    index: galaxyIndex,
-    sectors: [],
-    full: false
+    id: 'galaxy-' + index,
+    name: GALAXY_NAMES[index],
+    color: GALAXY_COLORS[index],
+    index: index,
+    sectors: sectors
   };
 }
 
-// ─── Find next available planet ──────────────────────────
+// ─── Full universe initialization ───────────────────────────────
+function generateFullUniverse(seed) {
+  const rng = makeRNG(seed || 42);
+  const galaxies = [];
+  for (let g = 0; g < 9; g++) {
+    galaxies.push(generateGalaxy(g, rng));
+  }
+  return galaxies;
+}
+
+// ─── Find next available planet ─────────────────────────────────
 function findNextAvailable(universe) {
-  // Look through existing galaxies for an unoccupied planet
+  if (!universe.galaxies) return null;
   for (let gi = 0; gi < universe.galaxies.length; gi++) {
     const gal = universe.galaxies[gi];
     for (let si = 0; si < gal.sectors.length; si++) {
       const sec = gal.sectors[si];
       for (let pi = 0; pi < sec.planets.length; pi++) {
         const planet = sec.planets[pi];
-        if (!planet.occupied) {
+        if (!planet.isColonized) {
           return {
             galaxy: gal,
             galaxyId: gal.id,
@@ -115,71 +168,68 @@ function findNextAvailable(universe) {
   return null;
 }
 
-// ─── Expand universe (add sectors / galaxies) ────────────
+// ─── Ensure a planet is always available ────────────────────────
 function ensurePlanetAvailable(universe) {
-  const existing = findNextAvailable(universe);
-  if (existing) return existing;
-
-  // Need to expand — add a sector or galaxy
-  const rng = makeRNG(universe.nextId || 1);
-  universe.nextId = (universe.nextId || 1) + 1;
-
-  if (!universe.galaxies.length) {
-    // First galaxy + first sector
-    const gal = generateGalaxy(1, rng);
-    const sec = generateSector(gal.id, 0, rng);
-    gal.sectors.push(sec);
-    universe.galaxies.push(gal);
-  } else {
-    const lastGal = universe.galaxies[universe.galaxies.length - 1];
-    if (lastGal.sectors.length < SECTORS_PER_GALAXY) {
-      // Add sector to existing galaxy
-      const sec = generateSector(lastGal.id, lastGal.sectors.length, rng);
-      lastGal.sectors.push(sec);
-    } else {
-      // Galaxy full, create new one
-      lastGal.full = true;
-      const newGal = generateGalaxy(universe.galaxies.length + 1, rng);
-      const sec = generateSector(newGal.id, 0, rng);
-      newGal.sectors.push(sec);
-      universe.galaxies.push(newGal);
-    }
+  // First time: generate the full universe
+  if (!universe.galaxies || universe.galaxies.length === 0) {
+    universe.galaxies = generateFullUniverse();
   }
-
   return findNextAvailable(universe);
 }
 
-// ─── Claim planet ────────────────────────────────────────
+// ─── Claim a planet for a player ────────────────────────────────
 function claimPlanet(universe, planetInfo, username) {
-  planetInfo.planet.occupied = true;
-  planetInfo.planet.owner = username;
-  planetInfo.sector.full = planetInfo.sector.planets.every(p => p.occupied);
-  planetInfo.galaxy.full = planetInfo.galaxy.sectors.every(s => s.full);
+  planetInfo.planet.isPlayerBase = true;
+  planetInfo.planet.isColonized = true;
+  planetInfo.planet.colonizedBy = username;
+  planetInfo.planet.baseLevel = 1;
   return {
     galaxyId: planetInfo.galaxyId,
     sectorId: planetInfo.sectorId,
-    planetId: planetInfo.planetId
+    planetId: planetInfo.planetId,
+    planetName: planetInfo.planet.name
   };
 }
 
-// ─── Get player count from universe ──────────────────────
+// ─── Get claimed planet count ───────────────────────────────────
 function getClaimedCount(universe) {
+  if (!universe.galaxies) return 0;
   let count = 0;
   for (const gal of universe.galaxies) {
     for (const sec of gal.sectors) {
       for (const p of sec.planets) {
-        if (p.occupied) count++;
+        if (p.isColonized) count++;
       }
     }
   }
   return count;
 }
 
-// ─── Exports ────────────────────────────────────────────
+// ─── Get player's claimed planet info ───────────────────────────
+function getPlayerPlanet(universe, username) {
+  if (!universe.galaxies) return null;
+  for (const gal of universe.galaxies) {
+    for (const sec of gal.sectors) {
+      for (const p of sec.planets) {
+        if (p.colonizedBy === username) {
+          return {
+            galaxyId: gal.id,
+            sectorId: sec.id,
+            planetId: p.id,
+            planetName: p.name
+          };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+// ─── Exports ────────────────────────────────────────────────────
 module.exports = {
   ensurePlanetAvailable,
   claimPlanet,
   getClaimedCount,
-  generateGalaxy,
-  generateSector
+  getPlayerPlanet,
+  generateFullUniverse
 };
