@@ -224,7 +224,15 @@ const server = http.createServer(function(req, res) {
         const token = generateToken(username);
         log(ip, 'POST /api/register (' + username + ') planet=' + pName + ' G' + planetInfo.galaxyId + 'S' + planetInfo.sectorId + 'P' + planetInfo.planetId);
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: true, token: token, username: username, planetName: pName }));
+        res.end(JSON.stringify({
+          ok: true,
+          token: token,
+          username: username,
+          planetName: pName,
+          galaxyId: claim.galaxyId,
+          sectorId: claim.sectorId,
+          planetId: claim.planetId
+        }));
       } catch (e) {
         log(ip, 'REGISTER ERROR: ' + e.message + ' body=' + body.substring(0, 200));
         res.writeHead(400, { 'Content-Type': 'application/json' });
