@@ -523,6 +523,7 @@ window.UIMap = (function () {
       const isActive = state.universe.activePlanetId === p.id;
       const discovered = GalaxySystem.isDiscovered(state, p.id);
       const isPlayer = p.isPlayerBase;
+      const isColonized = p.colonizedBy && !isPlayer;
       const color = planetTypeColor(p.type);
 
       return `

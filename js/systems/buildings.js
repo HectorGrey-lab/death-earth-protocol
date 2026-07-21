@@ -46,10 +46,11 @@ window.BuildingSystem = (function () {
   }
 
   function getShieldStats(state) {
-    const genLevel = state.buildings.shieldGenerator.level;
-    const defenseResearch = state.research.levels.defense;
+    const genLevel = state.buildings.shieldGenerator && state.buildings.shieldGenerator.level || 0;
+    const defenseResearch = (state.research && state.research.levels && state.research.levels.defense) || 0;
     const max = 120 + genLevel * 70 + defenseResearch * 25;
-    const current = Math.floor(max * (state.buildings.shieldGenerator.integrity / 100));
+    const integrity = (state.buildings.shieldGenerator && state.buildings.shieldGenerator.integrity) || 100;
+    const current = Math.floor(max * (integrity / 100));
     return { current, max };
   }
 

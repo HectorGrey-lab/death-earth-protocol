@@ -4,16 +4,13 @@ window.ResourceSystem = (function () {
     if (state._productionRates) {
       return state._productionRates;
     }
-    // Fallback: calculate from building levels
+    // Fallback: calculate from building levels (only if _productionRates not sent by server)
     var rates = { ore: 0, solar: 0, crystal: 0, isotopes: 0 };
     if (state.buildings.extractionGrid) {
-      rates.ore = state.buildings.extractionGrid.level * 5;
-    }
-    if (state.buildings.solarCollector) {
-      rates.solar = state.buildings.solarCollector.level * 4;
-    }
-    if (state.buildings.crystalLab) {
-      rates.crystal = state.buildings.crystalLab.level * 3;
+      rates.ore = state.buildings.extractionGrid.level * 8;
+      rates.solar = state.buildings.extractionGrid.level * 7;
+      rates.crystal = state.buildings.extractionGrid.level * 5;
+      rates.isotopes = state.buildings.extractionGrid.level * 3;
     }
     return rates;
   }

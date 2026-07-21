@@ -101,6 +101,22 @@ window.App = (function () {
           if (window.Universe && typeof window.Universe.fromJSON === 'function') {
             window.Universe.fromJSON(msg.universe.galaxies);
           }
+          // Mark the player's home planet so map rendering shows the ⌂ icon
+          if (window.GalaxySystem) {
+            if (c.homeGalaxy && c.homeSector && c.homePlanet) {
+              GalaxySystem.markHomePlanet(c.homeGalaxy, c.homeSector, c.homePlanet);
+            }
+            // Ensure all planets have typeName set (server doesn't send it)
+            var gals = Universe.getGalaxies();
+            for (var gi = 0; gi < gals.length; gi++) {
+              for (var si = 0; si < gals[gi].sectors.length; si++) {
+                var planets = gals[gi].sectors[si].planets;
+                for (var pi = 0; pi < planets.length; pi++) {
+                  GalaxySystem.ensureTypeName(planets[pi]);
+                }
+              }
+            }
+          }
         }
 
         render();

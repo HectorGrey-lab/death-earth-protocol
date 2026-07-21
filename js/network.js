@@ -94,7 +94,30 @@ window.Network = (function () {
           case 'world_tick':
             trigger('world_tick', msg);
             break;
-          case 'pong':
+          case 'research_result':
+            trigger('research_result', msg);
+            break;
+          case 'scout_result':
+            trigger('scout_result', msg);
+            break;
+          case 'raid_result':
+            trigger('raid_result', msg);
+            break;
+          case 'expedition_result':
+            trigger('expedition_result', msg);
+            break;
+          case 'exchange_result':
+            trigger('exchange_result', msg);
+            break;
+          case 'buy_artifact_result':
+            trigger('buy_artifact_result', msg);
+            break;
+          case 'action_result':
+            trigger('action_result', msg);
+            break;
+          default:
+            // Forward unknown message types to listeners too
+            trigger(msg.type, msg);
             break;
         }
       } catch (e) {}

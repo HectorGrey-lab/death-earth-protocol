@@ -98,7 +98,7 @@ function createInitialBuildings() {
   const b = {};
   Object.keys(bDefs).forEach(function(key) {
     b[key] = {
-      level: key === 'commandCenter' ? 2 : 1,
+      level: 1,
       integrity: 100,
       upgrading: null
     };

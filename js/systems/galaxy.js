@@ -100,6 +100,32 @@ window.GalaxySystem = (function () {
     return { ok: true };
   }
 
+  // ── Mark the player's home planet after server data loads ──
+  function markHomePlanet(galaxyId, sectorId, planetId) {
+    const planet = Universe.getPlanet(galaxyId, sectorId, planetId);
+    if (planet) {
+      planet.isPlayerBase = true;
+      planet.isColonized = true;
+      planet.colonizedBy = 'player';
+    }
+    return planet;
+  }
+
+  function ensureTypeName(planet) {
+    if (!planet.typeName) {
+      var typeNames = {
+        terran: 'Terran',
+        desert: 'Desert',
+        ice: 'Ice',
+        gas: 'Gas Giant',
+        lava: 'Lava',
+        ocean: 'Oceanic',
+        barren: 'Barren'
+      };
+      planet.typeName = typeNames[planet.type] || planet.type || 'Unknown';
+    }
+  }
+
   // ── Current galaxy/sector/planet info ──
   function getCurrentGalaxy(state) {
     if (!state.universe.activeGalaxyId) return null;
@@ -206,6 +232,10 @@ window.GalaxySystem = (function () {
     getHomePlanet,
     getActiveFleets,
     hasActiveFleetTo,
+
+    // Home planet
+    markHomePlanet,
+    ensureTypeName,
 
     // State
     createInitialUniverseState
