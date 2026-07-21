@@ -171,7 +171,7 @@ function ensurePlanetAvailable(universe) {
   if (!universe.galaxies || universe.galaxies.length === 0) {
     // First galaxy + first sector
     const gal = generateGalaxy(0, rng);
-    const sec = generateSector(1, 0, rng);
+    const sec = generateSector(0, 0, rng);
     gal.sectors.push(sec);
     universe.galaxies.push(gal);
   } else {
@@ -204,7 +204,7 @@ function updateSectorFullFlags(universe) {
       sec.full = colonizedCount >= sec.planets.length;
       if (!sec.full) allSectorsFull = false;
     }
-    gal.full = allSectorsFull;
+    gal.full = allSectorsFull && gal.sectors.length >= SECTORS_PER_GALAXY;
   }
 }
 
