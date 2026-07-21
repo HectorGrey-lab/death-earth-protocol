@@ -381,8 +381,9 @@ const server = http.createServer(function(req, res) {
     }
     res.writeHead(200, { 'Content-Type': mime });
     res.end(data);
-  break;
-  }
+  });
+  return;
+});
 server.on('upgrade', function(req, socket, head) {
   const ip = req.connection.remoteAddress || 'unknown';
   const key = req.headers['sec-websocket-key'];
