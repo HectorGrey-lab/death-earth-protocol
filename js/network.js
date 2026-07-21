@@ -227,9 +227,8 @@ window.Network = (function () {
   }
 
   function on(event, callback) {
-    if (listeners[event]) {
-      listeners[event].push(callback);
-    }
+    if (!listeners[event]) listeners[event] = [];
+    listeners[event].push(callback);
     return function () {
       var idx = listeners[event].indexOf(callback);
       if (idx >= 0) listeners[event].splice(idx, 1);
