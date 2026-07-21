@@ -175,7 +175,7 @@ async function saveDB() {
       saveToJson();
     }
   } catch (e) {
-    console.error('[DB] Save error:', e.message);
+    console.error('[DB] Save error:', e.message, e.stack);
   }
 }
 

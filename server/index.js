@@ -326,6 +326,30 @@ const server = http.createServer(function(req, res) {
     return;
   }
 
+  // ─── Debug: universe planet state ──────────────────────────────
+  if (req.url === '/api/debug/planets') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    const claimed = [];
+    if (DB.db.universe && DB.db.universe.galaxies) {
+      DB.db.universe.galaxies.forEach(g => {
+        g.sectors.forEach(s => {
+          s.planets.filter(p => p.isColonized).forEach(p => {
+            claimed.push({
+              name: p.name,
+              type: p.type,
+              id: p.id,
+              colonizedBy: p.colonizedBy,
+              galaxy: g.name,
+              sector: s.name
+            });
+          });
+        });
+      });
+    }
+    res.end(JSON.stringify({ players: Object.keys(DB.db.users).length, planets: claimed }, null, 2));
+    return;
+  }
+
   // ── Static Files ──
   let filePath = req.url === '/' ? '/login.html' : req.url;
   filePath = path.normalize(filePath).replace(/^(\.[\\/])+/, '');
@@ -357,10 +381,8 @@ const server = http.createServer(function(req, res) {
     }
     res.writeHead(200, { 'Content-Type': mime });
     res.end(data);
-  });
-});
-
-// ─── WebSocket Upgrade ────────────────────────────────────────────
+  break;
+  }
 server.on('upgrade', function(req, socket, head) {
   const ip = req.connection.remoteAddress || 'unknown';
   const key = req.headers['sec-websocket-key'];
