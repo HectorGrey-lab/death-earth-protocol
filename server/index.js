@@ -357,12 +357,12 @@ const server = http.createServer(function(req, res) {
     for (const [name, data] of Object.entries(DB.db.users)) {
       users[name] = {
         colony: data.colony ? {
-          planetId: data.colony.planetId,
           planetName: data.colony.planetName,
-          galaxyId: data.colony.galaxyId,
-          sectorId: data.colony.sectorId
+          homePlanet: data.colony.homePlanet,
+          homeGalaxy: data.colony.homeGalaxy,
+          homeSector: data.colony.homeSector,
+          resources: data.colony.resources
         } : null,
-        resources: data.resources,
         registerTime: data.registerTime,
         lastSeen: data.lastSeen
       };
