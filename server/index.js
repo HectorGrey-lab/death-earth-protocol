@@ -317,7 +317,12 @@ const server = http.createServer(function(req, res) {
 
   if (req.url === '/api/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, uptime: process.uptime(), players: Object.keys(DB.db.users).length }));
+    res.end(JSON.stringify({
+      ok: true,
+      uptime: process.uptime(),
+      players: Object.keys(DB.db.users).length,
+      db: process.env.DATABASE_URL ? 'postgresql' : 'json-file'
+    }));
     return;
   }
 
