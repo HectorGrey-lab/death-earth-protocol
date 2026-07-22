@@ -8,6 +8,7 @@ window.UICore = (function () {
     missions: { title: "Mission Control", subtitle: "Tracked objectives and command rewards." },
     alliance: { title: "Alliance Link", subtitle: "Join pacts, review member networks, and apply passive perks." },
     market: { title: "Market Nexus", subtitle: "Resource exchange, artifact trade, and transaction activity." },
+    chat: { title: "Global Chat", subtitle: "Communicate with all players across the galaxy." },
     mailbox: { title: "Mailbox", subtitle: "Combat reports, system notices, alliance messages, and logs." }
   };
 
@@ -162,6 +163,10 @@ window.UICore = (function () {
       case "market":
         target.innerHTML = UIMarket.render(state);
         UIMarket.bind(state);
+        break;
+      case "chat":
+        target.innerHTML = UIChat.renderPage(state);
+        setTimeout(function() { UIChat.bindPage(state); }, 0);
         break;
       case "mailbox":
         target.innerHTML = UIMailbox.renderPage(state);

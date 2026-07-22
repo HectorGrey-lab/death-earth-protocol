@@ -1,138 +1,78 @@
-/**
- * ui-chat.js — Chat panel UI
- * Displays a collapsible chat panel that floats over the game.
- */
-
 window.UIChat = (function () {
-  'use strict';
-
-  var chatVisible = false;
   var messages = [];
-  var MAX_MESSAGES = 100;
-  var unreadCount = 0;
+  var onlineCount = 0;
 
   function render() {
-    var html = '';
-    html += '<div id="chatPanel" class="chat-panel" style="display:' + (chatVisible ? 'flex' : 'none') + '">';
-    html += '  <div class="chat-header">';
-    html += '    <span>💬 Global Chat</span>';
-    html += '    <div class="chat-header-actions">';
-    html += '      <span id="chatOnlineCount" class="chat-online-count">0 online</span>';
-    html += '      <button id="chatMinimizeBtn" class="chat-btn">_</button>';
-    html += '    </div>';
-    html += '  </div>';
-    html += '  <div class="chat-messages" id="chatMessages">';
-    for (var i = 0; i < messages.length; i++) {
-      html += renderMessage(messages[i]);
-    }
-    html += '  </div>';
-    html += '  <div class="chat-input-row">';
-    html += '    <input type="text" id="chatInput" class="chat-input" placeholder="Type a message..." maxlength="200" />';
-    html += '    <button id="chatSendBtn" class="chat-btn chat-send-btn">Send</button>';
-    html += '  </div>';
-    html += '</div>';
-
-    var toggleBtn = '';
-    toggleBtn += '<button id="chatToggleBtn" class="chat-toggle-btn" title="Toggle Chat">';
-    toggleBtn += '  💬 <span id="chatBadge" class="chat-badge" style="display:' + (unreadCount > 0 ? 'inline' : 'none') + '">' + unreadCount + '</span>';
-    toggleBtn += '</button>';
-
-    return toggleBtn + html;
+    var html = messages.map(function (m) {
+      var isOwn = m.username === (window.Network ? Network.username : '');
+      var cls = isOwn ? 'chat-own' : '';
+      var time = m.time ? new Date(m.time).toLocaleTimeString() : '';
+      return '<div class="chat-msg ' + cls + '">' +
+        '<span class="chat-user">' + esc(m.username) + '</span>' +
+        '<span class="chat-time">' + time + '</span>' +
+        '<div class="chat-text">' + esc(m.text) + '</div></div>';
+    }).join('') || '<div class="small" style="padding:12px;text-align:center;">No messages yet.</div>';
+    return '<div class="chat-widget"><div class="chat-widget-header"><strong>Global Chat</strong><span class="small" id="chatOnlineCount">' + onlineCount + ' online</span></div><div class="chat-widget-msgs" id="chatWidgetMsgs">' + html + '</div><div class="chat-widget-input"><input type="text" id="chatWidgetInput" placeholder="Type..." maxlength="500" /><button class="btn small" id="chatWidgetSend">Send</button></div></div>';
   }
 
-  function renderMessage(msg) {
-    var time = '';
-    if (msg.timestamp) {
-      var d = new Date(msg.timestamp);
-      time = d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
-    }
-    var isOwn = msg.username === (window.Network ? window.Network.username : '');
-    var cls = isOwn ? 'chat-msg-own' : '';
-
-    if (msg.type === 'system') {
-      return '<div class="chat-msg chat-msg-system"><span class="chat-system-text">' + escapeHtml(msg.message) + '</span></div>';
-    }
-    return '<div class="chat-msg ' + cls + '"><span class="chat-time">' + time + '</span><strong class="chat-user">' + escapeHtml(msg.username) + '</strong>: <span class="chat-text">' + escapeHtml(msg.message) + '</span></div>';
+  function bind() {
+    var input = document.getElementById('chatWidgetInput');
+    var sendBtn = document.getElementById('chatWidgetSend');
+    if (!input || !sendBtn) return;
+    function send() { var t = input.value.trim(); if (t) { if (window.Network) Network.sendChat(t); input.value = ''; } }
+    sendBtn.onclick = send;
+    input.onkeydown = function (e) { if (e.key === 'Enter') send(); };
+    var m = document.getElementById('chatWidgetMsgs');
+    if (m) m.scrollTop = m.scrollHeight;
   }
 
-  function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  function renderPage(state) {
+    var msgs = state.chat.messages || [];
+    var html = msgs.map(function (m) {
+      var isOwn = m.username === (window.Network ? Network.username : '');
+      var cls = isOwn ? 'chat-own' : '';
+      var time = m.time ? new Date(m.time).toLocaleTimeString() : '';
+      return '<div class="chat-msg ' + cls + '"><span class="chat-user">' + esc(m.username) + '</span><span class="chat-time">' + time + '</span><div class="chat-text">' + esc(m.text) + '</div></div>';
+    }).join('') || '<div class="small" style="padding:20px;text-align:center;">No messages yet. Be the first to say something!</div>';
+    return '<div class="chat-container"><div class="chat-messages" id="chatPageMsgs">' + html + '</div><div class="chat-input-row"><input type="text" id="chatPageInput" class="chat-input" placeholder="Type a message..." maxlength="500" /><button class="btn chat-send" id="chatPageSend">Send</button></div></div>';
+  }
+
+  function bindPage(state) {
+    var input = document.getElementById('chatPageInput');
+    var sendBtn = document.getElementById('chatPageSend');
+    if (!input || !sendBtn) return;
+    function send() { var t = input.value.trim(); if (t) { if (window.Network) Network.sendChat(t); input.value = ''; input.focus(); } }
+    sendBtn.onclick = send;
+    input.onkeydown = function (e) { if (e.key === 'Enter') send(); };
+    input.focus();
+    var m = document.getElementById('chatPageMsgs');
+    if (m) m.scrollTop = m.scrollHeight;
   }
 
   function addMessage(msg) {
-    messages.push(msg);
-    if (messages.length > MAX_MESSAGES) messages.shift();
-    var container = document.getElementById('chatMessages');
-    if (container) {
-      container.insertAdjacentHTML('beforeend', renderMessage(msg));
-      container.scrollTop = container.scrollHeight;
+    var entry = { username: msg.username || 'System', text: msg.text || msg.message || '', time: msg.time || Date.now() };
+    messages.push(entry);
+    if (messages.length > 200) messages = messages.slice(-200);
+    if (window.gameState) {
+      if (!window.gameState.chat) window.gameState.chat = { messages: [] };
+      window.gameState.chat.messages.push(entry);
+      if (window.gameState.chat.messages.length > 200) window.gameState.chat.messages = window.gameState.chat.messages.slice(-200);
+      if (window.gameState.ui.currentPage === 'chat' && window.App) window.App.render();
     }
-    if (!chatVisible && msg.type !== 'system') {
-      unreadCount++;
-      var badge = document.getElementById('chatBadge');
-      if (badge) {
-        badge.textContent = unreadCount;
-        badge.style.display = 'inline';
-      }
-    }
-  }
-
-  function bind(state) {
-    var toggleBtn = document.getElementById('chatToggleBtn');
-    if (toggleBtn) {
-      toggleBtn.onclick = function () {
-        chatVisible = !chatVisible;
-        unreadCount = 0;
-        var badge = document.getElementById('chatBadge');
-        if (badge) { badge.style.display = 'none'; }
-        var panel = document.getElementById('chatPanel');
-        if (panel) { panel.style.display = chatVisible ? 'flex' : 'none'; }
-        if (chatVisible) {
-          var container = document.getElementById('chatMessages');
-          if (container) container.scrollTop = container.scrollHeight;
-          var input = document.getElementById('chatInput');
-          if (input) input.focus();
-        }
-      };
-    }
-
-    var minimizeBtn = document.getElementById('chatMinimizeBtn');
-    if (minimizeBtn) {
-      minimizeBtn.onclick = function () {
-        chatVisible = false;
-        var panel = document.getElementById('chatPanel');
-        if (panel) panel.style.display = 'none';
-      };
-    }
-
-    var sendBtn = document.getElementById('chatSendBtn');
-    var chatInput = document.getElementById('chatInput');
-    if (sendBtn && chatInput) {
-      function doSend() {
-        var text = chatInput.value.trim();
-        if (text && window.Network && Network.isConnected) {
-          Network.sendChat(text);
-          chatInput.value = '';
-        }
-        chatInput.focus();
-      }
-      sendBtn.onclick = doSend;
-      chatInput.onkeydown = function (e) {
-        if (e.key === 'Enter') doSend();
-      };
+    var wm = document.getElementById('chatWidgetMsgs');
+    if (wm) {
+      var p = wm.closest('.chat-widget');
+      if (p && p.parentElement) { p.parentElement.innerHTML = render(); bind(); }
     }
   }
 
-  function setOnlineCount(count) {
+  function setOnlineCount(n) {
+    onlineCount = n;
     var el = document.getElementById('chatOnlineCount');
-    if (el) el.textContent = count + ' online';
+    if (el) el.textContent = n + ' online';
   }
 
-  return {
-    render: render,
-    bind: bind,
-    addMessage: addMessage,
-    setOnlineCount: setOnlineCount,
-  };
+  function esc(str) { var d = document.createElement('div'); d.appendChild(document.createTextNode(str)); return d.innerHTML; }
+
+  return { render: render, bind: bind, renderPage: renderPage, bindPage: bindPage, addMessage: addMessage, setOnlineCount: setOnlineCount };
 })();

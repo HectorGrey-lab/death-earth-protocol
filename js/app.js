@@ -254,6 +254,7 @@ window.App = (function () {
       expeditions: { active: null, completed: [], queue: [] },
       inventory: { artifacts: [] },
       mailbox: { messages: [] },
+      chat: { messages: [] },
       map: { nodes: [], scanProgress: 0, selectedNodeId: null, discoveredNodes: {}, scanPulses: [], camera: { zoom: 1, offsetX: 0, offsetY: 0 } },
       alliance: { joinedId: null },
       commanderStats: { rankPoints: 0 },

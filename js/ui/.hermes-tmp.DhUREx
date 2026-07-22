@@ -1,0 +1,61 @@
+window.UIChat = (function () {
+  function renderPage(state) {
+    var messages = state.chat.messages || [];
+    var html = messages.map(function (m) {
+      var isOwn = m.username === (window.Network ? Network.username : '');
+      var cls = isOwn ? 'chat-own' : '';
+      var time = new Date(m.time).toLocaleTimeString();
+      return '<div class="chat-msg ' + cls + '">' +
+        '<span class="chat-user">' + escapeHtml(m.username) + '</span>' +
+        '<span class="chat-time">' + time + '</span>' +
+        '<div class="chat-text">' + escapeHtml(m.text) + '</div>' +
+        '</div>';
+    }).join('') || '<div class="small" style="padding:20px;text-align:center;">No messages yet. Be the first to say something!</div>';
+
+    return '<div class="chat-container">' +
+      '<div class="chat-messages" id="chatMessages">' + html + '</div>' +
+      '<div class="chat-input-row">' +
+      '<input type="text" id="chatInput" class="chat-input" placeholder="Type a message…" maxlength="500" />' +
+      '<button class="btn chat-send" id="chatSendBtn">Send</button>' +
+      '</div>' +
+      '</div>';
+  }
+
+  function bind(state) {
+    var input = document.getElementById('chatInput');
+    var sendBtn = document.getElementById('chatSendBtn');
+    if (!input || !sendBtn) return;
+
+    function sendMessage() {
+      var text = input.value.trim();
+      if (!text) return;
+      if (window.Network) {
+        Network.sendChat(text);
+      }
+      input.value = '';
+      input.focus();
+    }
+
+    sendBtn.onclick = sendMessage;
+    input.onkeydown = function (e) {
+      if (e.key === 'Enter') {
+        sendMessage();
+      }
+    };
+    input.focus();
+
+    // Auto-scroll to bottom after render
+    var msgs = document.getElementById('chatMessages');
+    if (msgs) {
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+  }
+
+  function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+  }
+
+  return { renderPage: renderPage, bind: bind };
+})();
