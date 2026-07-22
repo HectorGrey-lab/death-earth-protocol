@@ -375,7 +375,8 @@ const server = http.createServer(function(req, res) {
 
   // ── Static Files ──
   let filePath = req.url === '/' ? '/login.html' : req.url;
-  filePath = path.normalize(filePath).replace(/^(\.[\\/])+/, '');
+  filePath = filePath.split('?')[0];
+  filePath = path.normalize(filePath).replace(/^(\\.[\\\\/])+/, '');
   const fullPath = path.join(__dirname, '..', filePath);
 
   if (!fullPath.startsWith(path.resolve(__dirname, '..'))) {
