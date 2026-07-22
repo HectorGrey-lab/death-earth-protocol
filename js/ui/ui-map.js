@@ -997,7 +997,7 @@ window.UIMap = (function () {
       };
     }
 
-    // Go Home button — zoom to your home planet
+    // Go Home button — zoom to your home planet with highlight
     const goHomeBtn = document.getElementById('uvGoHomeBtn');
     if (goHomeBtn) {
       goHomeBtn.onclick = function () {
@@ -1009,6 +1009,32 @@ window.UIMap = (function () {
           state.universe.zoomLevel = 'sector';
         }
         window.App.render();
+
+        // After DOM renders, zoom viewport to center on home planet and pulse it
+        setTimeout(function () {
+          var stage = document.getElementById('galaxyStage');
+          var viewport = document.getElementById('galaxyViewport');
+          if (stage && viewport && home && home.x !== undefined) {
+            var targetZoom = 2.5;
+            var vpW = viewport.clientWidth;
+            var vpH = viewport.clientHeight;
+            // Planet logical pixel position (at scale=1, translate=0)
+            var px = (home.x / 100) * vpW;
+            var py = (home.y / 100) * vpH;
+            // Pan so the planet is centered in viewport
+            uvZoom = targetZoom;
+            uvPanX = (vpW / 2) - px * targetZoom;
+            uvPanY = (vpH / 2) - py * targetZoom;
+            stage.style.transform = 'scale(' + uvZoom + ') translate(' + uvPanX + 'px, ' + uvPanY + 'px)';
+            stage.style.transformOrigin = '0 0';
+          }
+          // Flash highlight on the home planet
+          var homeEl = document.querySelector('.galaxy-node.planet.selected');
+          if (homeEl) {
+            homeEl.classList.add('home-pulse');
+            setTimeout(function () { homeEl.classList.remove('home-pulse'); }, 2200);
+          }
+        }, 60);
       };
     }
 
