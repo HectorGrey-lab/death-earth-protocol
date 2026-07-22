@@ -12,7 +12,7 @@ function getProductionRates(colony) {
     ore: 8 * mult,
     solar: 7 * mult,
     crystal: 5 * mult,
-    isotopes: 3.2 * mult
+    isotopes: 5.4 * (1 + (extLevel - 1) * 0.30 + ecoResearch * 0.08)
   };
 }
 

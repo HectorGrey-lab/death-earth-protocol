@@ -25,7 +25,7 @@ window.UIModal = (function () {
           <div class="small">Solar: ${Utils.format1(rates.solar)}/s</div>
           <div class="small">Crystal: ${Utils.format1(rates.crystal)}/s</div>
           <div class="small">Isotopes: ${Utils.format1(rates.isotopes)}/s</div>
-          <div class="small" style="margin-top:6px;color:#667;">Per-level base: Ore 8, Solar 7, Crystal 5, Isotopes 3.2 — +12% per grid level</div>
+          <div class="small" style="margin-top:6px;color:#667;">Ore/Solar/Crystal: +12%/level. Isotopes: +30%/level (hits 20/s at L10)</div>
         </div>
       `;
     } else if (buildingKey === "communicationsHub") {

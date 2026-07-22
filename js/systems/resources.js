@@ -11,7 +11,7 @@ window.ResourceSystem = (function () {
       rates.ore = 8 * mult;
       rates.solar = 7 * mult;
       rates.crystal = 5 * mult;
-      rates.isotopes = 3.2 * mult;
+      rates.isotopes = 5.4 * (1 + (state.buildings.extractionGrid.level - 1) * 0.30);
     }
     return rates;
   }
