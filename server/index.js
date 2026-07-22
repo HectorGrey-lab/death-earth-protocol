@@ -322,7 +322,8 @@ const server = http.createServer(function(req, res) {
       ok: true,
       uptime: process.uptime(),
       players: Object.keys(DB.db.users).length,
-      db: process.env.DATABASE_URL ? 'postgresql' : 'json-file'
+      db: process.env.DATABASE_URL ? 'postgresql' : 'json-file',
+      chatHistory: chatHistory.length
     }));
     return;
   }
