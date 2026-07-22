@@ -32,7 +32,7 @@ window.App = (function () {
           UIChat.setOnlineCount(players.length);
           window._onlinePlayers = players;
         });
-        Network.on("system", function (msg) { UIChat.addMessage(msg); });
+        // Removed: system listener was adding join/leave notifications to chat
       }
     }, 2000);
 

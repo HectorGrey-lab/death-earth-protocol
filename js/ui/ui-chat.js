@@ -52,11 +52,11 @@ window.UIChat = (function () {
   function addMessage(msg) {
     var entry = { username: msg.username || 'System', text: msg.text || msg.message || '', time: msg.time || Date.now() };
     messages.push(entry);
-    if (messages.length > 200) messages = messages.slice(-200);
+    if (messages.length > 20) messages = messages.slice(-20);
     if (window.gameState) {
       if (!window.gameState.chat) window.gameState.chat = { messages: [] };
       window.gameState.chat.messages.push(entry);
-      if (window.gameState.chat.messages.length > 200) window.gameState.chat.messages = window.gameState.chat.messages.slice(-200);
+      if (window.gameState.chat.messages.length > 20) window.gameState.chat.messages = window.gameState.chat.messages.slice(-20);
       if (window.gameState.ui.currentPage === 'chat' && window.App) window.App.render();
     }
     var wm = document.getElementById('chatWidgetMsgs');
