@@ -1,15 +1,10 @@
 window.App = (function () {
   function render() {
-    // Skip full re-render on chat/leaderboard ONLY if already rendered
-    if (window.gameState && window.gameState.ui) {
-      if (window.gameState.ui.currentPage === 'chat' &&
-          document.getElementById('chatPageMsgs')) {
-        return;
-      }
-      if (window.gameState.ui.currentPage === 'leaderboard' &&
-          document.getElementById('lbContainer')) {
-        return;
-      }
+    // Skip full re-render on chat ONLY if already rendered (preserves input)
+    if (window.gameState && window.gameState.ui && 
+        window.gameState.ui.currentPage === 'chat' &&
+        document.getElementById('chatPageMsgs')) {
+      return;
     }
     UICore.renderAll(window.gameState);
   }
