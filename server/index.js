@@ -40,6 +40,60 @@ function broadcastToUser(socket, msg) {
   try { socket.write(wsEncodeFrame(JSON.stringify(msg))); } catch(e) {}
 }
 
+// ─── Leaderboard ──────────────────────────────────────────
+function computeLeaderboard() {
+  var users = DB.db.users || {};
+  var data = { population: [], raider: [], attacker: [], defence: [] };
+
+  Object.keys(users).forEach(function(name) {
+    var u = users[name];
+    if (!u || !u.colony) return;
+    var c = u.colony;
+
+    data.population.push({
+      name: name,
+      score: ResourceSystem.getPopulation(c)
+    });
+    data.raider.push({
+      name: name,
+      score: (c.combat && c.combat.attackWins) || 0
+    });
+    data.attacker.push({
+      name: name,
+      score: CombatSystem.getTotalPower(c)
+    });
+    data.defence.push({
+      name: name,
+      score: CombatSystem.getTotalDefense(c)
+    });
+  });
+
+  // Sort each descending and keep top 20
+  Object.keys(data).forEach(function(key) {
+    data[key].sort(function(a, b) { return b.score - a.score; });
+    data[key] = data[key].slice(0, 20);
+  });
+
+  return data;
+}
+
+function sendLeaderboardTo(socket) {
+  try {
+    socket.write(wsEncodeFrame(JSON.stringify({
+      type: 'leaderboard',
+      data: computeLeaderboard()
+    })));
+  } catch(e) {}
+}
+
+function broadcastLeaderboard() {
+  var data = computeLeaderboard();
+  var msg = JSON.stringify({ type: 'leaderboard', data: data });
+  wsClients.forEach(function(info, socket) {
+    try { socket.write(wsEncodeFrame(msg)); } catch(e) {}
+  });
+}
+
 // ─── WebSocket RFC 6455 Implementation ────────────────────────────
 const WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 
@@ -441,6 +495,8 @@ server.on('upgrade', function(req, socket, head) {
           const user = DB.db.users[username];
           wsClients.set(socket, { username: username, colony: user && user.colony ? user.colony : null });
           socket.write(wsEncodeFrame(JSON.stringify({ type: 'auth_ok', username: username })));
+          // Send leaderboard data
+          sendLeaderboardTo(socket);
           // Send recent chat history to this user
           if (chatHistory.length > 0) {
             socket.write(wsEncodeFrame(JSON.stringify({ type: 'chat_history', messages: chatHistory })));
@@ -687,5 +743,9 @@ server.on('upgrade', function(req, socket, head) {
 
     // Start game loop
     GameLoop.startLoop(DB.db, { broadcast: broadcastAll }, function() { DB.saveDB(); });
+
+    // Broadcast leaderboard every 30 seconds
+    setInterval(broadcastLeaderboard, 30000);
+    broadcastLeaderboard(); // also send immediately at startup
   });
 })();

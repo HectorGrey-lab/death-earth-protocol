@@ -1,10 +1,15 @@
 window.App = (function () {
   function render() {
-    // Skip full re-render on chat ONLY if it's already been rendered (preserves input)
-    if (window.gameState && window.gameState.ui && 
-        window.gameState.ui.currentPage === 'chat' &&
-        document.getElementById('chatPageMsgs')) {
-      return;
+    // Skip full re-render on chat/leaderboard ONLY if already rendered
+    if (window.gameState && window.gameState.ui) {
+      if (window.gameState.ui.currentPage === 'chat' &&
+          document.getElementById('chatPageMsgs')) {
+        return;
+      }
+      if (window.gameState.ui.currentPage === 'leaderboard' &&
+          document.getElementById('lbContainer')) {
+        return;
+      }
     }
     UICore.renderAll(window.gameState);
   }
@@ -33,6 +38,14 @@ window.App = (function () {
     Network.on('chat_history', function (msg) {
       if (msg.messages && msg.messages.length) {
         UIChat.loadHistory(msg.messages);
+      }
+    });
+    Network.on('leaderboard', function (msg) {
+      if (msg.data) {
+        UILeaderboard.setData(msg.data);
+        if (window.gameState && window.gameState.ui && window.gameState.ui.currentPage === 'leaderboard') {
+          render();
+        }
       }
     });
 

@@ -9,7 +9,8 @@ window.UICore = (function () {
     alliance: { title: "Alliance Link", subtitle: "Join pacts, review member networks, and apply passive perks." },
     market: { title: "Market Nexus", subtitle: "Resource exchange, artifact trade, and transaction activity." },
     chat: { title: "Global Chat", subtitle: "Communicate with all players across the galaxy." },
-    mailbox: { title: "Mailbox", subtitle: "Combat reports, system notices, alliance messages, and logs." }
+    mailbox: { title: "Mailbox", subtitle: "Combat reports, system notices, alliance messages, and logs." },
+    leaderboard: { title: "Leaderboard", subtitle: "Top commanders across population, raids, attacks, and defence." }
   };
 
   function renderHeader(state) {
@@ -170,6 +171,10 @@ window.UICore = (function () {
         break;
       case "mailbox":
         target.innerHTML = UIMailbox.renderPage(state);
+        break;
+      case "leaderboard":
+        target.innerHTML = UILeaderboard.renderPage(state);
+        setTimeout(function() { UILeaderboard.bindPage(state); }, 0);
         break;
       default:
         target.innerHTML = UIHome.render(state);

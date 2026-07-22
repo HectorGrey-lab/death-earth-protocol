@@ -1691,5 +1691,21 @@ hr.sep {
 }
 
 
+/* ─── Leaderboard ─── */
+.lb-container { display: flex; flex-direction: column; min-height: 300px; }
+.lb-tabs { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+.lb-tab { flex: 1; min-width: 100px; padding: 8px 10px; background: rgba(88,214,255,0.06); border: 1px solid rgba(88,214,255,0.12); border-radius: 8px; color: #88bbdd; font-size: 13px; cursor: pointer; text-align: center; }
+.lb-tab.active { background: rgba(88,214,255,0.15); border-color: rgba(88,214,255,0.35); color: #58d6ff; font-weight: 600; }
+.lb-tab:hover { border-color: rgba(88,214,255,0.3); }
+.lb-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(88,214,255,0.1); margin-bottom: 8px; }
+.lb-entries { flex: 1; overflow-y: auto; }
+.lb-row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px; margin-bottom: 2px; }
+.lb-row:nth-child(odd) { background: rgba(255,255,255,0.02); }
+.lb-row-you { background: rgba(88,214,255,0.08) !important; border-left: 2px solid #58d6ff; }
+.lb-rank { width: 40px; text-align: center; font-size: 14px; flex-shrink: 0; }
+.lb-name { flex: 1; font-size: 13px; color: #c8d8e8; }
+.lb-score { font-size: 14px; font-weight: 600; color: #58d6ff; flex-shrink: 0; }
+
+
 /* ─── End ─── */
 @media (max-width: 768px) { .chat-container { height: calc(100vh - 280px); min-height: 200px; } .chat-msg { max-width: 95%; } }
