@@ -57,7 +57,20 @@ window.UIChat = (function () {
       if (!window.gameState.chat) window.gameState.chat = { messages: [] };
       window.gameState.chat.messages.push(entry);
       if (window.gameState.chat.messages.length > 20) window.gameState.chat.messages = window.gameState.chat.messages.slice(-20);
-      if (window.gameState.ui.currentPage === 'chat' && window.App) window.App.render();
+      if (window.gameState.ui.currentPage === 'chat') {
+        // Append directly to the messages container instead of re-rendering the whole page
+        var chatMsgs = document.getElementById('chatPageMsgs');
+        if (chatMsgs) {
+          var isOwn = entry.username === (window.Network ? Network.username : '');
+          var cls = isOwn ? 'chat-own' : '';
+          var time = entry.time ? new Date(entry.time).toLocaleTimeString() : '';
+          var div = document.createElement('div');
+          div.className = 'chat-msg ' + cls;
+          div.innerHTML = '<span class="chat-user">' + esc(entry.username) + '</span><span class="chat-time">' + time + '</span><div class="chat-text">' + esc(entry.text) + '</div>';
+          chatMsgs.appendChild(div);
+          chatMsgs.scrollTop = chatMsgs.scrollHeight;
+        }
+      }
     }
     var wm = document.getElementById('chatWidgetMsgs');
     if (wm) {
