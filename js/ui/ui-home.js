@@ -38,16 +38,7 @@ window.UIHome = (function () {
     }).join("");
   }
 
-  function renderMailPreview(state) {
-    const recent = state.mailbox.messages.slice(0, 4);
-    if (!recent.length) return `<div class="small">No recent reports.</div>`;
-    return recent.map(m => `
-      <div class="log-item">
-        <strong>${m.subject}</strong>
-        <div class="small">${m.tab} • ${new Date(m.time).toLocaleString()}</div>
-      </div>
-    `).join("");
-  }
+
 
   function renderCommanderSummary(state) {
     const theme = GameData.themes.find(t => t.id === state.commander.theme) || GameData.themes[0];
@@ -92,33 +83,9 @@ window.UIHome = (function () {
     `;
   }
 
-  function renderMiniMap(state) {
-    const nodes = MapSystem.getRenderableNodes(state);
-    const home = nodes.find(n => n.id === "n-home");
-    return `
-      <div class="minimap">
-        <div class="minimap-label">Tactical Mini-Map</div>
-        ${home ? `<div class="minimap-home-ring" style="left:${home.x}%; top:${home.y}%"></div>` : ""}
-        ${nodes.map(node => `
-          <div class="minimap-node ${node.type} ${state.map.selectedNodeId === node.id ? "selected" : ""}"
-               style="left:${node.x}%; top:${node.y}%"></div>
-        `).join("")}
-      </div>
-    `;
-  }
 
-  function renderQuickActions() {
-    return `
-      <div class="quick-actions">
-        <button class="btn" data-goto="map">Open World Map</button>
-        <button class="btn" data-goto="buildings">Manage Buildings</button>
-        <button class="btn" data-goto="forces">Train Forces</button>
-        <button class="btn" data-goto="research">Open Research</button>
-        <button class="btn" data-goto="market">Open Market</button>
-        <button class="btn" data-goto="mailbox">View Reports</button>
-      </div>
-    `;
-  }
+
+
 
   function render(state) {
     return `
@@ -127,18 +94,13 @@ window.UIHome = (function () {
           ${renderCommanderSummary(state)}
 
           <div class="card">
-            <div class="panel-title">Quick Actions</div>
-            ${renderQuickActions()}
-          </div>
-
-          <div class="card">
             <div class="panel-title">Mission Preview</div>
             <div class="stack">${renderMissionPreview(state)}</div>
           </div>
 
           <div class="card">
-            <div class="panel-title">Recent Reports</div>
-            <div class="stack">${renderMailPreview(state)}</div>
+            <div class="panel-title">Command Alerts</div>
+            <div class="stack">${renderAlertsPreview(state)}</div>
           </div>
         </div>
 
@@ -146,16 +108,6 @@ window.UIHome = (function () {
           <div class="card">
             <div class="panel-title">Colony Status</div>
             ${renderBaseSummary(state)}
-          </div>
-
-          <div class="card">
-            <div class="panel-title">Operational Theater</div>
-            ${renderMiniMap(state)}
-          </div>
-
-          <div class="card">
-            <div class="panel-title">Command Alerts</div>
-            <div class="stack">${renderAlertsPreview(state)}</div>
           </div>
 
           <div class="card">

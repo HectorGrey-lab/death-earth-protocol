@@ -22,11 +22,7 @@ window.App = (function () {
 
     setTimeout(function () {
       if (Network.isConnected) {
-        var container = document.getElementById("chatContainer");
-        if (container) {
-          container.innerHTML = UIChat.render();
-          UIChat.bind();
-        }
+        // Chat widget removed — Global Chat tab replaced the homepage widget
         Network.on("chat", function (msg) { UIChat.addMessage(msg); });
         Network.on("presence", function (players) {
           UIChat.setOnlineCount(players.length);
