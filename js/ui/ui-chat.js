@@ -85,7 +85,9 @@ window.UIChat = (function () {
     }
   }
 
-  function esc(str)
+  function esc(str) {
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
 
   return { render: render, bind: bind, renderPage: renderPage, bindPage: bindPage, addMessage: addMessage, setOnlineCount: setOnlineCount, loadHistory: loadHistory };
 })();
