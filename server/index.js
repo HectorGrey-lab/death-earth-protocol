@@ -514,6 +514,7 @@ server.on('upgrade', function(req, socket, head) {
         chatHistory.push(chatMsg);
         if (chatHistory.length > 20) chatHistory.splice(0, chatHistory.length - 20);
         broadcastAll(chatMsg);
+        DB.saveChatMessage(username, msg.text.substring(0, 500), chatMsg.time);
         log(ip, 'chat ' + username + ': ' + msg.text.substring(0, 50));
       }
 
@@ -661,6 +662,16 @@ server.on('upgrade', function(req, socket, head) {
 // ─── Start Server (async) ─────────────────────────────────────────
 (async function start() {
   await DB.loadDB();
+
+  // Load persistent chat history from database
+  try {
+    var savedHistory = await DB.loadChatHistory(20);
+    chatHistory.length = 0;
+    savedHistory.forEach(function(m) { chatHistory.push(m); });
+    console.log('  Chat:     ' + chatHistory.length + ' recent messages loaded');
+  } catch (e) {
+    console.log('  Chat:     (no saved history)');
+  }
 
   server.listen(PORT, '0.0.0.0', function() {
     console.log('');

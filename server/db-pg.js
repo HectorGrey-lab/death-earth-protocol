@@ -51,6 +51,17 @@ async function initPostgres() {
         state JSONB NOT NULL DEFAULT '{}'
       );
     `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        id SERIAL PRIMARY KEY,
+        username TEXT NOT NULL,
+        text TEXT NOT NULL,
+        created_at BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT
+      );
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at DESC);
+    `);
   } finally {
     client.release();
   }
@@ -187,8 +198,62 @@ function getDB() {
   return db;
 }
 
+// ─── Chat message persistence ─────────────────────────────
+
+/**
+ * Save a chat message to the database.
+ */
+async function saveChatMessage(username, text, time) {
+  if (!db) return;
+  try {
+    if (DATABASE_URL && pgPool) {
+      await pgPool.query(
+        'INSERT INTO chat_messages (username, text, created_at) VALUES ($1, $2, $3)',
+        [username, text, time || Date.now()]
+      );
+    } else {
+      // JSON file backend: store on db object
+      if (!db.chatMessages) db.chatMessages = [];
+      db.chatMessages.push({ type: 'chat', username: username, text: text, time: time || Date.now() });
+      if (db.chatMessages.length > 20) db.chatMessages.splice(0, db.chatMessages.length - 20);
+    }
+  } catch (e) {
+    console.error('[DB] saveChatMessage error:', e.message);
+  }
+}
+
+/**
+ * Load the most recent chat messages from the database.
+ * Returns an array of messages (oldest first).
+ */
+async function loadChatHistory(limit = 20) {
+  if (!db) return [];
+  try {
+    if (DATABASE_URL && pgPool) {
+      const { rows } = await pgPool.query(
+        'SELECT username, text, created_at FROM chat_messages ORDER BY created_at DESC LIMIT $1',
+        [limit]
+      );
+      return rows.reverse().map(r => ({
+        type: 'chat',
+        username: r.username,
+        text: r.text,
+        time: parseInt(r.created_at)
+      }));
+    } else {
+      // JSON file backend
+      return (db.chatMessages || []).slice();
+    }
+  } catch (e) {
+    console.error('[DB] loadChatHistory error:', e.message);
+    return [];
+  }
+}
+
 module.exports = {
   loadDB,
   saveDB,
-  get db() { return db; }
+  get db() { return db; },
+  saveChatMessage,
+  loadChatHistory
 };
