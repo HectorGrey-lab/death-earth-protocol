@@ -87,12 +87,16 @@ window.App = (function () {
         // Store production rates from server
         window.gameState._productionRates = c.productionRates || null;
 
-        // Set player's planet location in universe
-        if (c.homeGalaxy !== undefined) {
-          window.gameState.universe.activeGalaxyId = c.homeGalaxy;
-          window.gameState.universe.activeSectorId = c.homeSector;
-          window.gameState.universe.activePlanetId = c.homePlanet;
-          window.gameState.universe.zoomLevel = 'sector';
+        // Set player's planet location ONLY on first colony_state
+        // (subsequent refreshes from world_tick must NOT steal the user's selection)
+        if (!window._colonyInitialized) {
+          window._colonyInitialized = true;
+          if (c.homeGalaxy !== undefined) {
+            window.gameState.universe.activeGalaxyId = c.homeGalaxy;
+            window.gameState.universe.activeSectorId = c.homeSector;
+            window.gameState.universe.activePlanetId = c.homePlanet;
+            window.gameState.universe.zoomLevel = 'sector';
+          }
         }
 
         // Populate Universe module with server data

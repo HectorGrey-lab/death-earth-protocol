@@ -690,6 +690,7 @@ window.UIMap = (function () {
         <div class="small">Ore: ${p.oreBonus > 0 ? '+' : ''}${Math.round(p.oreBonus)}% |
           Solar: ${p.solarBonus > 0 ? '+' : ''}${Math.round(p.solarBonus)}% |
           Crystal: ${p.crystalBonus > 0 ? '+' : ''}${Math.round(p.crystalBonus)}%</div>
+        ${p.colonizedBy && !isHome ? `<div class="small" style="color:var(--accent);margin-top:6px;">🏛 Colonized by ${p.colonizedBy}</div>` : ''}
         ${!isHome ? `
           <hr class="sep">
           <div class="small">Distance from home: ${dist.toFixed(0)} units</div>
