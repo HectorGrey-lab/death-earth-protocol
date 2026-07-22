@@ -102,6 +102,18 @@ window.GalaxySystem = (function () {
 
   // ── Mark the player's home planet after server data loads ──
   function markHomePlanet(galaxyId, sectorId, planetId) {
+    // First, clear isPlayerBase from ALL planets in the universe
+    // (the server sends isPlayerBase=true for all colonized planets)
+    var gals = Universe.getGalaxies();
+    for (var gi = 0; gi < gals.length; gi++) {
+      for (var si = 0; si < gals[gi].sectors.length; si++) {
+        var planets = gals[gi].sectors[si].planets;
+        for (var pi = 0; pi < planets.length; pi++) {
+          planets[pi].isPlayerBase = false;
+        }
+      }
+    }
+    // Now set isPlayerBase on the actual home planet only
     const planet = Universe.getPlanet(galaxyId, sectorId, planetId);
     if (planet) {
       planet.isPlayerBase = true;
