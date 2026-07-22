@@ -16,7 +16,19 @@ window.UIModal = (function () {
     const cost = BuildingSystem.getUpgradeCost(buildingKey, b.level);
 
     let special = "";
-    if (buildingKey === "communicationsHub") {
+    if (buildingKey === "extractionGrid") {
+      const rates = ResourceSystem.getProductionRates(state);
+      special = `
+        <div class="card" style="margin-top:8px;">
+          <div class="panel-title">Production Rates</div>
+          <div class="small">Ore: ${Utils.format1(rates.ore)}/s</div>
+          <div class="small">Solar: ${Utils.format1(rates.solar)}/s</div>
+          <div class="small">Crystal: ${Utils.format1(rates.crystal)}/s</div>
+          <div class="small">Isotopes: ${Utils.format1(rates.isotopes)}/s</div>
+          <div class="small" style="margin-top:6px;color:#667;">Per-level base: Ore 8, Solar 7, Crystal 5, Isotopes 3.2 — +12% per grid level</div>
+        </div>
+      `;
+    } else if (buildingKey === "communicationsHub") {
       special = `
         <div class="panel-title">Event Activation</div>
         <div class="card-grid cols-2">

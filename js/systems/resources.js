@@ -7,10 +7,11 @@ window.ResourceSystem = (function () {
     // Fallback: calculate from building levels (only if _productionRates not sent by server)
     var rates = { ore: 0, solar: 0, crystal: 0, isotopes: 0 };
     if (state.buildings.extractionGrid) {
-      rates.ore = state.buildings.extractionGrid.level * 8;
-      rates.solar = state.buildings.extractionGrid.level * 7;
-      rates.crystal = state.buildings.extractionGrid.level * 5;
-      rates.isotopes = state.buildings.extractionGrid.level * 3;
+      var mult = 1 + (state.buildings.extractionGrid.level - 1) * 0.12;
+      rates.ore = 8 * mult;
+      rates.solar = 7 * mult;
+      rates.crystal = 5 * mult;
+      rates.isotopes = 3.2 * mult;
     }
     return rates;
   }
@@ -32,9 +33,11 @@ window.ResourceSystem = (function () {
     var oreBonus = (state.buildings.extractionGrid ? state.buildings.extractionGrid.level * 50 : 0);
     var solarBonus = (state.buildings.solarCollector ? state.buildings.solarCollector.level * 40 : 0);
     var crystalBonus = (state.buildings.crystalLab ? state.buildings.crystalLab.level * 30 : 0);
+    var isotopeBonus = (state.buildings.extractionGrid ? state.buildings.extractionGrid.level * 25 : 0);
     if (state.resources.ore) state.resources.ore.cap = 1200 + oreBonus;
     if (state.resources.solar) state.resources.solar.cap = 1100 + solarBonus;
     if (state.resources.crystal) state.resources.crystal.cap = 900 + crystalBonus;
+    if (state.resources.isotopes) state.resources.isotopes.cap = 700 + isotopeBonus;
   }
 
   function tick(state, dt) {
