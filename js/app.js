@@ -33,6 +33,11 @@ window.App = (function () {
           window._onlinePlayers = players;
         });
         // Removed: system listener was adding join/leave notifications to chat
+        Network.on('chat_history', function (msg) {
+          if (msg.messages && msg.messages.length) {
+            UIChat.loadHistory(msg.messages);
+          }
+        });
       }
     }, 2000);
 

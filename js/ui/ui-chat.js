@@ -72,7 +72,20 @@ window.UIChat = (function () {
     if (el) el.textContent = n + ' online';
   }
 
-  function esc(str) { var d = document.createElement('div'); d.appendChild(document.createTextNode(str)); return d.innerHTML; }
+  function loadHistory(msgs) {
+    messages = msgs.slice();
+    if (window.gameState) {
+      if (!window.gameState.chat) window.gameState.chat = { messages: [] };
+      window.gameState.chat.messages = messages.slice();
+    }
+    var wm = document.getElementById('chatWidgetMsgs');
+    if (wm) {
+      var p = wm.closest('.chat-widget');
+      if (p && p.parentElement) { p.parentElement.innerHTML = render(); bind(); }
+    }
+  }
 
-  return { render: render, bind: bind, renderPage: renderPage, bindPage: bindPage, addMessage: addMessage, setOnlineCount: setOnlineCount };
+  function esc(str)
+
+  return { render: render, bind: bind, renderPage: renderPage, bindPage: bindPage, addMessage: addMessage, setOnlineCount: setOnlineCount, loadHistory: loadHistory };
 })();

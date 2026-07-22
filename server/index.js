@@ -27,6 +27,7 @@ const db = DB.db;   // referential — will point to the module's cache once loa
 
 // ─── WebSocket broadcast helpers ──────────────────────────────────
 const wsClients = new Map(); // socket -> { username, colony }
+const chatHistory = []; // last 20 chat messages, broadcast to new connections
 
 function broadcastAll(msg) {
   const data = JSON.stringify(msg);
@@ -438,6 +439,10 @@ server.on('upgrade', function(req, socket, head) {
           const user = DB.db.users[username];
           wsClients.set(socket, { username: username, colony: user && user.colony ? user.colony : null });
           socket.write(wsEncodeFrame(JSON.stringify({ type: 'auth_ok', username: username })));
+          // Send recent chat history to this user
+          if (chatHistory.length > 0) {
+            socket.write(wsEncodeFrame(JSON.stringify({ type: 'chat_history', messages: chatHistory })));
+          }
 
           // Send colony state with production rates
           if (user && user.colony) {
@@ -506,6 +511,8 @@ server.on('upgrade', function(req, socket, head) {
       // ── Chat ──
       if (msg.type === 'chat') {
         var chatMsg = { type: 'chat', username: username, text: msg.text.substring(0, 500), time: Date.now() };
+        chatHistory.push(chatMsg);
+        if (chatHistory.length > 20) chatHistory.splice(0, chatHistory.length - 20);
         broadcastAll(chatMsg);
         log(ip, 'chat ' + username + ': ' + msg.text.substring(0, 50));
       }
