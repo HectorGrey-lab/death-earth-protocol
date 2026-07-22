@@ -1,5 +1,9 @@
 window.App = (function () {
   function render() {
+    // Don't re-render full page while on chat — would destroy the input field
+    if (window.gameState && window.gameState.ui && window.gameState.ui.currentPage === 'chat') {
+      return;
+    }
     UICore.renderAll(window.gameState);
   }
 
