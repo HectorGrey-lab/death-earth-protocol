@@ -6,11 +6,9 @@ window.UIChat = (function () {
     var html = messages.map(function (m) {
       var isOwn = m.username === (window.Network ? Network.username : '');
       var cls = isOwn ? 'chat-own' : '';
+      var ownStyle = isOwn ? ' text-align:right;' : '';
       var time = m.time ? new Date(m.time).toLocaleTimeString() : '';
-      return '<div class="chat-msg ' + cls + '">' +
-        '<span class="chat-user">' + esc(m.username) + '</span>' +
-        '<span class="chat-time">' + time + '</span>' +
-        '<div class="chat-text">' + esc(m.text) + '</div></div>';
+      return '<div class="chat-msg ' + cls + '" style="margin-left:' + (isOwn ? 'auto' : '0') + ';' + ownStyle + '"><span class="chat-user">' + esc(m.username) + '</span><span class="chat-time">' + time + '</span><div class="chat-text">' + esc(m.text) + '</div></div>';
     }).join('') || '<div class="small" style="padding:12px;text-align:center;">No messages yet.</div>';
     return '<div class="chat-widget"><div class="chat-widget-header"><strong>Global Chat</strong><span class="small" id="chatOnlineCount">' + onlineCount + ' online</span></div><div class="chat-widget-msgs" id="chatWidgetMsgs">' + html + '</div><div class="chat-widget-input"><input type="text" id="chatWidgetInput" placeholder="Type..." maxlength="500" /><button class="btn small" id="chatWidgetSend">Send</button></div></div>';
   }
@@ -31,8 +29,9 @@ window.UIChat = (function () {
     var html = msgs.map(function (m) {
       var isOwn = m.username === (window.Network ? Network.username : '');
       var cls = isOwn ? 'chat-own' : '';
+      var ownStyle = isOwn ? ' text-align:right;' : '';
       var time = m.time ? new Date(m.time).toLocaleTimeString() : '';
-      return '<div class="chat-msg ' + cls + '"><span class="chat-user">' + esc(m.username) + '</span><span class="chat-time">' + time + '</span><div class="chat-text">' + esc(m.text) + '</div></div>';
+      return '<div class="chat-msg ' + cls + '" style="margin-left:' + (isOwn ? 'auto' : '0') + ';' + ownStyle + '"><span class="chat-user">' + esc(m.username) + '</span><span class="chat-time">' + time + '</span><div class="chat-text">' + esc(m.text) + '</div></div>';
     }).join('') || '<div class="small" style="padding:20px;text-align:center;">No messages yet. Be the first to say something!</div>';
     return '<div class="chat-container"><div class="chat-messages" id="chatPageMsgs">' + html + '</div><div class="chat-input-row"><input type="text" id="chatPageInput" class="chat-input" placeholder="Type a message..." maxlength="500" /><button class="btn chat-send" id="chatPageSend">Send</button></div></div>';
   }
@@ -65,8 +64,10 @@ window.UIChat = (function () {
           var cls = isOwn ? 'chat-own' : '';
           var time = entry.time ? new Date(entry.time).toLocaleTimeString() : '';
           var div = document.createElement('div');
-          div.className = 'chat-msg ' + cls;
-          div.innerHTML = '<span class="chat-user">' + esc(entry.username) + '</span><span class="chat-time">' + time + '</span><div class="chat-text">' + esc(entry.text) + '</div>';
+              div.className = 'chat-msg ' + cls;
+              div.style.marginLeft = isOwn ? 'auto' : '0';
+              if (isOwn) div.style.textAlign = 'right';
+              div.innerHTML = '<span class="chat-user">' + esc(entry.username) + '</span><span class="chat-time">' + time + '</span><div class="chat-text">' + esc(entry.text) + '</div>';
           chatMsgs.appendChild(div);
           chatMsgs.scrollTop = chatMsgs.scrollHeight;
         }
