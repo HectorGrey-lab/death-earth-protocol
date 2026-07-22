@@ -24,22 +24,23 @@ window.App = (function () {
   }
 
   function setupNetwork() {
+    // Register chat handlers BEFORE connecting to avoid race condition
+    Network.on("chat", function (msg) { UIChat.addMessage(msg); });
+    Network.on("presence", function (players) {
+      UIChat.setOnlineCount(players.length);
+      window._onlinePlayers = players;
+    });
+    Network.on('chat_history', function (msg) {
+      if (msg.messages && msg.messages.length) {
+        UIChat.loadHistory(msg.messages);
+      }
+    });
+
     Network.init();
 
     setTimeout(function () {
       if (Network.isConnected) {
-        // Chat widget removed — Global Chat tab replaced the homepage widget
-        Network.on("chat", function (msg) { UIChat.addMessage(msg); });
-        Network.on("presence", function (players) {
-          UIChat.setOnlineCount(players.length);
-          window._onlinePlayers = players;
-        });
-        // Removed: system listener was adding join/leave notifications to chat
-        Network.on('chat_history', function (msg) {
-          if (msg.messages && msg.messages.length) {
-            UIChat.loadHistory(msg.messages);
-          }
-        });
+        // (chat handlers moved above — no race condition)
       }
     }, 2000);
 
