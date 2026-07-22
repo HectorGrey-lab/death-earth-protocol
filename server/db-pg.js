@@ -206,17 +206,14 @@ function getDB() {
 async function saveChatMessage(username, text, time) {
   if (!db) return;
   try {
-    if (DATABASE_URL && pgPool) {
-      await pgPool.query(
-        'INSERT INTO chat_messages (username, text, created_at) VALUES ($1, $2, $3)',
-        [username, text, time || Date.now()]
-      );
-    } else {
-      // JSON file backend: store on db object
-      if (!db.chatMessages) db.chatMessages = [];
-      db.chatMessages.push({ type: 'chat', username: username, text: text, time: time || Date.now() });
-      if (db.chatMessages.length > 20) db.chatMessages.splice(0, db.chatMessages.length - 20);
+    if (!DATABASE_URL || !pgPool) {
+      console.error('[DB] saveChatMessage: no PostgreSQL connection');
+      return;
     }
+    await pgPool.query(
+      'INSERT INTO chat_messages (username, text, created_at) VALUES ($1, $2, $3)',
+      [username, text, time || Date.now()]
+    );
   } catch (e) {
     console.error('[DB] saveChatMessage error:', e.message);
   }
@@ -229,21 +226,20 @@ async function saveChatMessage(username, text, time) {
 async function loadChatHistory(limit = 20) {
   if (!db) return [];
   try {
-    if (DATABASE_URL && pgPool) {
-      const { rows } = await pgPool.query(
-        'SELECT username, text, created_at FROM chat_messages ORDER BY created_at DESC LIMIT $1',
-        [limit]
-      );
-      return rows.reverse().map(r => ({
-        type: 'chat',
-        username: r.username,
-        text: r.text,
-        time: parseInt(r.created_at)
-      }));
-    } else {
-      // JSON file backend
-      return (db.chatMessages || []).slice();
+    if (!DATABASE_URL || !pgPool) {
+      console.error('[DB] loadChatHistory: no PostgreSQL connection');
+      return [];
     }
+    const { rows } = await pgPool.query(
+      'SELECT username, text, created_at FROM chat_messages ORDER BY created_at DESC LIMIT $1',
+      [limit]
+    );
+    return rows.reverse().map(r => ({
+      type: 'chat',
+      username: r.username,
+      text: r.text,
+      time: parseInt(r.created_at)
+    }));
   } catch (e) {
     console.error('[DB] loadChatHistory error:', e.message);
     return [];
