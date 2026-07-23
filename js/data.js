@@ -12,7 +12,7 @@ window.GameData = {
       name: "Communications Hub",
       image: "assets/buildings/communications-hub.svg",
       effectText: "Activates world events and improves regional signal intelligence.",
-      baseCost: { ore: 120, solar: 90, crystal: 40, isotopes: 20 },
+      baseCost: { ore: 120, solar: 90, crystal: 40 },
       timeBase: 30,
       stat: "signal"
     },
@@ -20,7 +20,7 @@ window.GameData = {
       name: "Training Facility",
       image: "assets/buildings/training-facility.svg",
       effectText: "Improves troop training throughput and unlocks stronger force projection.",
-      baseCost: { ore: 140, solar: 70, crystal: 30, isotopes: 20 },
+      baseCost: { ore: 140, solar: 70, crystal: 30 },
       timeBase: 35,
       stat: "training"
     },
@@ -28,7 +28,7 @@ window.GameData = {
       name: "Extraction Grid",
       image: "assets/buildings/extraction-grid.svg",
       effectText: "Raises raw material harvesting rates across the colony network.",
-      baseCost: { ore: 80, solar: 80, crystal: 60, isotopes: 10 },
+      baseCost: { ore: 80, solar: 80, crystal: 60 },
       timeBase: 28,
       stat: "economy"
     },
@@ -36,7 +36,7 @@ window.GameData = {
       name: "Radar Array",
       image: "assets/buildings/radar-array.svg",
       effectText: "Improves scouting outcomes and early warning against incoming attacks.",
-      baseCost: { ore: 100, solar: 100, crystal: 50, isotopes: 20 },
+      baseCost: { ore: 100, solar: 100, crystal: 50 },
       timeBase: 30,
       stat: "recon"
     },
@@ -44,7 +44,7 @@ window.GameData = {
       name: "Defense Bunker",
       image: "assets/buildings/defense-bunker.svg",
       effectText: "Strengthens defensive firepower and reduces incoming structural damage.",
-      baseCost: { ore: 160, solar: 60, crystal: 20, isotopes: 25 },
+      baseCost: { ore: 160, solar: 60, crystal: 20 },
       timeBase: 40,
       stat: "defense"
     },
@@ -52,7 +52,7 @@ window.GameData = {
       name: "Shield Generator",
       image: "assets/buildings/shield-generator.svg",
       effectText: "Increases shield capacity and recharge resilience.",
-      baseCost: { ore: 100, solar: 140, crystal: 60, isotopes: 30 },
+      baseCost: { ore: 100, solar: 140, crystal: 60 },
       timeBase: 42,
       stat: "shield"
     },
@@ -61,7 +61,7 @@ window.GameData = {
       image: "assets/buildings/research-lab.svg",
 
       effectText: "Accelerates strategic research and deep tech adaptation.",
-      baseCost: { ore: 100, solar: 80, crystal: 100, isotopes: 20 },
+      baseCost: { ore: 100, solar: 80, crystal: 100 },
       timeBase: 45,
       stat: "research"
     },
@@ -69,7 +69,7 @@ window.GameData = {
       name: "Market Nexus",
       image: "assets/buildings/market-nexus.svg",
       effectText: "Improves exchange efficiency and expands artifact acquisition channels.",
-      baseCost: { ore: 110, solar: 110, crystal: 80, isotopes: 25 },
+      baseCost: { ore: 110, solar: 110, crystal: 80 },
       timeBase: 38,
       stat: "market"
     },
@@ -77,7 +77,7 @@ window.GameData = {
       name: "Trade Pod Terminal",
       image: "assets/buildings/trade-pod-terminal.svg",
       effectText: "Improves expedition payloads and artifact recovery return rates.",
-      baseCost: { ore: 90, solar: 100, crystal: 70, isotopes: 25 },
+      baseCost: { ore: 90, solar: 100, crystal: 70 },
       timeBase: 36,
       stat: "expedition"
     }
