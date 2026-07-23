@@ -14,6 +14,7 @@ const CombatSystem = require('./systems/combat.js');
 const ExpeditionSystem = require('./systems/expeditions.js');
 const MarketSystem = require('./systems/market.js');
 const GameLoop = require('./game-loop.js');
+const Admin = require('./admin.js');
 
 // ─── Config ───────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
@@ -93,6 +94,9 @@ function broadcastLeaderboard() {
     try { socket.write(wsEncodeFrame(msg)); } catch(e) {}
   });
 }
+
+// ─── Admin Console ──────────────────────────────────────────
+const adminAuth = Admin.init(DB, gameData, process.env.ADMIN_PASSWORD);
 
 // ─── WebSocket RFC 6455 Implementation ────────────────────────────
 const WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
@@ -231,6 +235,9 @@ const MIME = {
 
 const server = http.createServer(function(req, res) {
   const ip = req.connection.remoteAddress || 'unknown';
+
+  // ── Admin Console Routes ──
+  if (adminAuth(req, res)) return;
 
   // ── API Routes ──
   if (req.method === 'POST' && req.url === '/api/register') {

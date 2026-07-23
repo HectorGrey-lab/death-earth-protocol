@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Console — Dead Earth Protocol</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0e14; color: #c8d8e8; font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+input, select, button { font-family: inherit; font-size: 13px; }
+
+/* Login */
+#loginScreen {
+  display: flex; align-items: center; justify-content: center; min-height: 100vh;
+}
+.login-box {
+  background: #141b24; border: 1px solid rgba(88,214,255,0.15); border-radius: 12px;
+  padding: 40px; width: 360px;
+}
+.login-box h1 { color: #58d6ff; font-size: 24px; margin-bottom: 6px; }
+.login-box .sub { color: #667; font-size: 13px; margin-bottom: 24px; }
+.login-box input {
+  width: 100%; padding: 10px 14px; background: #0a0e14; border: 1px solid rgba(88,214,255,0.15);
+  border-radius: 8px; color: #c8d8e8; margin-bottom: 12px; outline: none;
+}
+.login-box input:focus { border-color: rgba(88,214,255,0.4); }
+.login-box button {
+  width: 100%; padding: 10px; background: rgba(88,214,255,0.12); border: 1px solid rgba(88,214,255,0.25);
+  border-radius: 8px; color: #58d6ff; cursor: pointer; font-weight: 600; font-size: 14px;
+}
+.login-box button:hover { background: rgba(88,214,255,0.2); }
+.login-error { color: #ff6b6b; font-size: 13px; margin-top: 8px; text-align: center; display: none; }
+
+/* Main layout */
+#mainScreen { display: none; flex-direction: column; height: 100vh; }
+
+/* Top header */
+.top-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 20px; background: #141b24; border-bottom: 1px solid rgba(88,214,255,0.1);
+}
+.top-bar h2 { color: #58d6ff; font-size: 18px; }
+.top-bar .right { display: flex; gap: 8px; align-items: center; }
+.top-bar .right button {
+  padding: 6px 14px; background: rgba(88,214,255,0.08); border: 1px solid rgba(88,214,255,0.15);
+  border-radius: 6px; color: #88bbdd; cursor: pointer; font-size: 12px;
+}
+.top-bar .right button:hover { background: rgba(88,214,255,0.15); }
+.top-bar .right button.danger { border-color: rgba(255,107,107,0.3); color: #ff6b6b; }
+.top-bar .right button.danger:hover { background: rgba(255,107,107,0.15); }
+.top-bar .status { font-size: 12px; color: #667; }
+
+/* Content area */
+.content { display: flex; flex: 1; overflow: hidden; }
+
+/* Player list sidebar */
+.player-list {
+  width: 320px; min-width: 320px; background: #10171f; border-right: 1px solid rgba(88,214,255,0.08);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.player-list .search-box {
+  padding: 10px; border-bottom: 1px solid rgba(88,214,255,0.08);
+}
+.player-list .search-box input {
+  width: 100%; padding: 8px 12px; background: #0a0e14; border: 1px solid rgba(88,214,255,0.1);
+  border-radius: 6px; color: #c8d8e8; outline: none; font-size: 13px;
+}
+.player-list .search-box input:focus { border-color: rgba(88,214,255,0.3); }
+.player-list .count { padding: 6px 10px; font-size: 11px; color: #667; }
+.player-rows { flex: 1; overflow-y: auto; }
+.player-row {
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.03); cursor: pointer; transition: background 0.1s;
+}
+.player-row:hover { background: rgba(88,214,255,0.04); }
+.player-row.selected { background: rgba(88,214,255,0.1); border-left: 2px solid #58d6ff; }
+.player-row .name { flex: 1; font-size: 13px; color: #c8d8e8; }
+.player-row .stats { font-size: 11px; color: #667; text-align: right; }
+.player-row .pop { color: #88bbdd; }
+
+/* Detail panel */
+.detail-panel {
+  flex: 1; overflow-y: auto; padding: 20px;
+}
+.detail-panel .empty {
+  display: flex; align-items: center; justify-content: center; height: 100%;
+  color: #445; font-size: 14px;
+}
+.detail-panel h3 { font-size: 16px; color: #58d6ff; margin-bottom: 16px; }
+.section { margin-bottom: 20px; }
+.section h4 { font-size: 13px; color: #88bbdd; margin-bottom: 8px; border-bottom: 1px solid rgba(88,214,255,0.08); padding-bottom: 4px; }
+.resource-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.resource-item { background: rgba(255,255,255,0.02); border: 1px solid rgba(88,214,255,0.08); border-radius: 8px; padding: 10px; }
+.resource-item .label { font-size: 12px; color: #667; margin-bottom: 4px; }
+.resource-item .value { font-size: 18px; font-weight: 600; color: #c8d8e8; }
+.resource-item .row { display: flex; gap: 6px; margin-top: 6px; }
+.resource-item .row input {
+  flex: 1; padding: 4px 8px; background: #0a0e14; border: 1px solid rgba(88,214,255,0.1);
+  border-radius: 4px; color: #c8d8e8; font-size: 12px; width: 60px; outline: none;
+}
+.resource-item .row button {
+  padding: 4px 10px; background: rgba(88,214,255,0.1); border: 1px solid rgba(88,214,255,0.15);
+  border-radius: 4px; color: #88bbdd; cursor: pointer; font-size: 11px;
+}
+.resource-item .row button:hover { background: rgba(88,214,255,0.2); }
+
+.building-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.building-item { background: rgba(255,255,255,0.02); border: 1px solid rgba(88,214,255,0.08); border-radius: 6px; padding: 8px; }
+.building-item .name { font-size: 12px; color: #c8d8e8; }
+.building-item .lv { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 12px; color: #667; }
+.building-item .lv input { width: 50px; padding: 2px 6px; background: #0a0e14; border: 1px solid rgba(88,214,255,0.1); border-radius: 4px; color: #c8d8e8; font-size: 12px; outline: none; }
+
+.troop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+.troop-item { background: rgba(255,255,255,0.02); border: 1px solid rgba(88,214,255,0.08); border-radius: 6px; padding: 8px; }
+.troop-item .name { font-size: 12px; color: #c8d8e8; }
+.troop-item .ct { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 12px; color: #667; }
+.troop-item .ct input { width: 60px; padding: 2px 6px; background: #0a0e14; border: 1px solid rgba(88,214,255,0.1); border-radius: 4px; color: #c8d8e8; font-size: 12px; outline: none; }
+
+.actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 16px; }
+.actions button {
+  padding: 6px 14px; background: rgba(88,214,255,0.08); border: 1px solid rgba(88,214,255,0.15);
+  border-radius: 6px; color: #88bbdd; cursor: pointer; font-size: 12px;
+}
+.actions button:hover { background: rgba(88,214,255,0.15); }
+.actions button.success { border-color: rgba(105,240,174,0.3); color: #69f0ae; }
+.actions button.success:hover { background: rgba(105,240,174,0.12); }
+.actions button.danger { border-color: rgba(255,107,107,0.3); color: #ff6b6b; }
+.actions button.danger:hover { background: rgba(255,107,107,0.12); }
+
+.toast {
+  position: fixed; bottom: 20px; right: 20px; padding: 10px 20px; border-radius: 8px;
+  font-size: 13px; z-index: 100; display: none;
+}
+.toast.ok { display: block; background: rgba(105,240,174,0.15); border: 1px solid rgba(105,240,174,0.25); color: #69f0ae; }
+.toast.err { display: block; background: rgba(255,107,107,0.15); border: 1px solid rgba(255,107,107,0.25); color: #ff6b6b; }
+
+@media (max-width: 900px) {
+  .player-list { width: 240px; min-width: 240px; }
+  .resource-grid { grid-template-columns: 1fr; }
+  .building-grid { grid-template-columns: repeat(2, 1fr); }
+  .troop-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="login-box">
+    <h1>⚙ Admin Console</h1>
+    <div class="sub">Dead Earth Protocol — Server Administration</div>
+    <input type="password" id="adminPass" placeholder="Admin password" onkeydown="if(event.key==='Enter')adminLogin()">
+    <button onclick="adminLogin()">Login</button>
+    <div class="login-error" id="loginError">Invalid password</div>
+  </div>
+</div>
+
+<div id="mainScreen">
+  <div class="top-bar">
+    <h2>⚙ Admin Console</h2>
+    <div class="right">
+      <span class="status" id="playerCount">0 players</span>
+      <button onclick="forceSave()">💾 Save DB</button>
+      <button class="danger" onclick="adminLogout()">Logout</button>
+    </div>
+  </div>
+  <div class="content">
+    <div class="player-list">
+      <div class="search-box">
+        <input type="text" id="playerSearch" placeholder="Search players..." oninput="filterPlayers()">
+      </div>
+      <div class="count" id="playerCountLabel">0 players</div>
+      <div class="player-rows" id="playerRows"></div>
+    </div>
+    <div class="detail-panel" id="detailPanel">
+      <div class="empty">Select a player to manage</div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+// ─── State ──────────────────────────────────────────────────
+var token = localStorage.getItem('admin_token');
+var players = [];
+var selectedUsername = null;
+
+// ─── Init ───────────────────────────────────────────────────
+if (token) {
+  // Try to load with existing token
+  fetchPlayers();
+} else {
+  document.getElementById('loginScreen').style.display = 'flex';
+}
+
+function adminLogin() {
+  var pass = document.getElementById('adminPass').value;
+  fetch('/api/admin/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: pass })
+  })
+  .then(function(r) { if (!r.ok) throw new Error('Bad password'); return r.json(); })
+  .then(function(d) {
+    if (d.ok) {
+      token = d.token;
+      localStorage.setItem('admin_token', token);
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('mainScreen').style.display = 'flex';
+      fetchPlayers();
+    } else {
+      showLoginError();
+    }
+  })
+  .catch(function() { showLoginError(); });
+}
+
+function showLoginError() {
+  document.getElementById('loginError').style.display = 'block';
+}
+
+function adminLogout() {
+  token = null;
+  localStorage.removeItem('admin_token');
+  document.getElementById('mainScreen').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('adminPass').value = '';
+  document.getElementById('loginError').style.display = 'none';
+}
+
+// ─── API Helpers ────────────────────────────────────────────
+function api(url, method, body) {
+  var opts = {
+    method: method || 'GET',
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  return fetch(url, opts).then(function(r) {
+    if (r.status === 401) { adminLogout(); throw new Error('Session expired'); }
+    return r.json();
+  });
+}
+
+// ─── Player List ────────────────────────────────────────────
+function fetchPlayers() {
+  api('/api/admin/players').then(function(d) {
+    if (d.ok) {
+      players = d.players || [];
+      renderPlayerList();
+    }
+  }).catch(function() {});
+}
+
+function renderPlayerList() {
+  var search = (document.getElementById('playerSearch').value || '').toLowerCase();
+  var filtered = players.filter(function(p) { return p.username.toLowerCase().indexOf(search) !== -1; });
+  document.getElementById('playerCountLabel').textContent = filtered.length + ' players';
+  document.getElementById('playerCount').textContent = filtered.length + ' players';
+
+  var html = '';
+  filtered.forEach(function(p) {
+    var sel = p.username === selectedUsername ? ' selected' : '';
+    html += '<div class="player-row' + sel + '" onclick="selectPlayer(\'' + escJS(p.username) + '\')">' +
+      '<div class="name">' + escHTML(p.username) + '</div>' +
+      '<div class="stats">' +
+      '<div class="pop">👥 ' + p.population + '</div>' +
+      '<div>🏛 ' + p.buildings + ' · ⚔ ' + p.troops + '</div>' +
+      '</div></div>';
+  });
+  document.getElementById('playerRows').innerHTML = html || '<div style="padding:20px;text-align:center;color:#445;font-size:13px;">No players found</div>';
+}
+
+function filterPlayers() { renderPlayerList(); }
+
+function selectPlayer(username) {
+  selectedUsername = username;
+  renderPlayerList(); // highlights selection
+  document.getElementById('detailPanel').innerHTML = '<div style="text-align:center;padding:40px;color:#445;">Loading...</div>';
+
+  api('/api/admin/players/' + encodeURIComponent(username)).then(function(d) {
+    if (d.ok) {
+      renderDetail(d.player);
+    } else {
+      document.getElementById('detailPanel').innerHTML = '<div class="empty">Error loading player</div>';
+    }
+  });
+}
+
+// ─── Detail Panel ───────────────────────────────────────────
+function renderDetail(player) {
+  var colony = player.colony;
+  if (!colony) {
+    document.getElementById('detailPanel').innerHTML = '<div class="empty">Player has no colony</div>';
+    return;
+  }
+
+  var resHtml = '';
+  var resKeys = ['ore', 'solar', 'crystal', 'isotopes'];
+  resKeys.forEach(function(k) {
+    var r = colony.resources[k] || { amount: 0, cap: 100 };
+    var color = k === 'ore' ? '#c8d8e8' : k === 'solar' ? '#ffd54f' : k === 'crystal' ? '#69f0ae' : '#58d6ff';
+    resHtml += '<div class="resource-item">' +
+      '<div class="label" style="color:' + color + '">' + k.charAt(0).toUpperCase() + k.slice(1) + '</div>' +
+      '<div class="value">' + fmt(Math.floor(r.amount)) + ' / ' + fmt(r.cap) + '</div>' +
+      '<div class="row">' +
+      '<input type="number" id="res-set-' + k + '" placeholder="Set" value="' + Math.floor(r.amount) + '">' +
+      '<button onclick="setResource(\'' + k + '\')">Set</button>' +
+      '<input type="number" id="res-add-' + k + '" placeholder="Add" value="100">' +
+      '<button onclick="addResource(\'' + k + '\')">+Add</button>' +
+      '</div></div>';
+  });
+
+  var bldHtml = '';
+  var bldKeys = Object.keys(colony.buildings);
+  bldKeys.forEach(function(k) {
+    var b = colony.buildings[k];
+    bldHtml += '<div class="building-item">' +
+      '<div class="name">' + k.replace(/([A-Z])/g, ' $1').replace(/^./, function(s) { return s.toUpperCase(); }) + '</div>' +
+      '<div class="lv">Lv <input type="number" id="bld-' + k + '" value="' + (b.level || 0) + '">' +
+      '<button onclick="setBuilding(\'' + k + '\')">Set</button></div></div>';
+  });
+
+  var trpHtml = '';
+  var trpKeys = Object.keys(colony.troops.counts || {});
+  if (trpKeys.length === 0) {
+    trpHtml = '<div style="color:#445;font-size:12px;">No troops trained yet</div>';
+  } else {
+    trpKeys.forEach(function(k) {
+      var t = colony.troops.counts[k];
+      trpHtml += '<div class="troop-item">' +
+        '<div class="name">' + k.replace(/([A-Z])/g, ' $1').replace(/^./, function(s) { return s.toUpperCase(); }) + '</div>' +
+        '<div class="ct">Count <input type="number" id="trp-' + k + '" value="' + (t || 0) + '">' +
+        '<button onclick="setTroop(\'' + k + '\')">Set</button>' +
+        '<button onclick="addTroop(\'' + k + '\')">+Add</button></div></div>';
+    });
+  }
+
+  var html = '<h3>👤 ' + escHTML(selectedUsername) + '</h3>' +
+    '<div class="section"><h4>💎 Resources</h4><div class="resource-grid">' + resHtml + '</div></div>' +
+    '<div class="section"><h4>🏛 Buildings</h4><div class="building-grid">' + bldHtml + '</div></div>' +
+    '<div class="section"><h4>⚔ Troops</h4><div class="troop-grid">' + trpHtml + '</div></div>' +
+    '<div class="actions">' +
+    '<button class="success" onclick="addAllResources()">➕ Add 10K of each resource</button>' +
+    '<button class="danger" onclick="resetColony()">⚠ Reset Colony</button>' +
+    '</div>';
+
+  document.getElementById('detailPanel').innerHTML = html;
+}
+
+// ─── Resource Actions ───────────────────────────────────────
+function setResource(key) {
+  var val = parseInt(document.getElementById('res-set-' + key).value) || 0;
+  api('/api/admin/players/' + encodeURIComponent(selectedUsername) + '/resources', 'POST', {
+    set: { ' + key + ': val }
+  }).then(function(d) {
+    if (d.ok) toast('✅ ' + key.charAt(0).toUpperCase() + key.slice(1) + ' set to ' + fmt(val));
+    else toast('❌ Failed', true);
+  }).catch(function() {});
+}
+
+function addResource(key) {
+  var val = parseInt(document.getElementById('res-add-' + key).value) || 0;
+  api('/api/admin/players/' + encodeURIComponent(selectedUsername) + '/resources', 'POST', {
+    add: { ' + key + ': val }
+  }).then(function(d) {
+    if (d.ok) toast('✅ Added ' + fmt(val) + ' ' + key);
+    else toast('❌ Failed', true);
+  }).catch(function() {});
+}
+
+function addAllResources() {
+  api('/api/admin/players/' + encodeURIComponent(selectedUsername) + '/resources', 'POST', {
+    add: { ore: 10000, solar: 10000, crystal: 10000, isotopes: 10000 }
+  }).then(function(d) {
+    if (d.ok) { toast('✅ Added 10K of each resource'); refreshDetail(); }
+    else toast('❌ Failed', true);
+  }).catch(function() {});
+}
+
+// ─── Building Actions ───────────────────────────────────────
+function setBuilding(key) {
+  var val = parseInt(document.getElementById('bld-' + key).value) || 0;
+  api('/api/admin/players/' + encodeURIComponent(selectedUsername) + '/buildings', 'POST', {
+    set: { ' + key + ': val }
+  }).then(function(d) {
+    if (d.ok) { toast('✅ ' + key + ' set to Lv ' + val); refreshDetail(); }
+    else toast('❌ Failed', true);
+  }).catch(function() {});
+}
+
+// ─── Troop Actions ──────────────────────────────────────────
+function setTroop(key) {
+  var val = parseInt(document.getElementById('trp-' + key).value) || 0;
+  api('/api/admin/players/' + encodeURIComponent(selectedUsername) + '/troops', 'POST', {
+    set: { ' + key + ': val }
+  }).then(function(d) {
+    if (d.ok) { toast('✅ ' + key + ' set to ' + fmt(val)); refreshDetail(); }
+    else toast('❌ Failed', true);
+  }).catch(function() {});
+}
+
+function addTroop(key) {
+  var val = parseInt(document.getElementById('trp-' + key).value) || 0;
+  api('/api/admin/players/' + encodeURIComponent(selectedUsername) + '/add-troops', 'POST', {
+    add: { ' + key + ': val }
+  }).then(function(d) {
+    if (d.ok) { toast('✅ Added ' + fmt(val) + ' ' + key); refreshDetail(); }
+    else toast('❌ Failed', true);
+  }).catch(function() {});
+}
+
+// ─── Dangerous Actions ──────────────────────────────────────
+function resetColony() {
+  if (!confirm('Reset ' + selectedUsername + "'s colony? This sets all resources to 0 and buildings to level 1.")) return;
+  api('/api/admin/players/' + encodeURIComponent(selectedUsername) + '/resources', 'POST', {
+    set: { ore: 0, solar: 0, crystal: 0, isotopes: 0 }
+  }).then(function() {
+    return api('/api/admin/players/' + encodeURIComponent(selectedUsername) + '/buildings', 'POST', {
+      set: { extractionGrid: 1, trainingFacility: 1, radarArray: 1, shieldGenerator: 1, defenseBunker: 1, researchLab: 1, marketNexus: 1, tradePodTerminal: 1, communicationsHub: 1 }
+    });
+  }).then(function(d) {
+    toast('✅ Colony reset');
+    refreshDetail();
+  }).catch(function() {});
+}
+
+// ─── Utility ────────────────────────────────────────────────
+function forceSave() {
+  api('/api/admin/save', 'POST').then(function(d) {
+    if (d.ok) toast('💾 Database saved');
+    else toast('❌ Save failed: ' + (d.error || 'unknown'), true);
+  }).catch(function() {});
+}
+
+function refreshDetail() {
+  if (selectedUsername) selectPlayer(selectedUsername);
+}
+
+function toast(msg, isError) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast ' + (isError ? 'err' : 'ok');
+  setTimeout(function() { el.className = 'toast'; }, 3000);
+}
+
+function fmt(n) {
+  if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n/1000).toFixed(1) + 'K';
+  return Math.floor(n).toString();
+}
+
+function escHTML(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escJS(s) { return String(s).replace(/'/g,"\\'"); }
+</script>
+</body>
+</html>
