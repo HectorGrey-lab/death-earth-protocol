@@ -41,12 +41,12 @@ window.GameData = {
       stat: "recon"
     },
     defenseBunker: {
-      name: "Defense Bunker",
-      image: "assets/buildings/defense-bunker.svg",
-      effectText: "Strengthens defensive firepower and reduces incoming structural damage.",
+      name: "Warehouse",
+      image: "assets/buildings/warehouse.svg",
+      effectText: "Expands resource storage capacity across the colony. Each level increases all resource caps.",
       baseCost: { ore: 160, solar: 60, crystal: 20 },
       timeBase: 40,
-      stat: "defense"
+      stat: "storage"
     },
     shieldGenerator: {
       name: "Shield Generator",

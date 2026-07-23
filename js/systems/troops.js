@@ -46,7 +46,7 @@ window.TroopSystem = (function () {
   }
 
   function getDefenseModifier(state) {
-    return 1 + (state.research.levels.defense || 0) * 0.06 + (state.buildings.defenseBunker.level - 1) * 0.08;
+    return 1 + (state.research.levels.defense || 0) * 0.06;
   }
 
   function getTotalPower(state) {

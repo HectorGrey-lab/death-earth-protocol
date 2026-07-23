@@ -115,7 +115,7 @@ window.CombatSystem = (function () {
   }
 
   function resolveIncoming(state, attack) {
-    const defense = TroopSystem.getTotalDefense(state) + state.buildings.defenseBunker.level * 40 + state.buildings.shieldGenerator.level * 25;
+    const defense = TroopSystem.getTotalDefense(state) + state.buildings.shieldGenerator.level * 25;
     const shield = BuildingSystem.getShieldStats(state).current;
     const enemyPower = 80 + attack.threatLevel * 65;
 

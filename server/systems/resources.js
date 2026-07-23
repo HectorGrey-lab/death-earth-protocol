@@ -17,14 +17,14 @@ function getProductionRates(colony) {
 }
 
 function updateCaps(colony) {
-  const levelSum = Object.values(colony.buildings).reduce((s, b) => s + (b.level || 0), 0);
+  const warehouseLevel = colony.buildings.defenseBunker.level || 0;
+  const bonus = warehouseLevel * 100;
   Object.keys(colony.resources).forEach(key => {
     const resDef = GAME.resources[key];
     if (!resDef) return;
     const baseCap = resDef.capBase;
-    const newCap = Math.floor(baseCap + levelSum * 35);
+    const newCap = Math.floor(baseCap + bonus);
     colony.resources[key].cap = Math.max(colony.resources[key].cap || 0, newCap);
-    // Only clamp from above if player's amount exceeds the new cap
     colony.resources[key].amount = Math.min(colony.resources[key].amount, colony.resources[key].cap);
   });
 }

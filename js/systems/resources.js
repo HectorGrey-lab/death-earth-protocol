@@ -28,16 +28,14 @@ window.ResourceSystem = (function () {
   }
 
   function updateCaps(state) {
-    // Caps are managed server-side, but update from building levels as fallback
+    // Caps are managed server-side, but update from Warehouse level as fallback
     if (!state.buildings || !state.resources) return;
-    var oreBonus = (state.buildings.extractionGrid ? state.buildings.extractionGrid.level * 50 : 0);
-    var solarBonus = (state.buildings.solarCollector ? state.buildings.solarCollector.level * 40 : 0);
-    var crystalBonus = (state.buildings.crystalLab ? state.buildings.crystalLab.level * 30 : 0);
-    var isotopeBonus = (state.buildings.extractionGrid ? state.buildings.extractionGrid.level * 25 : 0);
-    if (state.resources.ore) state.resources.ore.cap = 1200 + oreBonus;
-    if (state.resources.solar) state.resources.solar.cap = 1100 + solarBonus;
-    if (state.resources.crystal) state.resources.crystal.cap = 900 + crystalBonus;
-    if (state.resources.isotopes) state.resources.isotopes.cap = 700 + isotopeBonus;
+    var warehouseLevel = state.buildings.defenseBunker ? state.buildings.defenseBunker.level : 0;
+    var bonus = warehouseLevel * 100;
+    if (state.resources.ore) state.resources.ore.cap = 1200 + bonus;
+    if (state.resources.solar) state.resources.solar.cap = 1100 + bonus;
+    if (state.resources.crystal) state.resources.crystal.cap = 900 + bonus;
+    if (state.resources.isotopes) state.resources.isotopes.cap = 700 + bonus;
   }
 
   function tick(state, dt) {

@@ -67,15 +67,14 @@
       "stat": "recon"
     },
     "defenseBunker": {
-      "name": "Defense Bunker",
+      "name": "Warehouse",
       "baseCost": {
         "ore": 160,
         "solar": 60,
-        "crystal": 20,
-        "isotopes": 25
+        "crystal": 20
       },
       "timeBase": 40,
-      "stat": "defense"
+      "stat": "storage"
     },
     "shieldGenerator": {
       "name": "Shield Generator",

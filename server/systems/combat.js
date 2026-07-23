@@ -33,7 +33,7 @@ function getTotalPower(colony) {
 }
 
 function getTotalDefense(colony) {
-  const mod = 1 + (colony.research.levels.defense || 0) * 0.06 + (colony.buildings.defenseBunker.level - 1) * 0.08;
+  const mod = 1 + (colony.research.levels.defense || 0) * 0.06;
   let defense = 0;
   const counts = colony.troops.counts || {};
   Object.keys(counts).forEach(key => {
@@ -172,7 +172,7 @@ function tick(colony, dt) {
 }
 
 function resolveIncoming(colony, attack) {
-  const defense = getTotalDefense(colony) + (colony.buildings.defenseBunker.level || 0) * 40 + (colony.buildings.shieldGenerator.level || 0) * 25;
+  const defense = getTotalDefense(colony) + (colony.buildings.shieldGenerator.level || 0) * 25;
   const enemyPower = 80 + attack.threatLevel * 65;
   const defended = defense > enemyPower * 1.05;
 
