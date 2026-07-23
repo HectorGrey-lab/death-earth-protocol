@@ -18,7 +18,7 @@ function getProductionRates(colony) {
 
 function updateCaps(colony) {
   const warehouseLevel = colony.buildings.defenseBunker.level || 0;
-  const bonus = warehouseLevel * 100;
+  const bonus = warehouseLevel * 10000;
   Object.keys(colony.resources).forEach(key => {
     const resDef = GAME.resources[key];
     if (!resDef) return;

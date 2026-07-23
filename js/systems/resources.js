@@ -31,7 +31,7 @@ window.ResourceSystem = (function () {
     // Caps are managed server-side, but update from Warehouse level as fallback
     if (!state.buildings || !state.resources) return;
     var warehouseLevel = state.buildings.defenseBunker ? state.buildings.defenseBunker.level : 0;
-    var bonus = warehouseLevel * 100;
+    var bonus = warehouseLevel * 10000;
     if (state.resources.ore) state.resources.ore.cap = 1200 + bonus;
     if (state.resources.solar) state.resources.solar.cap = 1100 + bonus;
     if (state.resources.crystal) state.resources.crystal.cap = 900 + bonus;
