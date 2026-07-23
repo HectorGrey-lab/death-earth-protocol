@@ -13,6 +13,10 @@ window.Utils = {
   },
 
   format1(value) {
+    if (value === 0) return '0.0';
+    if (value < 0.001) return this.round(value, 6).toFixed(6);
+    if (value < 0.01) return this.round(value, 4).toFixed(4);
+    if (value < 1) return this.round(value, 3).toFixed(3);
     return this.round(value, 1).toFixed(1);
   },
 
