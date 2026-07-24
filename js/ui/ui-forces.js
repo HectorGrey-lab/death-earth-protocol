@@ -79,7 +79,7 @@ window.UIForces = (function () {
   }
 
   function render(state) {
-    return '<div class="stack" style="gap:0px;">' +
+    return '<div style="display:flex;flex-direction:column;">' +
       '<div class="four-col">' +
         '<div class="card"><div class="small">Total Troops</div><h3>' + TroopSystem.getTotalTroops(state) + '</h3></div>' +
         '<div class="card"><div class="small">Total Power</div><h3>' + TroopSystem.getTotalPower(state) + '</h3></div>' +
@@ -87,9 +87,9 @@ window.UIForces = (function () {
         '<div class="card"><div class="small">Isotope Upkeep</div><h3>' + Utils.format1(ResourceSystem.getUpkeep(state)) + '/s</h3></div></div>' +
       '<div class="two-col">' +
         '<div class="card"><div class="panel-title">Training Command</div><div class="card-grid cols-2">' + renderRoster(state) + '</div></div>' +
-        '<div class="stack" style="gap:0px;">' +
-          '<div class="card" style="max-height:260px; overflow-y:auto; padding:8px 8px 0 8px;"><div class="panel-title">Training Queue</div><div class="stack" style="gap:0px;">' + renderQueue(state) + '</div></div>' +
-          '<div class="card" style="padding:0 12px 8px 12px;border-top:none;"><div class="panel-title">Fleets</div><div class="stack" style="gap:0px;">' + renderFleets(state) + '</div></div></div></div></div>';
+        '<div style="display:flex;flex-direction:column;">' +
+          '<div class="card" style="max-height:260px; overflow-y:auto; padding:8px 8px 0 8px;border-bottom-left-radius:0;border-bottom-right-radius:0;"><div class="panel-title">Training Queue</div><div style="display:flex;flex-direction:column;">' + renderQueue(state) + '</div></div>' +
+          '<div class="card" style="margin-top:-1px;padding:0 12px 8px 12px;border-top:none;border-top-left-radius:0;border-top-right-radius:0;"><div class="panel-title">Fleets</div><div style="display:flex;flex-direction:column;">' + renderFleets(state) + '</div></div></div></div></div>';
   }
 
   function bind(state) {
