@@ -169,7 +169,7 @@ window.App = (function () {
       }
     });
 
-    // World tick — re-render to show resource updates from server
+    // World tick — update live panels only (header, nav, shield, queues, log, resources)
     Network.on("world_tick", function () {
       // Periodically request fresh colony state (every 10 ticks = ~10s)
       if (!window._tickCounter) window._tickCounter = 0;
@@ -177,7 +177,7 @@ window.App = (function () {
       if (window._tickCounter % 5 === 0) {
         Network.getColony();
       }
-      render();
+      UICore.renderTick(window.gameState);
     });
 
     // Disconnect handler

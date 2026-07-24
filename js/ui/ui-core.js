@@ -213,7 +213,17 @@ window.UICore = (function () {
     renderActivePage(state);
   }
 
+  function renderTick(state) {
+    renderHeader(state);
+    renderNav(state);
+    renderShield(state);
+    renderQueues(state);
+    renderSystemLog(state);
+    UIResources.render(state);
+  }
+
   return {
-    renderAll
+    renderAll,
+    renderTick
   };
 })();
