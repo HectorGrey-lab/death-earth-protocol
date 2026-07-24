@@ -568,6 +568,57 @@ window.UIMap = (function () {
     return html;
   }
 
+  // ── Player profile helpers ──
+  function getPlayerRankings(state, username) {
+    var lb = state.leaderboard;
+    var cats = ['population', 'raider', 'attacker', 'defence'];
+    var result = {};
+    cats.forEach(function (cat) {
+      var list = lb && lb[cat];
+      if (list && Array.isArray(list)) {
+        var idx = -1;
+        for (var i = 0; i < list.length; i++) {
+          if (String(list[i].username).toLowerCase() === String(username).toLowerCase()) { idx = i; break; }
+        }
+        result[cat] = idx >= 0 ? idx + 1 : null;
+      } else {
+        result[cat] = null;
+      }
+    });
+    return result;
+  }
+
+  function esc(str) {
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function renderPlayerProfile(state, username) {
+    var ranks = getPlayerRankings(state, username);
+    var catInfo = [
+      { key: 'population', label: 'Population', icon: '👥' },
+      { key: 'raider', label: 'Raider', icon: '⚔' },
+      { key: 'attacker', label: 'Attacker', icon: '🎯' },
+      { key: 'defence', label: 'Defence', icon: '🛡' }
+    ];
+    var rankHtml = '';
+    catInfo.forEach(function (cat) {
+      var r = ranks[cat.key];
+      rankHtml += '<div class="lb-mini-row"><span>' + cat.icon + ' ' + cat.label + '</span><span' + (r === 1 ? ' style="color:#ffd700;font-weight:bold;"' : '') + '>' + (r ? '#' + r : '—') + '</span></div>';
+    });
+    return '' +
+      '<div class="card player-profile-card">' +
+        '<div class="panel-title">🏛 Player Profile</div>' +
+        '<h3 style="margin:4px 0;">' + esc(username) + '</h3>' +
+        '<div class="small" style="color:var(--muted);margin-bottom:8px;">Leaderboard Rankings</div>' +
+        '<div class="lb-mini-grid">' + rankHtml + '</div>' +
+        '<div class="row" style="margin-top:10px;">' +
+          '<button class="btn small" id="msgPlayerBtn" data-player="' + esc(username) + '">💬 Message</button>' +
+          '<button class="btn small warn" id="attackPlayerBtn" data-player="' + esc(username) + '">⚔ Attack</button>' +
+        '</div>' +
+      '</div>';
+  }
+  // ── End player profile helpers ──
+
   // Fleet markers on universe view
   function renderUniverseFleetMarkers(state) {
     const fleets = TravelSystem.getActiveFleets(state);
@@ -683,6 +734,8 @@ window.UIMap = (function () {
     const travelTime = TravelSystem.getTravelTime(origin, dest, false);
     const alreadyFleet = GalaxySystem.hasActiveFleetTo(state, p.id);
     const isHome = p.id === home.id;
+    const currentUser = window.Network ? Network.username : '';
+    const isOtherPlayer = p.colonizedBy && p.colonizedBy !== currentUser && !isHome;
 
     return `
       <div class="card">
@@ -706,6 +759,7 @@ window.UIMap = (function () {
           </div>
         ` : '<div class="small" style="color:var(--green);margin-top:4px;">⌂ Your home base</div>'}
       </div>
+      ${isOtherPlayer ? renderPlayerProfile(state, p.colonizedBy) : ''}
     `;
   }
 
@@ -953,6 +1007,29 @@ window.UIMap = (function () {
         window.App.render();
       };
     });
+
+    // ── Player profile actions ──
+    const msgBtn = document.getElementById('msgPlayerBtn');
+    if (msgBtn) {
+      msgBtn.onclick = function () {
+        var target = this.dataset.player;
+        state.ui.currentPage = 'chat';
+        window.App.render();
+        setTimeout(function () {
+          var input = document.getElementById('chatPageInput');
+          if (input) { input.value = '@' + target + ' '; input.focus(); }
+        }, 100);
+      };
+    }
+    const atkBtn = document.getElementById('attackPlayerBtn');
+    if (atkBtn) {
+      atkBtn.onclick = function () {
+        var target = this.dataset.player;
+        if (confirm('Launch attack against ' + target + '? (PvP combat coming soon)')) {
+          // Placeholder for future PvP attack
+        }
+      };
+    }
 
     // Universe zoom controls
     const zoomInBtn = document.getElementById('uvZoomInBtn');

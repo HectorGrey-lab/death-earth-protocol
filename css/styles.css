@@ -1706,6 +1706,10 @@ hr.sep {
 .lb-name { flex: 1; font-size: 13px; color: #c8d8e8; }
 .lb-score { font-size: 14px; font-weight: 600; color: #58d6ff; flex-shrink: 0; }
 
+.lb-mini-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.lb-mini-row { display: flex; justify-content: space-between; align-items: center; padding: 3px 6px; border-radius: 4px; font-size: 12px; background: rgba(255,255,255,0.03); }
+.lb-mini-row span:last-child { font-weight: 600; color: var(--accent); }
+.player-profile-card { margin-top: 10px; border: 1px solid rgba(88,214,255,0.15); }
 
 /* ─── End ─── */
 @media (max-width: 768px) { .chat-container { height: calc(100vh - 280px); min-height: 200px; } .chat-msg { max-width: 95%; } }
