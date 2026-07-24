@@ -297,6 +297,7 @@ window.App = (function () {
       resources: { ore: { amount: 0, cap: 1200 }, solar: { amount: 0, cap: 1100 }, crystal: { amount: 0, cap: 900 }, isotopes: { amount: 0, cap: 700 } },
       buildings: {},
       troops: { counts: {}, queue: [] },
+      fleets: {},
       research: { levels: { economy: 0, military: 0, defense: 0 }, active: null, completedTotal: 0 },
       commander: { name: loggedUser ? "Commander " + loggedUser : "Commander Unknown", factionTitle: "Awaiting Server...", emblem: "\u25B3", theme: "cyan", planetName: "Unknown Planet" },
       universe: { galaxies: [], zoomLevel: "universe", activeGalaxyId: null, activeSectorId: null, activePlanetId: null, showUniverseView: false, fleets: [], discoveredPlanets: {}, hasWarpGate: false },

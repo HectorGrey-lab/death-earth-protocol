@@ -1713,3 +1713,46 @@ hr.sep {
 
 /* ─── End ─── */
 @media (max-width: 768px) { .chat-container { height: calc(100vh - 280px); min-height: 200px; } .chat-msg { max-width: 95%; } }
+
+
+/* === Fleet System === */
+.fleet-card {
+  margin-bottom: 8px;
+  padding: 10px 12px;
+}
+.fleet-card .fleet-stats {
+  display: flex;
+  gap: 16px;
+  margin-top: 4px;
+  font-size: 13px;
+}
+.fleet-card .fleet-stats span {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.fleet-composition {
+  margin-top: 4px;
+}
+.fleet-troop-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 0;
+  font-size: 12px;
+}
+.fleet-troop-label {
+  flex: 1;
+  color: #aaa;
+}
+.fleet-troop-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.fleet-troop-count {
+  min-width: 24px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 13px;
+}

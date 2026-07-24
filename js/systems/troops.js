@@ -35,7 +35,13 @@ window.TroopSystem = (function () {
   }
 
   function getTotalTroops(state) {
-    return Object.values(state.troops.counts).reduce((a, b) => a + b, 0);
+    var base = Object.values(state.troops.counts).reduce(function(a, b) { return a + b; }, 0);
+    // Include troops in fleets
+    var fleets = state.fleets || {};
+    Object.keys(fleets).forEach(function(fid) {
+      Object.values(fleets[fid].troops || {}).forEach(function(c) { base += c; });
+    });
+    return base;
   }
 
   function getPowerModifier(state) {
@@ -51,16 +57,34 @@ window.TroopSystem = (function () {
 
   function getTotalPower(state) {
     const mod = getPowerModifier(state);
-    return Math.floor(Object.keys(state.troops.counts).reduce((sum, key) => {
+    var total = Object.keys(state.troops.counts).reduce(function(sum, key) {
       return sum + state.troops.counts[key] * GameData.troops[key].power * mod;
-    }, 0));
+    }, 0);
+    // Include fleets
+    var fleets = state.fleets || {};
+    Object.keys(fleets).forEach(function(fid) {
+      var ftroops = fleets[fid].troops || {};
+      Object.keys(ftroops).forEach(function(key) {
+        total += ftroops[key] * GameData.troops[key].power * mod;
+      });
+    });
+    return Math.floor(total);
   }
 
   function getTotalDefense(state) {
     const mod = getDefenseModifier(state);
-    return Math.floor(Object.keys(state.troops.counts).reduce((sum, key) => {
+    var total = Object.keys(state.troops.counts).reduce(function(sum, key) {
       return sum + state.troops.counts[key] * GameData.troops[key].defense * mod;
-    }, 0));
+    }, 0);
+    // Include fleets
+    var fleets = state.fleets || {};
+    Object.keys(fleets).forEach(function(fid) {
+      var ftroops = fleets[fid].troops || {};
+      Object.keys(ftroops).forEach(function(key) {
+        total += ftroops[key] * GameData.troops[key].defense * mod;
+      });
+    });
+    return Math.floor(total);
   }
 
   function removeCasualties(state, casualtiesByType) {

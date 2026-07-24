@@ -137,7 +137,8 @@
       "trainTime": 12,
       "traits": [
         "scout"
-      ]
+      ],
+      "carryCapacity": 15
     },
     "rifleUnit": {
       "name": "Rifle Unit",
@@ -152,7 +153,8 @@
       "defense": 8,
       "role": "Line",
       "trainTime": 15,
-      "traits": []
+      "traits": [],
+      "carryCapacity": 25
     },
     "heavyTrooper": {
       "name": "Heavy Trooper",
@@ -167,7 +169,8 @@
       "defense": 13,
       "role": "Assault",
       "trainTime": 20,
-      "traits": []
+      "traits": [],
+      "carryCapacity": 40
     },
     "siegeMech": {
       "name": "Siege Mech",
@@ -184,7 +187,8 @@
       "trainTime": 35,
       "traits": [
         "siege"
-      ]
+      ],
+      "carryCapacity": 120
     },
     "droneSwarm": {
       "name": "Drone Swarm",
@@ -201,7 +205,8 @@
       "trainTime": 18,
       "traits": [
         "swarm"
-      ]
+      ],
+      "carryCapacity": 8
     },
     "sniperCell": {
       "name": "Sniper Cell",
@@ -218,7 +223,8 @@
       "trainTime": 19,
       "traits": [
         "precision"
-      ]
+      ],
+      "carryCapacity": 15
     },
     "shieldGuard": {
       "name": "Shield Guard",
@@ -235,7 +241,8 @@
       "trainTime": 22,
       "traits": [
         "supportShield"
-      ]
+      ],
+      "carryCapacity": 35
     },
     "plasmaTank": {
       "name": "Plasma Tank",
@@ -252,7 +259,8 @@
       "trainTime": 42,
       "traits": [
         "shieldBreak"
-      ]
+      ],
+      "carryCapacity": 150
     },
     "empSpecialist": {
       "name": "EMP Specialist",
@@ -269,7 +277,8 @@
       "trainTime": 24,
       "traits": [
         "shieldBreak"
-      ]
+      ],
+      "carryCapacity": 20
     },
     "prototypeUnit": {
       "name": "Prototype Unit",
@@ -287,7 +296,8 @@
       "traits": [
         "siege",
         "shieldBreak"
-      ]
+      ],
+      "carryCapacity": 80
     }
   },
   "research": {

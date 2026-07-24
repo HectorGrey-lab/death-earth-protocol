@@ -1,4 +1,8 @@
-window.UIForces = (function () {
+# Write ui-forces.js
+import os
+
+content = r'''window.UIForces = (function () {
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function renderRoster(state) {
     return Object.keys(GameData.troops).map(function (key) {
       var t = GameData.troops[key];
@@ -48,7 +52,7 @@ window.UIForces = (function () {
 
       html += '<div class="card fleet-card">' +
         '<div class="space-between">' +
-          '<strong>' + Utils.esc(fleet.name || 'Unnamed Fleet') + '</strong>' +
+          '<strong>' + esc(fleet.name || 'Unnamed Fleet') + '</strong>' +
           '<div class="row">' +
             '<button class="btn tiny btn-info rename-fleet" data-fid="' + fid + '">\u270E</button>' +
             '<button class="btn tiny btn-danger delete-fleet" data-fid="' + fid + '">\u2715</button></div></div>' +
@@ -164,3 +168,9 @@ window.UIForces = (function () {
 
   return { render: render, bind: bind };
 })();
+'''
+
+path = "C:/Users/byron/OneDrive/Desktop/death-earth-prototypeV1/js/ui/ui-forces.js"
+with open(path, "w") as f:
+    f.write(content)
+print("Written", len(content), "bytes")

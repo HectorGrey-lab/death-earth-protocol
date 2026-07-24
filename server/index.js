@@ -166,7 +166,7 @@ function createInitialBuildings() {
 }
 
 function createInitialTroops() {
-  return { counts: {}, queue: [] };
+  return { counts: {}, queue: [], fleets: {} };
 }
 
 function createInitialResearch() {

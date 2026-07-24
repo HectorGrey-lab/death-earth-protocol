@@ -168,6 +168,7 @@ window.UICore = (function () {
         break;
       case "forces":
         target.innerHTML = UIForces.render(state);
+        setTimeout(function() { UIForces.bind(state); }, 0);
         break;
       case "research":
         target.innerHTML = UIResearch.render(state);
