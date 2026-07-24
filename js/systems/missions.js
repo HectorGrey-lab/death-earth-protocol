@@ -24,15 +24,9 @@ window.MissionSystem = (function () {
   }
 
   function claim(state, missionId) {
-    var mission = GameData.missions.find(function(m) { return m.id === missionId; });
-    if (!mission) return { ok: false, reason: "Mission not found" };
-    if (!canClaim(state, mission)) return { ok: false, reason: "Mission incomplete" };
-
-    state.missions[missionId].claimed = true;
-    Utils.grantResources(state, mission.reward);
-    MailboxSystem.addMessage(state, "System", "Mission Reward Claimed", mission.name + " completed. Reward: " + Utils.costToHtml(mission.reward) + ".");
-    CommanderSystem.addRankPoints(state, 1);
-    return { ok: true };
+    if (window.Network) {
+      Network.send({ type: 'claim_mission', missionId: missionId });
+    }
   }
 
   return {

@@ -627,6 +627,61 @@ server.on('upgrade', function(req, socket, head) {
         }
       }
 
+      // ── Claim Mission ──
+      if (msg.type === 'claim_mission') {
+        var missionId = msg.missionId;
+        var mission = gameData.missions ? gameData.missions.find(function(m) { return m.id === missionId; }) : null;
+        if (!mission) {
+          socket.write(wsEncodeFrame(JSON.stringify({ type: 'claim_result', ok: false, error: 'Mission not found' })));
+        } else if (user.colony.missions && user.colony.missions[missionId] && user.colony.missions[missionId].claimed) {
+          socket.write(wsEncodeFrame(JSON.stringify({ type: 'claim_result', ok: false, error: 'Already claimed' })));
+        } else {
+          var progress = 0;
+          switch (mission.type) {
+            case 'buildingLevel':
+              progress = (user.colony.buildings[mission.targetKey] || {}).level || 0;
+              break;
+            case 'troopCount':
+              var total = 0;
+              if (user.colony.troops && user.colony.troops.counts) {
+                for (var k in user.colony.troops.counts) total += user.colony.troops.counts[k];
+              }
+              progress = total;
+              break;
+            case 'researchCount':
+              progress = (user.colony.research && user.colony.research.completedTotal) || 0;
+              break;
+            case 'scoutCount':
+              progress = (user.colony.combat && user.colony.combat.scoutsCompleted) || 0;
+              break;
+            case 'attackWins':
+              progress = (user.colony.combat && user.colony.combat.attackWins) || 0;
+              break;
+            case 'defenseWins':
+              progress = (user.colony.combat && user.colony.combat.defenseWins) || 0;
+              break;
+          }
+          if (progress < mission.target) {
+            socket.write(wsEncodeFrame(JSON.stringify({ type: 'claim_result', ok: false, error: 'Mission not yet complete' })));
+          } else {
+            if (!user.colony.missions) user.colony.missions = {};
+            user.colony.missions[missionId] = { claimed: true };
+            if (mission.reward) {
+              if (!user.colony.resources) user.colony.resources = {};
+              for (var r in mission.reward) {
+                if (!user.colony.resources[r]) user.colony.resources[r] = { amount: 0 };
+                user.colony.resources[r].amount = (user.colony.resources[r].amount || 0) + mission.reward[r];
+              }
+            }
+            DB.saveDB();
+            var colony = JSON.parse(JSON.stringify(user.colony));
+            colony.productionRates = ResourceSystem.getProductionRates(user.colony);
+            socket.write(wsEncodeFrame(JSON.stringify({ type: 'claim_result', ok: true, colony: colony })));
+            log(ip, 'claim_mission ' + username + ' ' + missionId);
+          }
+        }
+      }
+
       // ── Research ──
       if (msg.type === 'research') {
         var result = ResearchSystem.startResearch(user.colony, msg.category);

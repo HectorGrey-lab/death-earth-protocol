@@ -260,6 +260,19 @@ window.App = (function () {
       }
     });
 
+
+    // ── Claim Mission Result ──
+    Network.on("claim_result", function (msg) {
+      if (msg.colony) {
+        window.gameState.missions = msg.colony.missions || window.gameState.missions;
+        window.gameState.resources = msg.colony.resources;
+        window.gameState._productionRates = msg.colony.productionRates || null;
+      } else if (msg.error) {
+        MailboxSystem.addSystemMail(window.gameState, '⚠ Mission claim failed: ' + msg.error);
+      }
+      window.App.render();
+    });
+
     // ── Private Messaging ──
     Network.on("mailbox_update", function (msg) {
       if (msg.message) {
