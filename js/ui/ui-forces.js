@@ -79,7 +79,7 @@ window.UIForces = (function () {
   }
 
   function render(state) {
-    return '<div class="stack" style="gap:6px;">' +
+    return '<div class="stack" style="gap:0px;">' +
       '<div class="four-col">' +
         '<div class="card"><div class="small">Total Troops</div><h3>' + TroopSystem.getTotalTroops(state) + '</h3></div>' +
         '<div class="card"><div class="small">Total Power</div><h3>' + TroopSystem.getTotalPower(state) + '</h3></div>' +
@@ -87,9 +87,9 @@ window.UIForces = (function () {
         '<div class="card"><div class="small">Isotope Upkeep</div><h3>' + Utils.format1(ResourceSystem.getUpkeep(state)) + '/s</h3></div></div>' +
       '<div class="two-col">' +
         '<div class="card"><div class="panel-title">Training Command</div><div class="card-grid cols-2">' + renderRoster(state) + '</div></div>' +
-        '<div class="stack" style="gap:6px;">' +
-          '<div class="card" style="max-height:260px; overflow-y:auto; padding:8px;"><div class="panel-title">Training Queue</div><div class="stack" style="gap:6px;">' + renderQueue(state) + '</div></div>' +
-          '<div class="card" style="padding:8px 12px;"><div class="panel-title">Fleets</div><div class="stack" style="gap:6px;">' + renderFleets(state) + '</div></div></div></div></div>';
+        '<div class="stack" style="gap:0px;">' +
+          '<div class="card" style="max-height:260px; overflow-y:auto; padding:8px 8px 0 8px;"><div class="panel-title">Training Queue</div><div class="stack" style="gap:0px;">' + renderQueue(state) + '</div></div>' +
+          '<div class="card" style="padding:0 12px 8px 12px;border-top:none;"><div class="panel-title">Fleets</div><div class="stack" style="gap:0px;">' + renderFleets(state) + '</div></div></div></div></div>';
   }
 
   function bind(state) {
