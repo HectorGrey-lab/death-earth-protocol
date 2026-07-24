@@ -32,7 +32,7 @@ window.UIForces = (function () {
   function renderFleets(state) {
     var html = '';
     html += '<div class="row" style="margin-bottom:8px;">' +
-      '<input id="fleetNameInput" type="text" placeholder="Fleet name..." class="input" style="flex:1;min-width:0;" value="' + Utils.esc(_savedFleetName) + '">' +
+      '<input id="fleetNameInput" type="text" placeholder="Fleet name..." class="input" style="flex:1;min-width:0;" value="' + _savedFleetName.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') + '">' +
       '<button id="createFleetBtn" class="btn small">+ Create Fleet</button></div>';
 
     var fleetIds = Object.keys(state.fleets || {});
