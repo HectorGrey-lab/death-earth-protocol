@@ -5,7 +5,7 @@ window.UIMissions = (function () {
         ${GameData.missions.map(m => {
           const progress = MissionSystem.getProgress(state, m);
           const pct = Math.min(100, Math.floor((progress / m.target) * 100));
-          const claimed = state.missions[m.id].claimed;
+          const claimed = state.missions && state.missions[m.id] ? state.missions[m.id].claimed || false : false;
           return `
             <div class="mission-item">
               <div class="space-between">

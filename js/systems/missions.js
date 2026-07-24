@@ -19,24 +19,25 @@ window.MissionSystem = (function () {
   }
 
   function canClaim(state, mission) {
-    return !state.missions[mission.id].claimed && getProgress(state, mission) >= mission.target;
+    var m = state.missions && state.missions[mission.id];
+    return m && !m.claimed && getProgress(state, mission) >= mission.target;
   }
 
   function claim(state, missionId) {
-    const mission = GameData.missions.find(m => m.id === missionId);
+    var mission = GameData.missions.find(function(m) { return m.id === missionId; });
     if (!mission) return { ok: false, reason: "Mission not found" };
     if (!canClaim(state, mission)) return { ok: false, reason: "Mission incomplete" };
 
     state.missions[missionId].claimed = true;
     Utils.grantResources(state, mission.reward);
-    MailboxSystem.addMessage(state, "System", "Mission Reward Claimed", `${mission.name} completed. Reward: ${Utils.costToHtml(mission.reward)}.`);
+    MailboxSystem.addMessage(state, "System", "Mission Reward Claimed", mission.name + " completed. Reward: " + Utils.costToHtml(mission.reward) + ".");
     CommanderSystem.addRankPoints(state, 1);
     return { ok: true };
   }
 
   return {
-    getProgress,
-    canClaim,
-    claim
+    getProgress: getProgress,
+    canClaim: canClaim,
+    claim: claim
   };
 })();
