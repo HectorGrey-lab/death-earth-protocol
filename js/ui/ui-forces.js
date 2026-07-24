@@ -1,4 +1,6 @@
 window.UIForces = (function () {
+  var _savedFleetName = '';
+
   function renderRoster(state) {
     return Object.keys(GameData.troops).map(function (key) {
       var t = GameData.troops[key];
@@ -30,7 +32,7 @@ window.UIForces = (function () {
   function renderFleets(state) {
     var html = '';
     html += '<div class="row" style="margin-bottom:8px;">' +
-      '<input id="fleetNameInput" type="text" placeholder="Fleet name..." class="input" style="flex:1;min-width:0;">' +
+      '<input id="fleetNameInput" type="text" placeholder="Fleet name..." class="input" style="flex:1;min-width:0;" value="' + Utils.esc(_savedFleetName) + '">' +
       '<button id="createFleetBtn" class="btn small">+ Create Fleet</button></div>';
 
     var fleetIds = Object.keys(state.fleets || {});
@@ -93,13 +95,18 @@ window.UIForces = (function () {
   }
 
   function bind(state) {
+    var nameInput = document.getElementById('fleetNameInput');
+    if (nameInput) {
+      _savedFleetName = nameInput.value;
+      nameInput.oninput = function () { _savedFleetName = this.value; };
+    }
     var createBtn = document.getElementById('createFleetBtn');
     if (createBtn) {
       createBtn.onclick = function () {
         var input = document.getElementById('fleetNameInput');
         var name = input ? input.value.trim() : '';
         FleetSystem.createFleet(state, name || undefined);
-        if (input) input.value = '';
+        if (input) { input.value = ''; _savedFleetName = ''; }
         window.App.render();
       };
     }
