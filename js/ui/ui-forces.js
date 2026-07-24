@@ -50,7 +50,7 @@ window.UIForces = (function () {
 
       html += '<div class="card fleet-card">' +
         '<div class="space-between">' +
-          '<strong>' + Utils.esc(fleet.name || 'Unnamed Fleet') + '</strong>' +
+          '<strong>' + (fleet.name || 'Unnamed Fleet').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</strong>' +
           '<div class="row">' +
             '<button class="btn tiny btn-info rename-fleet" data-fid="' + fid + '">\u270E</button>' +
             '<button class="btn tiny btn-danger delete-fleet" data-fid="' + fid + '">\u2715</button></div></div>' +
