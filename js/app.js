@@ -198,8 +198,10 @@ window.App = (function () {
         window.gameState.research = msg.colony.research || window.gameState.research;
         window.gameState.resources = msg.colony.resources;
         window.gameState._productionRates = msg.colony.productionRates || null;
-        render();
+      } else if (msg.error) {
+        MailboxSystem.addSystemMail(window.gameState, '⚠ Research failed: ' + msg.error);
       }
+      render();
     });
 
     // Scout result
