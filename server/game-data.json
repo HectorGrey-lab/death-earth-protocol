@@ -338,5 +338,75 @@
   "universe": {
     "planetsPerSector": 10,
     "sectorsPerGalaxy": 10
-  }
+  },
+  "missions": [
+    {
+      "id": "mission-build-3",
+      "name": "Raise the Grid",
+      "type": "buildingLevel",
+      "targetKey": "extractionGrid",
+      "target": 3,
+      "reward": {
+        "ore": 180,
+        "solar": 120
+      },
+      "desc": "Upgrade Extraction Grid to level 3."
+    },
+    {
+      "id": "mission-troops-15",
+      "name": "Standing Force",
+      "type": "troopCount",
+      "target": 15,
+      "reward": {
+        "ore": 120,
+        "isotopes": 35
+      },
+      "desc": "Train 15 total troops."
+    },
+    {
+      "id": "mission-research-2",
+      "name": "Adaptive Theory",
+      "type": "researchCount",
+      "target": 2,
+      "reward": {
+        "crystal": 120,
+        "solar": 80
+      },
+      "desc": "Complete 2 research levels."
+    },
+    {
+      "id": "mission-scout-2",
+      "name": "Eyes Beyond Dust",
+      "type": "scoutCount",
+      "target": 2,
+      "reward": {
+        "ore": 100,
+        "crystal": 60
+      },
+      "desc": "Scout 2 enemy bases."
+    },
+    {
+      "id": "mission-attack-2",
+      "name": "Suppress Hostiles",
+      "type": "attackWins",
+      "target": 2,
+      "reward": {
+        "ore": 150,
+        "solar": 90,
+        "isotopes": 25
+      },
+      "desc": "Win 2 raids."
+    },
+    {
+      "id": "mission-defense-2",
+      "name": "Hold the Line",
+      "type": "defenseWins",
+      "target": 2,
+      "reward": {
+        "crystal": 100,
+        "isotopes": 50
+      },
+      "desc": "Repel 2 attacks."
+    }
+  ]
 }
