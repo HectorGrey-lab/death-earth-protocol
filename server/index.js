@@ -500,6 +500,16 @@ server.on('upgrade', function(req, socket, head) {
           authenticated = true;
           username = uname;
           const user = DB.db.users[username];
+          // Ensure missions exist for existing users (migration)
+          if (user && user.colony && (!user.colony.missions || Object.keys(user.colony.missions).length === 0)) {
+            if (gameData.missions) {
+              user.colony.missions = {};
+              gameData.missions.forEach(function(m) {
+                user.colony.missions[m.id] = { claimed: false };
+              });
+              DB.saveDB();
+            }
+          }
           wsClients.set(socket, { username: username, colony: user && user.colony ? user.colony : null });
           socket.write(wsEncodeFrame(JSON.stringify({ type: 'auth_ok', username: username })));
           // Send leaderboard data
