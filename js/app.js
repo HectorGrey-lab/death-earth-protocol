@@ -145,7 +145,7 @@ window.App = (function () {
           }
         }
 
-        render();
+        UICore.renderTick(window.gameState);
       }
     });
 
