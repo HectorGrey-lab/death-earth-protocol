@@ -170,7 +170,7 @@ function createInitialTroops() {
 }
 
 function createInitialResearch() {
-  return { levels: {}, active: null, completedTotal: 0 };
+  return { levels: { economy: 0, military: 0, defense: 0 }, active: null, completedTotal: 0 };
 }
 
 function createInitialColony(username, planetName, galaxyId, sectorId, planetId) {

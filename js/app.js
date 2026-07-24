@@ -64,7 +64,13 @@ window.App = (function () {
         window.gameState.resources = c.resources;
         window.gameState.buildings = c.buildings;
         window.gameState.troops = c.troops;
-        window.gameState.research = c.research || { levels: {}, active: null, completedTotal: 0 };
+        window.gameState.research = c.research || { levels: { economy: 0, military: 0, defense: 0 }, active: null, completedTotal: 0 };
+        // Ensure all 3 research categories exist (handles old saves with empty levels)
+        if (window.gameState.research.levels) {
+          if (window.gameState.research.levels.economy === undefined) window.gameState.research.levels.economy = 0;
+          if (window.gameState.research.levels.military === undefined) window.gameState.research.levels.military = 0;
+          if (window.gameState.research.levels.defense === undefined) window.gameState.research.levels.defense = 0;
+        }
         window.gameState.commander.planetName = c.planetName;
 
         // Store missions state if sent by server
@@ -262,7 +268,7 @@ window.App = (function () {
       resources: { ore: { amount: 0, cap: 1200 }, solar: { amount: 0, cap: 1100 }, crystal: { amount: 0, cap: 900 }, isotopes: { amount: 0, cap: 700 } },
       buildings: {},
       troops: { counts: {}, queue: [] },
-      research: { levels: {}, active: null, completedTotal: 0 },
+      research: { levels: { economy: 0, military: 0, defense: 0 }, active: null, completedTotal: 0 },
       commander: { name: loggedUser ? "Commander " + loggedUser : "Commander Unknown", factionTitle: "Awaiting Server...", emblem: "\u25B3", theme: "cyan", planetName: "Unknown Planet" },
       universe: { galaxies: [], zoomLevel: "universe", activeGalaxyId: null, activeSectorId: null, activePlanetId: null, showUniverseView: false, fleets: [], discoveredPlanets: {}, hasWarpGate: false },
       events: { active: null, history: [] },
