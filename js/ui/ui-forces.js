@@ -88,7 +88,7 @@ window.UIForces = (function () {
       '<div class="two-col">' +
         '<div class="card"><div class="panel-title">Training Command</div><div class="card-grid cols-2">' + renderRoster(state) + '</div></div>' +
         '<div class="stack">' +
-          '<div class="card"><div class="panel-title">Training Queue</div><div class="stack">' + renderQueue(state) + '</div></div>' +
+          '<div class="card" style="max-height:260px; overflow-y:auto;"><div class="panel-title">Training Queue</div><div class="stack">' + renderQueue(state) + '</div></div>' +
           '<div class="card"><div class="panel-title">Fleets</div><div class="stack">' + renderFleets(state) + '</div></div></div></div></div>';
   }
 
