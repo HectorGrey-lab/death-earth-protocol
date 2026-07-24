@@ -112,6 +112,12 @@ window.Network = (function () {
           case 'buy_artifact_result':
             trigger('buy_artifact_result', msg);
             break;
+          case 'mailbox_update':
+            trigger('mailbox_update', msg);
+            break;
+          case 'private_message_result':
+            trigger('private_message_result', msg);
+            break;
           case 'action_result':
             trigger('action_result', msg);
             break;

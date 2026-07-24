@@ -24,6 +24,23 @@ window.UICore = (function () {
     document.querySelectorAll(".nav-btn").forEach((btn) => {
       btn.classList.toggle("active", btn.dataset.page === state.ui.currentPage);
     });
+    // New mail dot indicator
+    var mailBtn = document.querySelector('.nav-btn[data-page="mailbox"]');
+    if (mailBtn) {
+      if (state._hasNewMail) {
+        mailBtn.style.position = 'relative';
+        if (!mailBtn.querySelector('.new-mail-dot')) {
+          var dot = document.createElement('span');
+          dot.className = 'new-mail-dot';
+          dot.textContent = '●';
+          dot.style.cssText = 'position:absolute;top:2px;right:2px;font-size:10px;color:#ff4444;';
+          mailBtn.appendChild(dot);
+        }
+      } else {
+        var dotEl = mailBtn.querySelector('.new-mail-dot');
+        if (dotEl) dotEl.remove();
+      }
+    }
   }
 
   function renderShield(state) {
@@ -171,6 +188,7 @@ window.UICore = (function () {
         break;
       case "mailbox":
         target.innerHTML = UIMailbox.renderPage(state);
+        state._hasNewMail = false;
         break;
       case "leaderboard":
         target.innerHTML = UILeaderboard.renderPage(state);

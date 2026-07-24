@@ -711,6 +711,57 @@ server.on('upgrade', function(req, socket, head) {
         }
       }
 
+      // ── Private Message ──
+      if (msg.type === 'private_message') {
+        var target = String(msg.target).toLowerCase();
+        var targetUser = DB.db.users[target];
+        if (!targetUser || !targetUser.colony) {
+          socket.write(wsEncodeFrame(JSON.stringify({ type: 'private_message_result', ok: false, error: 'Player not found' })));
+        } else if (target === username.toLowerCase()) {
+          socket.write(wsEncodeFrame(JSON.stringify({ type: 'private_message_result', ok: false, error: 'Cannot message yourself' })));
+        } else {
+          var text = String(msg.text).substring(0, 1000);
+          var pm = {
+            id: 'pm_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+            tab: 'Inbox',
+            subject: 'From: ' + username,
+            body: text,
+            time: Date.now(),
+            from: username
+          };
+          // Add to target's mailbox
+          if (!targetUser.colony.mailbox) targetUser.colony.mailbox = { messages: [], selectedTab: 'Inbox', selectedMessageId: null };
+          if (!targetUser.colony.mailbox.messages) targetUser.colony.mailbox.messages = [];
+          targetUser.colony.mailbox.messages.unshift(pm);
+          targetUser.colony.mailbox.messages = targetUser.colony.mailbox.messages.slice(0, 120);
+          DB.saveDB();
+          // If target is online, send immediately
+          wsClients.forEach(function (info, sock) {
+            if (info.username === target) {
+              broadcastToUser(sock, { type: 'mailbox_update', message: pm });
+            }
+          });
+          // Also add to sender's mailbox as confirmation
+          if (!user.colony.mailbox) user.colony.mailbox = { messages: [], selectedTab: 'Inbox', selectedMessageId: null };
+          if (!user.colony.mailbox.messages) user.colony.mailbox.messages = [];
+          var sentPm = {
+            id: 'pm_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+            tab: 'Inbox',
+            subject: 'To: ' + target,
+            body: text,
+            time: Date.now(),
+            to: target
+          };
+          user.colony.mailbox.messages.unshift(sentPm);
+          user.colony.mailbox.messages = user.colony.mailbox.messages.slice(0, 120);
+          // Send updated colony to sender so they see the sent message
+          var colony = JSON.parse(JSON.stringify(user.colony));
+          colony.productionRates = ResourceSystem.getProductionRates(user.colony);
+          socket.write(wsEncodeFrame(JSON.stringify({ type: 'private_message_result', ok: true, colony: colony, sent: sentPm })));
+          log(ip, 'pm ' + username + ' -> ' + target + ': ' + text.substring(0, 50));
+        }
+      }
+
     } catch(e) {
       console.error('WebSocket error:', e);
     }

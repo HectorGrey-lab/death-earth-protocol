@@ -1013,12 +1013,12 @@ window.UIMap = (function () {
     if (msgBtn) {
       msgBtn.onclick = function () {
         var target = this.dataset.player;
-        state.ui.currentPage = 'chat';
-        window.App.render();
-        setTimeout(function () {
-          var input = document.getElementById('chatPageInput');
-          if (input) { input.value = '@' + target + ' '; input.focus(); }
-        }, 100);
+        var text = prompt('Send private message to ' + target + ':');
+        if (text && text.trim()) {
+          if (window.Network) {
+            Network.send({ type: 'private_message', target: target, text: text.trim() });
+          }
+        }
       };
     }
     const atkBtn = document.getElementById('attackPlayerBtn');

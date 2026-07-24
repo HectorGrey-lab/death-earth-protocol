@@ -259,6 +259,33 @@ window.App = (function () {
         render();
       }
     });
+
+    // ── Private Messaging ──
+    Network.on("mailbox_update", function (msg) {
+      if (msg.message) {
+        if (!window.gameState.mailbox) window.gameState.mailbox = { messages: [] };
+        if (!window.gameState.mailbox.messages) window.gameState.mailbox.messages = [];
+        window.gameState.mailbox.messages.unshift(msg.message);
+        window.gameState.mailbox.messages = window.gameState.mailbox.messages.slice(0, 120);
+        window.gameState.mailbox.selectedTab = 'Inbox';
+        window.gameState.mailbox.selectedMessageId = msg.message.id;
+        // Flash the inbox tab indicator if user is not on mailbox page
+        if (window.gameState.ui.currentPage !== 'mailbox') {
+          window.gameState._hasNewMail = true;
+        }
+      }
+    });
+
+    Network.on("private_message_result", function (msg) {
+      if (!msg.ok) {
+        MailboxSystem.addSystemMail(window.gameState, '⚠ PM failed: ' + (msg.error || 'Unknown error'));
+      } else if (msg.colony) {
+        window.gameState.mailbox = msg.colony.mailbox || window.gameState.mailbox;
+        window.gameState._productionRates = msg.colony.productionRates || null;
+        MailboxSystem.addSystemMail(window.gameState, '✅ Private message sent');
+      }
+      render();
+    });
   }
 
   function init() {
