@@ -4,6 +4,17 @@ window.UIResearch = (function () {
     const def = GameData.research[key];
     const cost = ResearchSystem.getResearchCost(key, lvl);
     const dur = ResearchSystem.getResearchDuration(state, key, lvl);
+    const hasLab = state.buildings && state.buildings.researchLab && state.buildings.researchLab.level >= 1;
+    const canAfford = Utils.hasCost(state, cost);
+    let requirementError = "";
+    if (state.research.active) {
+      requirementError = "Research in progress";
+    } else if (!hasLab) {
+      requirementError = "Requires Research Lab Lv1";
+    } else if (!canAfford) {
+      const missing = Object.keys(cost).filter(k => (state.resources[k]?.amount || 0) < cost[k]);
+      requirementError = "Missing: " + missing.map(k => GameData.resources[k].name).join(", ");
+    }
 
     return `
       <div class="card">
@@ -15,6 +26,7 @@ window.UIResearch = (function () {
         <div class="small">Cost: ${Utils.costToHtml(cost)}</div>
         <div class="small">Duration: ${Utils.formatTime(dur)}</div>
         <button class="btn small" ${state.research.active ? "disabled" : ""} onclick="Network.send({type:'research', category:'${key}'}); window.App.render();">Start Research</button>
+        ${requirementError ? `<div class="small" style="color:#e68a2e;margin-top:4px;">${requirementError}</div>` : ""}
       </div>
     `;
   }
