@@ -827,6 +827,152 @@ server.on('upgrade', function(req, socket, head) {
         }
       }
 
+      if (msg.type === 'attack_fleet') {
+        var fleetId = msg.fleetId;
+        var targetName = msg.target;
+        var fleet = user.colony.fleets ? user.colony.fleets[fleetId] : null;
+        if (!fleet) {
+          socket.write(wsEncodeFrame(JSON.stringify({ type: 'attack_result', ok: false, error: 'Fleet not found' })));
+        } else if (targetName === username) {
+          socket.write(wsEncodeFrame(JSON.stringify({ type: 'attack_result', ok: false, error: 'Cannot attack yourself' })));
+        } else {
+          var targetUser = DB.db.users[targetName];
+          if (!targetUser || !targetUser.colony) {
+            socket.write(wsEncodeFrame(JSON.stringify({ type: 'attack_result', ok: false, error: 'Target not found' })));
+          } else {
+            // Compute attacker power from fleet
+            var atkMod = 1 + (user.colony.research.levels.military || 0) * 0.08;
+            var atkPower = 0;
+            var fleetTroops = fleet.troops || {};
+            Object.keys(fleetTroops).forEach(function (key) {
+              var count = fleetTroops[key] || 0;
+              var def = GAME.troops[key];
+              if (def) atkPower += count * def.power * atkMod;
+            });
+            atkPower = Math.floor(atkPower);
+
+            // Compute defender power from all troops
+            var defMod = 1 + (targetUser.colony.research.levels.defense || 0) * 0.06;
+            var defPower = 0;
+            var defCounts = targetUser.colony.troops.counts || {};
+            Object.keys(defCounts).forEach(function (key) {
+              var count = defCounts[key] || 0;
+              var def = GAME.troops[key];
+              if (def) defPower += count * def.defense * defMod;
+            });
+            defPower = Math.floor(defPower);
+
+            // Resolve combat
+            var totalPower = atkPower + defPower;
+            var atkRoll = Math.random() * atkPower;
+            var defRoll = Math.random() * defPower;
+            var attackerWins = atkRoll > defRoll;
+
+            // Calculate casualties
+            var atkLossRate = attackerWins ? 0.15 + Math.random() * 0.1 : 0.4 + Math.random() * 0.2;
+            var defLossRate = attackerWins ? 0.3 + Math.random() * 0.15 : 0.1 + Math.random() * 0.1;
+
+            var atkCasualties = {};
+            Object.keys(fleetTroops).forEach(function (key) {
+              var count = fleetTroops[key] || 0;
+              var lost = Math.min(count, Math.max(1, Math.floor(count * atkLossRate)));
+              if (lost > 0) {
+                atkCasualties[key] = lost;
+                fleetTroops[key] = count - lost;
+                if (fleetTroops[key] <= 0) delete fleetTroops[key];
+              }
+            });
+
+            var defCasualties = {};
+            Object.keys(defCounts).forEach(function (key) {
+              var count = defCounts[key] || 0;
+              var lost = Math.min(count, Math.max(1, Math.floor(count * defLossRate)));
+              if (lost > 0) {
+                defCasualties[key] = lost;
+                targetUser.colony.troops.counts[key] = Math.max(0, count - lost);
+                if (targetUser.colony.troops.counts[key] <= 0) delete targetUser.colony.troops.counts[key];
+              }
+            });
+
+            // Loot transfer (if attacker wins)
+            var loot = {};
+            if (attackerWins) {
+              var carryTotal = 0;
+              Object.keys(fleetTroops).forEach(function (key) {
+                var count = fleetTroops[key] || 0;
+                var def = GAME.troops[key];
+                carryTotal += count * (def && def.carryCapacity ? def.carryCapacity : 10);
+              });
+              var resTypes = ['ore', 'solar', 'crystal', 'isotopes'];
+              var lootPool = carryTotal;
+              resTypes.forEach(function (rt) {
+                var avail = targetUser.colony.resources[rt] ? targetUser.colony.resources[rt].amount || 0 : 0;
+                var take = Math.min(avail, Math.floor(lootPool / (resTypes.length - resTypes.indexOf(rt))));
+                if (take > 0) {
+                  targetUser.colony.resources[rt].amount = Math.max(0, avail - take);
+                  loot[rt] = take;
+                  lootPool -= take;
+                }
+              });
+              // Award loot to attacker
+              Object.keys(loot).forEach(function (rt) {
+                if (!user.colony.resources[rt]) user.colony.resources[rt] = { amount: 0, cap: 100000 };
+                user.colony.resources[rt].amount = Math.min(
+                  (user.colony.resources[rt].cap || 100000),
+                  (user.colony.resources[rt].amount || 0) + loot[rt]
+                );
+              });
+            }
+
+            // Update combat stats
+            if (!user.colony.combat) user.colony.combat = { scoutsCompleted: 0, attackWins: 0, defenseWins: 0, incomingAttacks: [], raidHistory: [] };
+            if (!targetUser.colony.combat) targetUser.colony.combat = { scoutsCompleted: 0, attackWins: 0, defenseWins: 0, incomingAttacks: [], raidHistory: [] };
+
+            if (attackerWins) {
+              user.colony.combat.attackWins = (user.colony.combat.attackWins || 0) + 1;
+              targetUser.colony.combat.defenseWins = (targetUser.colony.combat.defenseWins || 0) + 1;
+            } else {
+              targetUser.colony.combat.defenseWins = (targetUser.colony.combat.defenseWins || 0) + 1;
+            }
+
+            DB.saveDB();
+
+            // Send result to attacker
+            var atkColony = JSON.parse(JSON.stringify(user.colony));
+            atkColony.productionRates = ResourceSystem.getProductionRates(user.colony);
+            socket.write(wsEncodeFrame(JSON.stringify({
+              type: 'attack_result',
+              ok: true,
+              victory: attackerWins,
+              loot: loot,
+              casualties: atkCasualties,
+              fleetId: fleetId,
+              target: targetName
+            })));
+
+            // Send notification to defender
+            wsClients.forEach(function (info, sock) {
+              if (info.username === targetName) {
+                var defColony = JSON.parse(JSON.stringify(targetUser.colony));
+                defColony.productionRates = ResourceSystem.getProductionRates(targetUser.colony);
+                broadcastToUser(sock, {
+                  type: 'attack_result',
+                  ok: true,
+                  victory: !attackerWins,
+                  loot: {},
+                  casualties: defCasualties,
+                  fleetId: null,
+                  target: username,
+                  attackedBy: username
+                });
+              }
+            });
+
+            log(ip, 'attack_fleet ' + username + ' -> ' + targetName + ' (' + (attackerWins ? 'win' : 'loss') + ')');
+          }
+        }
+      }
+
     } catch(e) {
       console.error('WebSocket error:', e);
     }

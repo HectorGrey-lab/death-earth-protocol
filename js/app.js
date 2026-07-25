@@ -307,6 +307,40 @@ window.App = (function () {
       }
       render();
     });
+
+    Network.on("attack_result", function (msg) {
+      var s = window.gameState;
+      if (!msg.ok) {
+        MailboxSystem.addSystemMail(s, '⚠ Attack failed: ' + (msg.error || 'Unknown error'));
+        render();
+        return;
+      }
+      // Apply fleet casualties
+      if (msg.fleetId && msg.casualties && s.fleets[msg.fleetId]) {
+        var ft = s.fleets[msg.fleetId].troops || {};
+        Object.keys(msg.casualties).forEach(function (key) {
+          ft[key] = Math.max(0, (ft[key] || 0) - msg.casualties[key]);
+          if (ft[key] <= 0) delete ft[key];
+        });
+      }
+      // Apply general casualties (defender)
+      if (msg.attackedBy && msg.casualties) {
+        Object.keys(msg.casualties).forEach(function (key) {
+          s.troops.counts[key] = Math.max(0, (s.troops.counts[key] || 0) - msg.casualties[key]);
+        });
+      }
+      // Apply loot
+      if (msg.loot && Object.keys(msg.loot).length) {
+        Object.keys(msg.loot).forEach(function (rt) {
+          if (s.resources[rt]) {
+            s.resources[rt].amount = Math.min(s.resources[rt].cap || 100000, (s.resources[rt].amount || 0) + msg.loot[rt]);
+          }
+        });
+      }
+      s._selectedFleetId = null;
+      MailboxSystem.addSystemMail(s, '⚔ ' + (msg.victory ? 'Victory' : 'Defeat') + ' against ' + (msg.target || msg.attackedBy || 'unknown') + '.' + (Object.keys(msg.loot || {}).length ? ' Looted ' + Object.keys(msg.loot).map(function (k) { return msg.loot[k] + ' ' + k; }).join(', ') : ''));
+      render();
+    });
   }
 
   function init() {

@@ -51,7 +51,8 @@ window.UIForces = (function () {
         '<div class="space-between">' +
           '<strong>' + (fleet.name || 'Unnamed Fleet').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</strong>' +
           '<div class="row">' +
-            '<button class="btn tiny btn-info edit-fleet" data-fid="' + fid + '">\u270E</button>' +
+            '<button class="btn tiny btn-attack attack-fleet" data-fid="' + fid + '" title="Attack with this fleet">\u2694\uFE0F</button>' +
+            '<button class="btn tiny btn-info edit-fleet" data-fid="' + fid + '" title="Edit fleet">\u270E</button>' +
             '<button class="btn tiny btn-danger delete-fleet" data-fid="' + fid + '">\u2715</button></div></div>' +
         '<div class="fleet-stats">' +
           '<span>\u2694\uFE0F ' + fp + '</span>' +
@@ -230,6 +231,14 @@ window.UIForces = (function () {
     document.querySelectorAll('.edit-fleet').forEach(function (btn) {
       btn.onclick = function () {
         showEditFleetModal(state, this.dataset.fid);
+      };
+    });
+
+    document.querySelectorAll('.attack-fleet').forEach(function (btn) {
+      btn.onclick = function () {
+        state._selectedFleetId = this.dataset.fid;
+        state.ui.currentPage = 'map';
+        window.App.render();
       };
     });
 

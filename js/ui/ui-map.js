@@ -605,15 +605,24 @@ window.UIMap = (function () {
       var r = ranks[cat.key];
       rankHtml += '<div class="lb-mini-row"><span>' + cat.icon + ' ' + cat.label + '</span><span' + (r === 1 ? ' style="color:#ffd700;font-weight:bold;"' : '') + '>' + (r ? '#' + r : '—') + '</span></div>';
     });
+    var fleetMsg = '';
+    var fleetBtn = '';
+    if (state._selectedFleetId && state.fleets[state._selectedFleetId]) {
+      var selFleet = state.fleets[state._selectedFleetId];
+      var fz = FleetSystem.getFleetSize(selFleet);
+      fleetMsg = '<div class="small" style="color:var(--yellow);margin:6px 0;">⚔ Attacking with <strong>' + esc(selFleet.name) + '</strong> (' + fz + ' units)</div>';
+      fleetBtn = '<button class="btn small success" id="launchFleetAttackBtn" data-player="' + esc(username) + '" data-fid="' + state._selectedFleetId + '">⚔ Launch Attack</button>';
+    }
     return '' +
       '<div class="card player-profile-card">' +
         '<div class="panel-title">🏛 Player Profile</div>' +
         '<h3 style="margin:4px 0;">' + esc(username) + '</h3>' +
         '<div class="small" style="color:var(--muted);margin-bottom:8px;">Leaderboard Rankings</div>' +
         '<div class="lb-mini-grid">' + rankHtml + '</div>' +
+        fleetMsg +
         '<div class="row" style="margin-top:10px;">' +
           '<button class="btn small" id="msgPlayerBtn" data-player="' + esc(username) + '">💬 Message</button>' +
-          '<button class="btn small warn" id="attackPlayerBtn" data-player="' + esc(username) + '">⚔ Attack</button>' +
+          fleetBtn +
         '</div>' +
       '</div>';
   }
@@ -1021,12 +1030,14 @@ window.UIMap = (function () {
         }
       };
     }
-    const atkBtn = document.getElementById('attackPlayerBtn');
-    if (atkBtn) {
-      atkBtn.onclick = function () {
+    // Attack from fleet
+    const launchBtn = document.getElementById('launchFleetAttackBtn');
+    if (launchBtn) {
+      launchBtn.onclick = function () {
         var target = this.dataset.player;
-        if (confirm('Launch attack against ' + target + '? (PvP combat coming soon)')) {
-          // Placeholder for future PvP attack
+        var fleetId = this.dataset.fid;
+        if (confirm('Launch attack with your fleet against ' + target + '?')) {
+          Network.send({ type: 'attack_fleet', fleetId: fleetId, target: target });
         }
       };
     }
