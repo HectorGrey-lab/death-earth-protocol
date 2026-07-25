@@ -199,7 +199,9 @@ window.App = (function () {
         window.gameState.resources = msg.colony.resources;
         window.gameState._productionRates = msg.colony.productionRates || null;
       } else if (msg.error) {
-        MailboxSystem.addSystemMail(window.gameState, '⚠ Research failed: ' + msg.error);
+        var s = window.gameState;
+        if (!s.mailbox) s.mailbox = { messages: [], selectedTab: "System", selectedMessageId: null };
+        MailboxSystem.addSystemMail(s, '⚠ Research failed: ' + msg.error);
       }
       render();
     });
@@ -268,7 +270,9 @@ window.App = (function () {
         window.gameState.resources = msg.colony.resources;
         window.gameState._productionRates = msg.colony.productionRates || null;
       } else if (msg.error) {
-        MailboxSystem.addSystemMail(window.gameState, '⚠ Mission claim failed: ' + msg.error);
+        var state = window.gameState;
+        if (!state.mailbox) state.mailbox = { messages: [], selectedTab: 'System', selectedMessageId: null };
+        MailboxSystem.addSystemMail(state, '⚠ Mission claim failed: ' + msg.error);
       }
       window.App.render();
     });
@@ -291,11 +295,15 @@ window.App = (function () {
 
     Network.on("private_message_result", function (msg) {
       if (!msg.ok) {
-        MailboxSystem.addSystemMail(window.gameState, '⚠ PM failed: ' + (msg.error || 'Unknown error'));
+        var s = window.gameState;
+        if (!s.mailbox) s.mailbox = { messages: [], selectedTab: "System", selectedMessageId: null };
+        MailboxSystem.addSystemMail(s, '⚠ PM failed: ' + (msg.error || 'Unknown error'));
       } else if (msg.colony) {
         window.gameState.mailbox = msg.colony.mailbox || window.gameState.mailbox;
         window.gameState._productionRates = msg.colony.productionRates || null;
-        MailboxSystem.addSystemMail(window.gameState, '✅ Private message sent');
+        var s = window.gameState;
+        if (!s.mailbox) s.mailbox = { messages: [], selectedTab: "System", selectedMessageId: null };
+        MailboxSystem.addSystemMail(s, '✅ Private message sent');
       }
       render();
     });
