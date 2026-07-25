@@ -1,5 +1,5 @@
 window.UIForces = (function () {
-  var _savedFleetName = '';
+  var _createData = { name: '', qty: {} };
 
   function renderRoster(state) {
     return Object.keys(GameData.troops).map(function (key) {
@@ -31,9 +31,8 @@ window.UIForces = (function () {
 
   function renderFleets(state) {
     var html = '';
-    html += '<div class="row" style="margin-bottom:8px;">' +
-      '<input id="fleetNameInput" type="text" placeholder="Fleet name..." class="input" style="flex:1;min-width:0;" value="' + _savedFleetName.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') + '">' +
-      '<button id="createFleetBtn" class="btn small">+ Create Fleet</button></div>';
+    // Create Fleet button — opens a modal
+    html += '<button id="openCreateFleetBtn" class="btn small" style="margin-bottom:8px;">+ Create Fleet</button>';
 
     var fleetIds = Object.keys(state.fleets || {});
     if (!fleetIds.length) {
@@ -94,20 +93,80 @@ window.UIForces = (function () {
           '<div class="card" style="margin-top:-1px;padding:0 12px 8px 12px;border-top:none;border-top-left-radius:0;border-top-right-radius:0;"><div class="panel-title">Fleets</div><div style="display:flex;flex-direction:column;">' + renderFleets(state) + '</div></div></div></div></div>';
   }
 
+  function showCreateFleetModal(state) {
+    _createData.name = '';
+    _createData.qty = {};
+
+    var nameHtml = '<input id="createFleetModalName" type="text" placeholder="Fleet name..." class="input" style="width:100%;box-sizing:border-box;margin-bottom:12px;">';
+
+    var troopsHtml = Object.keys(GameData.troops).map(function (key) {
+      var t = GameData.troops[key];
+      var avail = state.troops.counts[key] || 0;
+      var inFleet = state.fleets && Object.keys(state.fleets).reduce(function (sum, fid) {
+        return sum + ((state.fleets[fid].troops[key] || 0));
+      }, 0);
+      var total = avail + inFleet;
+      return '<div class="fleet-troop-row">' +
+        '<span class="fleet-troop-label">' + t.name + ' <span class="muted">(P' + t.power + ' D' + t.defense + ' C' + t.carryCapacity + ')</span></span>' +
+        '<div class="fleet-troop-controls">' +
+          '<button class="btn tiny create-fleet-qty-minus" data-key="' + key + '">\u2212</button>' +
+          '<span id="createQty_' + key + '" class="fleet-troop-count">0</span>' +
+          '<button class="btn tiny create-fleet-qty-plus" data-key="' + key + '">+</button>' +
+          '<span class="small muted" style="margin-left:6px;">avail ' + avail + '</span></div></div>';
+    }).join('');
+
+    var saveBtn = '<button id="saveFleetFromModalBtn" class="btn success" style="margin-top:12px;">Save Fleet</button>';
+
+    UIModal.open('Create Fleet', nameHtml + '<div style="max-height:400px;overflow-y:auto;">' + troopsHtml + '</div>' + saveBtn);
+
+    // Bind modal inputs
+    document.getElementById('createFleetModalName').oninput = function () {
+      _createData.name = this.value;
+    };
+
+    document.querySelectorAll('.create-fleet-qty-plus').forEach(function (btn) {
+      btn.onclick = function () {
+        var key = this.dataset.key;
+        var avail = state.troops.counts[key] || 0;
+        var current = _createData.qty[key] || 0;
+        if (current < avail) {
+          _createData.qty[key] = current + 1;
+          Utils.el('createQty_' + key).textContent = _createData.qty[key];
+        }
+      };
+    });
+
+    document.querySelectorAll('.create-fleet-qty-minus').forEach(function (btn) {
+      btn.onclick = function () {
+        var key = this.dataset.key;
+        var current = _createData.qty[key] || 0;
+        if (current > 0) {
+          _createData.qty[key] = current - 1;
+          Utils.el('createQty_' + key).textContent = _createData.qty[key];
+        }
+      };
+    });
+
+    document.getElementById('saveFleetFromModalBtn').onclick = function () {
+      var name = _createData.name.trim() || 'Unnamed Fleet';
+      var fleetId = FleetSystem.createFleet(state, name);
+      // Add selected troops
+      Object.keys(_createData.qty).forEach(function (key) {
+        var qty = _createData.qty[key];
+        if (qty > 0) {
+          FleetSystem.addToFleet(state, fleetId, key, qty);
+        }
+      });
+      UIModal.close();
+      window.App.render();
+    };
+  }
+
   function bind(state) {
-    var nameInput = document.getElementById('fleetNameInput');
-    if (nameInput) {
-      _savedFleetName = nameInput.value;
-      nameInput.oninput = function () { _savedFleetName = this.value; };
-    }
-    var createBtn = document.getElementById('createFleetBtn');
-    if (createBtn) {
-      createBtn.onclick = function () {
-        var input = document.getElementById('fleetNameInput');
-        var name = input ? input.value.trim() : '';
-        FleetSystem.createFleet(state, name || undefined);
-        if (input) { input.value = ''; _savedFleetName = ''; }
-        window.App.render();
+    var openBtn = document.getElementById('openCreateFleetBtn');
+    if (openBtn) {
+      openBtn.onclick = function () {
+        showCreateFleetModal(state);
       };
     }
 
