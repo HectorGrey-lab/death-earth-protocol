@@ -302,6 +302,7 @@ window.Network = (function () {
     build: build,
     train: train,
     setColonyStateCallback: setColonyStateCallback,
+    send: send,
     get isConnected() { return connected; },
     get username() { return username; },
   };
