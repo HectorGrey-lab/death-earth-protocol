@@ -1,5 +1,6 @@
 window.UIForces = (function () {
   var _createData = { name: '', qty: {} };
+  var _editData = { name: '', qty: {} };
 
   function renderRoster(state) {
     return Object.keys(GameData.troops).map(function (key) {
@@ -31,7 +32,6 @@ window.UIForces = (function () {
 
   function renderFleets(state) {
     var html = '';
-    // Create Fleet button — opens a modal
     html += '<button id="openCreateFleetBtn" class="btn small" style="margin-bottom:8px;">+ Create Fleet</button>';
 
     var fleetIds = Object.keys(state.fleets || {});
@@ -51,30 +51,13 @@ window.UIForces = (function () {
         '<div class="space-between">' +
           '<strong>' + (fleet.name || 'Unnamed Fleet').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</strong>' +
           '<div class="row">' +
-            '<button class="btn tiny btn-info rename-fleet" data-fid="' + fid + '">\u270E</button>' +
+            '<button class="btn tiny btn-info edit-fleet" data-fid="' + fid + '">\u270E</button>' +
             '<button class="btn tiny btn-danger delete-fleet" data-fid="' + fid + '">\u2715</button></div></div>' +
         '<div class="fleet-stats">' +
           '<span>\u2694\uFE0F ' + fp + '</span>' +
           '<span>\uD83D\uDEE1\uFE0F ' + fd + '</span>' +
           '<span>\uD83D\uDCE6 ' + fc + '</span>' +
-          '<span>\uD83D\uDC65 ' + fz + '</span></div>' +
-        '<div class="small" style="margin-top:4px;">Composition:</div>' +
-        '<div class="fleet-composition">';
-
-      Object.keys(GameData.troops).forEach(function (key) {
-        var t = GameData.troops[key];
-        var inFleet = fleet.troops[key] || 0;
-        var avail = state.troops.counts[key] || 0;
-        if (inFleet === 0 && avail === 0) return;
-        html += '<div class="fleet-troop-row">' +
-          '<span class="fleet-troop-label">' + t.name + '</span>' +
-          '<div class="fleet-troop-controls">' +
-            '<button class="btn tiny fleet-remove" data-fid="' + fid + '" data-key="' + key + '">\u2212</button>' +
-            '<span class="fleet-troop-count">' + inFleet + '</span>' +
-            '<button class="btn tiny fleet-add" data-fid="' + fid + '" data-key="' + key + '"' + (avail <= 0 ? ' disabled' : '') + '>+</button>' +
-            '<span class="small muted" style="margin-left:6px;">(' + avail + ')</span></div></div>';
-      });
-      html += '</div></div>';
+          '<span>\uD83D\uDC65 ' + fz + '</span></div></div>';
     });
     return html;
   }
@@ -102,10 +85,6 @@ window.UIForces = (function () {
     var troopsHtml = Object.keys(GameData.troops).map(function (key) {
       var t = GameData.troops[key];
       var avail = state.troops.counts[key] || 0;
-      var inFleet = state.fleets && Object.keys(state.fleets).reduce(function (sum, fid) {
-        return sum + ((state.fleets[fid].troops[key] || 0));
-      }, 0);
-      var total = avail + inFleet;
       return '<div class="fleet-troop-row">' +
         '<span class="fleet-troop-label">' + t.name + ' <span class="muted">(P' + t.power + ' D' + t.defense + ' C' + t.carryCapacity + ')</span></span>' +
         '<div class="fleet-troop-controls">' +
@@ -119,7 +98,6 @@ window.UIForces = (function () {
 
     UIModal.open('Create Fleet', nameHtml + '<div style="max-height:400px;overflow-y:auto;">' + troopsHtml + '</div>' + saveBtn);
 
-    // Bind modal inputs
     document.getElementById('createFleetModalName').oninput = function () {
       _createData.name = this.value;
     };
@@ -150,13 +128,92 @@ window.UIForces = (function () {
     document.getElementById('saveFleetFromModalBtn').onclick = function () {
       var name = _createData.name.trim() || 'Unnamed Fleet';
       var fleetId = FleetSystem.createFleet(state, name);
-      // Add selected troops
       Object.keys(_createData.qty).forEach(function (key) {
         var qty = _createData.qty[key];
         if (qty > 0) {
           FleetSystem.addToFleet(state, fleetId, key, qty);
         }
       });
+      UIModal.close();
+      window.App.render();
+    };
+  }
+
+  function showEditFleetModal(state, fleetId) {
+    var fleet = FleetSystem.getFleet(state, fleetId);
+    if (!fleet) return;
+
+    _editData.name = fleet.name || '';
+    _editData.qty = {};
+    Object.keys(GameData.troops).forEach(function (key) {
+      _editData.qty[key] = fleet.troops[key] || 0;
+    });
+
+    var nameHtml = '<input id="editFleetModalName" type="text" placeholder="Fleet name..." class="input" style="width:100%;box-sizing:border-box;margin-bottom:12px;" value="' + fleet.name.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;') + '">';
+
+    var troopsHtml = Object.keys(GameData.troops).map(function (key) {
+      var t = GameData.troops[key];
+      var currentQty = _editData.qty[key] || 0;
+      var avail = state.troops.counts[key] || 0;
+      return '<div class="fleet-troop-row">' +
+        '<span class="fleet-troop-label">' + t.name + ' <span class="muted">(P' + t.power + ' D' + t.defense + ' C' + t.carryCapacity + ')</span></span>' +
+        '<div class="fleet-troop-controls">' +
+          '<button class="btn tiny edit-fleet-qty-minus" data-key="' + key + '">\u2212</button>' +
+          '<span id="editQty_' + key + '" class="fleet-troop-count">' + currentQty + '</span>' +
+          '<button class="btn tiny edit-fleet-qty-plus" data-key="' + key + '">+</button>' +
+          '<span class="small muted" style="margin-left:6px;">avail ' + avail + '</span></div></div>';
+    }).join('');
+
+    var saveBtn = '<button id="saveEditFleetBtn" class="btn success" style="margin-top:12px;">Save Changes</button>';
+
+    UIModal.open('Edit Fleet', nameHtml + '<div style="max-height:400px;overflow-y:auto;">' + troopsHtml + '</div>' + saveBtn);
+
+    document.getElementById('editFleetModalName').oninput = function () {
+      _editData.name = this.value;
+    };
+
+    document.querySelectorAll('.edit-fleet-qty-plus').forEach(function (btn) {
+      btn.onclick = function () {
+        var key = this.dataset.key;
+        var t = GameData.troops[key];
+        var fleetIn = fleet.troops[key] || 0;
+        var current = _editData.qty[key] || 0;
+        var avail = state.troops.counts[key] || 0;
+        var canAdd = Math.max(0, avail - (current - fleetIn));
+        if (canAdd > 0) {
+          _editData.qty[key] = current + 1;
+          Utils.el('editQty_' + key).textContent = _editData.qty[key];
+        }
+      };
+    });
+
+    document.querySelectorAll('.edit-fleet-qty-minus').forEach(function (btn) {
+      btn.onclick = function () {
+        var key = this.dataset.key;
+        var current = _editData.qty[key] || 0;
+        if (current > 0) {
+          _editData.qty[key] = current - 1;
+          Utils.el('editQty_' + key).textContent = _editData.qty[key];
+        }
+      };
+    });
+
+    document.getElementById('saveEditFleetBtn').onclick = function () {
+      var newName = _editData.name.trim() || 'Unnamed Fleet';
+      FleetSystem.renameFleet(state, fleetId, newName);
+
+      // Return all current fleet troops to reserve
+      FleetSystem.deleteFleet(state, fleetId);
+
+      // Re-create the fleet with updated composition
+      var newFleetId = FleetSystem.createFleet(state, newName);
+      Object.keys(_editData.qty).forEach(function (key) {
+        var qty = _editData.qty[key];
+        if (qty > 0) {
+          FleetSystem.addToFleet(state, newFleetId, key, qty);
+        }
+      });
+
       UIModal.close();
       window.App.render();
     };
@@ -170,60 +227,17 @@ window.UIForces = (function () {
       };
     }
 
+    document.querySelectorAll('.edit-fleet').forEach(function (btn) {
+      btn.onclick = function () {
+        showEditFleetModal(state, this.dataset.fid);
+      };
+    });
+
     document.querySelectorAll('.delete-fleet').forEach(function (btn) {
       btn.onclick = function () {
         if (!confirm('Delete this fleet? Troops return to reserve.')) return;
         FleetSystem.deleteFleet(state, this.dataset.fid);
         window.App.render();
-      };
-    });
-
-    document.querySelectorAll('.rename-fleet').forEach(function (btn) {
-      btn.onclick = function () {
-        var fid = this.dataset.fid;
-        var fleet = FleetSystem.getFleet(state, fid);
-        if (!fleet) return;
-        var name = prompt('Rename fleet:', fleet.name || '');
-        if (name && name.trim()) {
-          FleetSystem.renameFleet(state, fid, name.trim());
-          window.App.render();
-        }
-      };
-    });
-
-    document.querySelectorAll('.fleet-add').forEach(function (btn) {
-      btn.onclick = function () {
-        var fid = this.dataset.fid;
-        var key = this.dataset.key;
-        var avail = state.troops.counts[key] || 0;
-        if (avail <= 0) return;
-        var qty = prompt('Add how many ' + GameData.troops[key].name + '? (' + avail + ' available)', '1');
-        if (qty) {
-          var n = parseInt(qty, 10);
-          if (n > 0) {
-            FleetSystem.addToFleet(state, fid, key, n);
-            window.App.render();
-          }
-        }
-      };
-    });
-
-    document.querySelectorAll('.fleet-remove').forEach(function (btn) {
-      btn.onclick = function () {
-        var fid = this.dataset.fid;
-        var key = this.dataset.key;
-        var fleet = FleetSystem.getFleet(state, fid);
-        if (!fleet) return;
-        var inFleet = fleet.troops[key] || 0;
-        if (inFleet <= 0) return;
-        var qty = prompt('Remove how many ' + GameData.troops[key].name + '? (' + inFleet + ' in fleet)', '1');
-        if (qty) {
-          var n = parseInt(qty, 10);
-          if (n > 0) {
-            FleetSystem.removeFromFleet(state, fid, key, n);
-            window.App.render();
-          }
-        }
       };
     });
   }
