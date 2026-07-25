@@ -24,6 +24,10 @@ window.MissionSystem = (function () {
   }
 
   function claim(state, missionId) {
+    // Optimistically mark as claimed locally for instant feedback
+    if (state.missions && state.missions[missionId]) {
+      state.missions[missionId].claimed = true;
+    }
     if (window.Network) {
       Network.send({ type: 'claim_mission', missionId: missionId });
     }
