@@ -846,7 +846,7 @@ server.on('upgrade', function(req, socket, head) {
             var fleetTroops = fleet.troops || {};
             Object.keys(fleetTroops).forEach(function (key) {
               var count = fleetTroops[key] || 0;
-              var def = GAME.troops[key];
+              var def = gameData.troops[key];
               if (def) atkPower += count * def.power * atkMod;
             });
             atkPower = Math.floor(atkPower);
@@ -857,7 +857,7 @@ server.on('upgrade', function(req, socket, head) {
             var defCounts = targetUser.colony.troops.counts || {};
             Object.keys(defCounts).forEach(function (key) {
               var count = defCounts[key] || 0;
-              var def = GAME.troops[key];
+              var def = gameData.troops[key];
               if (def) defPower += count * def.defense * defMod;
             });
             defPower = Math.floor(defPower);
@@ -900,7 +900,7 @@ server.on('upgrade', function(req, socket, head) {
               var carryTotal = 0;
               Object.keys(fleetTroops).forEach(function (key) {
                 var count = fleetTroops[key] || 0;
-                var def = GAME.troops[key];
+                var def = gameData.troops[key];
                 carryTotal += count * (def && def.carryCapacity ? def.carryCapacity : 10);
               });
               var resTypes = ['ore', 'solar', 'crystal', 'isotopes'];
