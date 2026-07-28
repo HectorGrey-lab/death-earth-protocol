@@ -241,14 +241,24 @@ function resolvePendingAttack(pa) {
       var totalDmg = Math.floor(siegeCount * 0.1);
       if (totalDmg > 0) {
         var bldgKeys = Object.keys(def.colony.buildings);
-        // Distribute damage across 1-5 buildings
-        var numTargets = Math.min(5, Math.ceil(siegeCount / 2000));
-        numTargets = Math.max(1, numTargets);
+        // If player targeted a specific building, focus all damage there
+        var targetKey = (pa.targetBuilding && pa.targetBuilding !== 'any') ? pa.targetBuilding : null;
+        var numTargets;
+        if (targetKey) {
+          numTargets = 1;
+        } else {
+          numTargets = Math.min(5, Math.ceil(siegeCount / 2000));
+          numTargets = Math.max(1, numTargets);
+        }
         var dmgPerTarget = Math.max(1, Math.floor(totalDmg / numTargets));
         for (var i = 0; i < numTargets && i < bldgKeys.length; i++) {
-          var k = bldgKeys[Math.floor(Math.random() * bldgKeys.length)];
+          var k = targetKey || bldgKeys[Math.floor(Math.random() * bldgKeys.length)];
           var b = def.colony.buildings[k];
-          if (!b.level || b.level <= 0) continue;
+          // If targeted building doesn't exist, fall back to random
+          if (!b || !b.level || b.level <= 0) {
+            if (targetKey) { targetKey = null; k = bldgKeys[Math.floor(Math.random() * bldgKeys.length)]; b = def.colony.buildings[k]; }
+            if (!b || !b.level || b.level <= 0) continue;
+          }
           b.integrity = (b.integrity || 100) - dmgPerTarget;
           while (b.integrity <= 0 && b.level > 0) {
             b.level--;
@@ -995,6 +1005,7 @@ server.on('upgrade', function(req, socket, head) {
       if (msg.type === 'attack_fleet') {
         var fleetId = msg.fleetId;
         var targetName = msg.target;
+        var targetBuilding = msg.targetBuilding || 'any';
         var fleet = user.colony.troops && user.colony.troops.fleets ? user.colony.troops.fleets[fleetId] : null;
         if (!fleet) {
           socket.write(wsEncodeFrame(JSON.stringify({ type: 'attack_result', ok: false, error: 'Fleet not found' })));
@@ -1050,6 +1061,7 @@ server.on('upgrade', function(req, socket, head) {
               attacker: username,
               defender: targetName,
               fleetId: fleetId,
+              targetBuilding: targetBuilding,
               fleetComposition: JSON.parse(JSON.stringify(fleetTroops)),
               atkPower: atkPower,
               defPowerWithShield: defPowerWithShield,

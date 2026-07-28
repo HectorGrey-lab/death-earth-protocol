@@ -611,6 +611,28 @@ window.UIMap = (function () {
       var selFleet = state.fleets[state._selectedFleetId];
       var fz = FleetSystem.getFleetSize(selFleet);
       fleetMsg = '<div class="small" style="color:var(--yellow);margin:6px 0;">⚔ Attacking with <strong>' + esc(selFleet.name) + '</strong> (' + fz + ' units)</div>';
+      // Check for siege mechs — offer building target selection
+      var siegeCount = (selFleet.troops && selFleet.troops.siegeMech) || 0;
+      if (siegeCount > 0) {
+        var bldgOptions = [
+          {key:'any', name:'Any Building (random)'},
+          {key:'extractionGrid', name:'Extraction Grid'},
+          {key:'trainingFacility', name:'Training Facility'},
+          {key:'communicationsHub', name:'Comms Hub'},
+          {key:'radarArray', name:'Radar Array'},
+          {key:'defenseBunker', name:'Defense Bunker'},
+          {key:'shieldGenerator', name:'Shield Generator'},
+          {key:'researchLab', name:'Research Lab'},
+          {key:'marketNexus', name:'Market Nexus'},
+          {key:'tradePodTerminal', name:'Trade Pod Terminal'}
+        ];
+        fleetMsg += '<div class="small" style="margin-top:6px;color:var(--orange);">🏗 Siege mechs detected — target building:</div>' +
+          '<select id="siegeTargetBuilding" style="width:100%;margin:4px 0 8px 0;padding:4px;border-radius:4px;background:var(--bg);color:var(--fg);border:1px solid var(--border);">';
+        bldgOptions.forEach(function(b) {
+          fleetMsg += '<option value="' + b.key + '">' + b.name + '</option>';
+        });
+        fleetMsg += '</select>';
+      }
       fleetBtn = '<button class="btn small success" id="launchFleetAttackBtn" data-player="' + esc(username) + '" data-fid="' + state._selectedFleetId + '">⚔ Launch Attack</button>';
     }
     return '' +
@@ -1057,8 +1079,9 @@ window.UIMap = (function () {
       launchBtn.onclick = function () {
         var target = this.dataset.player;
         var fleetId = this.dataset.fid;
-        if (confirm('Launch attack with your fleet against ' + target + '?')) {
-          Network.send({ type: 'attack_fleet', fleetId: fleetId, target: target });
+        var targetBuilding = document.getElementById('siegeTargetBuilding') ? document.getElementById('siegeTargetBuilding').value : 'any';
+        if (confirm('Launch attack with your fleet against ' + target + '?' + (targetBuilding !== 'any' ? ' Targeting: ' + targetBuilding : ''))) {
+          Network.send({ type: 'attack_fleet', fleetId: fleetId, target: target, targetBuilding: targetBuilding });
         }
       };
     }
