@@ -155,11 +155,13 @@ window.Network = (function () {
   }
 
   function send(data) {
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify(data));
-      return true;
-    }
-    return false;
+      console.log('[NET] send:', JSON.stringify(data).substring(0, 200));
+      if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify(data));
+          return true;
+      }
+      console.warn('[NET] send FAILED — socket not open');
+      return false;
   }
 
   function register(username_, password_, callback) {

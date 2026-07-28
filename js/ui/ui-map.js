@@ -1084,8 +1084,16 @@ window.UIMap = (function () {
         var target = this.dataset.player;
         var fleetId = this.dataset.fid;
         var targetBuilding = document.getElementById('siegeTargetBuilding') ? document.getElementById('siegeTargetBuilding').value : 'any';
+        console.log('[ATTACK] Launch clicked: target=' + target + ' fleetId=' + fleetId);
         if (confirm('Launch attack with your fleet against ' + target + '?' + (targetBuilding !== 'any' ? ' Targeting: ' + targetBuilding : ''))) {
+          console.log('[ATTACK] Confirm OK, sending...');
           Network.send({ type: 'attack_fleet', fleetId: fleetId, target: target, targetBuilding: targetBuilding });
+        } else {
+          console.log('[ATTACK] Confirm cancelled');
+        }
+      };
+    }
+          console.log('[ATTACK] Confirm cancelled');
         }
       };
     }

@@ -24,7 +24,6 @@ window.App = (function () {
   }
 
   function setupNetwork() {
-    // Register chat handlers BEFORE connecting to avoid race condition
     Network.on("chat", function (msg) { UIChat.addMessage(msg); });
     Network.on("presence", function (players) {
       UIChat.setOnlineCount(players.length);
@@ -48,7 +47,6 @@ window.App = (function () {
 
     setTimeout(function () {
       if (Network.isConnected) {
-        // (chat handlers moved above — no race condition)
       }
     }, 2000);
 
@@ -57,7 +55,6 @@ window.App = (function () {
       window.location.href = "/login";
     });
 
-    // Receive colony state from server
     Network.on("colony_state", function (msg) {
       if (msg.colony) {
         var c = msg.colony;
@@ -65,7 +62,6 @@ window.App = (function () {
         window.gameState.buildings = c.buildings;
         window.gameState.troops = c.troops;
         window.gameState.research = c.research || { levels: { economy: 0, military: 0, defense: 0 }, active: null, completedTotal: 0 };
-        // Ensure all 3 research categories exist (handles old saves with empty levels)
         if (window.gameState.research.levels) {
           if (window.gameState.research.levels.economy === undefined) window.gameState.research.levels.economy = 0;
           if (window.gameState.research.levels.military === undefined) window.gameState.research.levels.military = 0;
@@ -73,50 +69,38 @@ window.App = (function () {
         }
         window.gameState.commander.planetName = c.planetName;
 
-        // Store missions state if sent by server
         if (c.missions) {
           window.gameState.missions = c.missions;
         }
-        // Store inventory if sent by server
         if (c.inventory) {
           window.gameState.inventory = c.inventory;
         }
-        // Store combat stats if sent by server
         if (c.combat) {
           window.gameState.combat = c.combat;
         }
-        // Store mailbox messages if sent by server
         if (c.mailbox) {
           window.gameState.mailbox = c.mailbox;
         }
 
-        // Restore fleets from server data (sent inside troops)
         if (window.gameState.troops && window.gameState.troops.fleets) {
           window.gameState.fleets = window.gameState.troops.fleets;
           FleetSystem.reconcile(window.gameState);
         }
-        // Store alliance if sent by server
         if (c.alliance) {
           window.gameState.alliance = c.alliance;
         }
-        // Store events if sent by server
         if (c.events) {
           window.gameState.events = c.events;
         }
-        // Store market if sent by server
         if (c.market) {
           window.gameState.market = c.market;
         }
-        // Store expeditions if sent by server
         if (c.expeditions) {
           window.gameState.expeditions = c.expeditions;
         }
 
-        // Store production rates from server
         window.gameState._productionRates = c.productionRates || null;
 
-        // Set player's planet location ONLY on first colony_state
-        // (subsequent refreshes from world_tick must NOT steal the user's selection)
         if (!window._colonyInitialized) {
           window._colonyInitialized = true;
           if (c.homeGalaxy !== undefined) {
@@ -127,18 +111,15 @@ window.App = (function () {
           }
         }
 
-        // Populate Universe module with server data
         if (msg.universe && msg.universe.galaxies && msg.universe.galaxies.length > 0) {
           window.gameState.universe.galaxies = msg.universe.galaxies;
           if (window.Universe && typeof window.Universe.fromJSON === 'function') {
             window.Universe.fromJSON(msg.universe.galaxies);
           }
-          // Mark the player's home planet so map rendering shows the ⌂ icon
           if (window.GalaxySystem) {
             if (c.homeGalaxy && c.homeSector && c.homePlanet) {
               GalaxySystem.markHomePlanet(c.homeGalaxy, c.homeSector, c.homePlanet);
             }
-            // Ensure all planets have typeName set (server doesn't send it)
             var gals = Universe.getGalaxies();
             for (var gi = 0; gi < gals.length; gi++) {
               for (var si = 0; si < gals[gi].sectors.length; si++) {
@@ -155,7 +136,6 @@ window.App = (function () {
       }
     });
 
-    // Build result
     Network.on("build_result", function (msg) {
       if (msg.colony) {
         window.gameState.resources = msg.colony.resources;
@@ -165,7 +145,6 @@ window.App = (function () {
       }
     });
 
-    // Train result
     Network.on("train_result", function (msg) {
       if (msg.colony) {
         window.gameState.resources = msg.colony.resources;
@@ -175,9 +154,7 @@ window.App = (function () {
       }
     });
 
-    // World tick — update live panels only (header, nav, shield, queues, log, resources)
     Network.on("world_tick", function () {
-      // Periodically request fresh colony state (every 10 ticks = ~10s)
       if (!window._tickCounter) window._tickCounter = 0;
       window._tickCounter++;
       if (window._tickCounter % 5 === 0) {
@@ -186,7 +163,6 @@ window.App = (function () {
       UICore.renderTick(window.gameState);
     });
 
-    // Disconnect handler
     Network.on("disconnect", function () {
       var statusEl = document.getElementById("connectionStatus");
       if (!statusEl) {
@@ -198,7 +174,6 @@ window.App = (function () {
       }
     });
 
-    // Research result
     Network.on("research_result", function (msg) {
       if (msg.colony) {
         window.gameState.research = msg.colony.research || window.gameState.research;
@@ -212,13 +187,11 @@ window.App = (function () {
       render();
     });
 
-    // Scout result
     Network.on("scout_result", function (msg) {
       if (msg.colony) {
         window.gameState.combat = msg.colony.combat || window.gameState.combat;
         window.gameState.resources = msg.colony.resources;
         window.gameState._productionRates = msg.colony.productionRates || null;
-        // Add scout report to mailbox
         if (msg.intel) {
           MailboxSystem.addMessage(window.gameState, "Attack", "Scout Report", "Intel received: Power " + msg.intel.power + ", Shield " + msg.intel.shield + ", Bunker " + msg.intel.bunker);
         }
@@ -226,7 +199,6 @@ window.App = (function () {
       }
     });
 
-    // Raid result
     Network.on("raid_result", function (msg) {
       if (msg.colony) {
         window.gameState.combat = msg.colony.combat || window.gameState.combat;
@@ -236,7 +208,6 @@ window.App = (function () {
       }
     });
 
-    // Expedition result
     Network.on("expedition_result", function (msg) {
       if (msg.colony) {
         window.gameState.expeditions = msg.colony.expeditions || window.gameState.expeditions;
@@ -247,7 +218,6 @@ window.App = (function () {
       }
     });
 
-    // Exchange result
     Network.on("exchange_result", function (msg) {
       if (msg.colony) {
         window.gameState.resources = msg.colony.resources;
@@ -257,7 +227,6 @@ window.App = (function () {
       }
     });
 
-    // Buy artifact result
     Network.on("buy_artifact_result", function (msg) {
       if (msg.colony) {
         window.gameState.resources = msg.colony.resources;
@@ -268,8 +237,6 @@ window.App = (function () {
       }
     });
 
-
-    // ── Claim Mission Result ──
     Network.on("claim_result", function (msg) {
       if (msg.colony) {
         window.gameState.missions = msg.colony.missions || window.gameState.missions;
@@ -283,7 +250,6 @@ window.App = (function () {
       window.App.render();
     });
 
-    // ── Private Messaging ──
     Network.on("mailbox_update", function (msg) {
       if (msg.message) {
         if (!window.gameState.mailbox) window.gameState.mailbox = { messages: [] };
@@ -292,7 +258,6 @@ window.App = (function () {
         window.gameState.mailbox.messages = window.gameState.mailbox.messages.slice(0, 120);
         window.gameState.mailbox.selectedTab = 'Inbox';
         window.gameState.mailbox.selectedMessageId = msg.message.id;
-        // Flash the inbox tab indicator if user is not on mailbox page
         if (window.gameState.ui.currentPage !== 'mailbox') {
           window.gameState._hasNewMail = true;
         }
@@ -315,9 +280,9 @@ window.App = (function () {
     });
 
     Network.on("attack_launched", function (msg) {
+      console.log('[ATTACK] attack_launched received:', JSON.stringify(msg).substring(0, 200));
       var s = window.gameState;
-      if (!msg.ok) return;
-      // Update fleet with transit state
+      if (!msg.ok) { console.log('[ATTACK] attack_launched ok=false'); return; }
       if (msg.fleetId && s.fleets[msg.fleetId]) {
         s.fleets[msg.fleetId].transit = {
           target: msg.target,
@@ -326,7 +291,6 @@ window.App = (function () {
         };
         FleetSystem._sync(s);
       }
-      // Provide visual feedback — log + clear selection
       var eta = msg.eta || '?';
       MailboxSystem.addLog(s, '🚀 Fleet launched to ' + (msg.target || 'unknown') + '. ETA ' + eta + 's');
       s._selectedFleetId = null;
@@ -346,13 +310,14 @@ window.App = (function () {
     });
 
     Network.on("attack_result", function (msg) {
+      console.log('[ATTACK] attack_result received:', JSON.stringify(msg).substring(0, 300));
       var s = window.gameState;
       if (!msg.ok) {
+        console.log('[ATTACK] attack_result ok=false:', msg.error);
         MailboxSystem.addSystemMail(s, '⚠ Attack failed: ' + (msg.error || 'Unknown error'));
         render();
         return;
       }
-      // Apply full colony state if provided (server sends this for both sides)
       if (msg.colony) {
         var c = msg.colony;
         s.resources = c.resources;
@@ -360,20 +325,17 @@ window.App = (function () {
         s.buildings = c.buildings;
         if (c.combat) s.combat = c.combat;
         if (c.research) s.research = c.research;
-        // Restore fleets from colony data (server has authoritative fleet state)
         if (s.troops && s.troops.fleets) {
           s.fleets = s.troops.fleets;
           FleetSystem.reconcile(s);
         }
       } else {
-        // Fallback: apply casualties/fleet changes manually (old format)
         if (msg.fleetId && msg.casualties && s.fleets[msg.fleetId]) {
           var ft = s.fleets[msg.fleetId].troops || {};
           Object.keys(msg.casualties).forEach(function (key) {
             ft[key] = Math.max(0, (ft[key] || 0) - msg.casualties[key]);
             if (ft[key] <= 0) delete ft[key];
           });
-          // Clear transit state
           delete s.fleets[msg.fleetId].transit;
           if (Object.keys(ft).length === 0) delete s.fleets[msg.fleetId];
         }
@@ -390,7 +352,6 @@ window.App = (function () {
           });
         }
       }
-      // Clear incoming attacks from this attacker
       if (s._incomingAttacks && msg.attackedBy) {
         s._incomingAttacks = s._incomingAttacks.filter(function(a) { return a.attacker !== msg.attackedBy; });
       }
@@ -438,7 +399,6 @@ window.App = (function () {
       tickCount: 0
     };
 
-    // Initialize empty building entries so UI has something to render
     if (window.GameData && window.GameData.buildings) {
       Object.keys(window.GameData.buildings).forEach(function (key) {
         if (!window.gameState.buildings[key]) {
