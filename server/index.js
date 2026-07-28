@@ -368,6 +368,7 @@ function createInitialColony(username, planetName, galaxyId, sectorId, planetId)
     buildings: createInitialBuildings(),
     troops: createInitialTroops(),
     research: createInitialResearch(),
+    position: { galaxy: galaxyId, sector: sectorId, planet: planetId },
     combat: { scoutsCompleted: 0, attackWins: 0, defenseWins: 0, incomingAttacks: [], raidHistory: [], scoutingIntel: {} },
     expeditions: { active: null, completed: [], queue: [] },
     inventory: { artifacts: [] },
@@ -1039,9 +1040,14 @@ server.on('upgrade', function(req, socket, head) {
           var targetUser = DB.db.users[targetName];
           if (!targetUser || !targetUser.colony) {
             socket.write(wsEncodeFrame(JSON.stringify({ type: 'attack_result', ok: false, error: 'Target not found' })));
-          } else if (!targetUser.colony.position) {
-            socket.write(wsEncodeFrame(JSON.stringify({ type: 'attack_result', ok: false, error: 'Target has no planet position' })));
           } else {
+            // Ensure both sides have position (handle legacy players without it)
+            if (!targetUser.colony.position) {
+              targetUser.colony.position = { galaxy: targetUser.colony.homeGalaxy, sector: targetUser.colony.homeSector, planet: targetUser.colony.homePlanet };
+            }
+            if (!user.colony.position) {
+              user.colony.position = { galaxy: user.colony.homeGalaxy, sector: user.colony.homeSector, planet: user.colony.homePlanet };
+            }
             var origin = user.colony.position;
             var target = targetUser.colony.position;
             var travelTime = calculateTravelTime(origin, target);
