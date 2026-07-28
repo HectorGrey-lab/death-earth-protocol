@@ -326,8 +326,6 @@ window.App = (function () {
         };
         FleetSystem._sync(s);
       }
-      MailboxSystem.addSystemMail(s, '🚀 Fleet launched to ' + msg.target + '. ETA: ' + msg.eta + 's (attack power ' + msg.atkPower + ')');
-      // Ensure forces page is showing to see transit status
       render();
     });
 
@@ -338,11 +336,8 @@ window.App = (function () {
         attacker: msg.attacker,
         eta: msg.eta,
         arrivalTime: msg.arrivalTime,
-        origin: msg.origin,
-        fleetPower: msg.fleetPower,
-        fleetSize: msg.fleetSize
+        origin: msg.origin
       });
-      MailboxSystem.addSystemMail(s, '⚠ Incoming attack from ' + msg.attacker + '! ETA: ' + msg.eta + 's (fleet power ' + msg.fleetPower + ')');
       render();
     });
 

@@ -785,8 +785,7 @@ window.UIMap = (function () {
       html += '<div class="card" style="border-left:3px solid var(--orange);margin-bottom:8px;">' +
         '<div class="small" style="color:var(--red);font-weight:bold;">⚠ INCOMING ATTACK</div>' +
         '<div><strong>' + esc(a.attacker) + '</strong> — ETA: ' + mins + 'm' + secs + 's</div>' +
-        '<div class="small">Power: ' + a.fleetPower + ' | Units: ' + a.fleetSize +
-        ' | From: S' + (a.origin ? a.origin.sector : '?') + ' P' + (a.origin ? a.origin.planet : '?') + '</div>' +
+        '<div class="small">Origin: S' + (a.origin ? a.origin.sector : '?') + ' P' + (a.origin ? a.origin.planet : '?') + '</div>' +
         '</div>';
     });
     return html;

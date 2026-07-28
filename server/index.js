@@ -235,13 +235,27 @@ function resolvePendingAttack(pa) {
     });
 
     // Building damage — only siegeMech can damage buildings
+    // Each mech deals 0.1 building damage; when integrity ≤ 0, building drops 1 level
     var siegeCount = fleetTroops['siegeMech'] || 0;
-    if (siegeCount > 0) {
-      var bldgKeys = Object.keys(def.colony.buildings);
-      var hits = Math.min(siegeCount, Math.max(1, Math.floor(siegeCount / 5)));
-      for (var i = 0; i < hits && i < 5; i++) {
-        var k = bldgKeys[Math.floor(Math.random() * bldgKeys.length)];
-        def.colony.buildings[k].integrity = Math.max(20, (def.colony.buildings[k].integrity || 100) - (5 + Math.floor(Math.random() * 15)));
+    if (siegeCount > 0 && attackerWins) {
+      var totalDmg = Math.floor(siegeCount * 0.1);
+      if (totalDmg > 0) {
+        var bldgKeys = Object.keys(def.colony.buildings);
+        // Distribute damage across 1-5 buildings
+        var numTargets = Math.min(5, Math.ceil(siegeCount / 2000));
+        numTargets = Math.max(1, numTargets);
+        var dmgPerTarget = Math.max(1, Math.floor(totalDmg / numTargets));
+        for (var i = 0; i < numTargets && i < bldgKeys.length; i++) {
+          var k = bldgKeys[Math.floor(Math.random() * bldgKeys.length)];
+          var b = def.colony.buildings[k];
+          if (!b.level || b.level <= 0) continue;
+          b.integrity = (b.integrity || 100) - dmgPerTarget;
+          while (b.integrity <= 0 && b.level > 0) {
+            b.level--;
+            if (b.level > 0) b.integrity = 100;
+          }
+          if (b.level <= 0) b.level = 0;
+        }
       }
     }
   }
@@ -1058,7 +1072,7 @@ server.on('upgrade', function(req, socket, head) {
               defPower: defPowerWithShield
             })));
 
-            // Notify defender of incoming attack
+            // Notify defender of incoming attack (no fleet strength — preserves surprise)
             wsClients.forEach(function (info, sock) {
               if (info.username === targetName) {
                 broadcastToUser(sock, {
@@ -1066,9 +1080,7 @@ server.on('upgrade', function(req, socket, head) {
                   attacker: username,
                   eta: travelTime,
                   arrivalTime: arrivalTime,
-                  origin: { galaxy: origin.galaxy, sector: origin.sector, planet: origin.planet },
-                  fleetPower: atkPower,
-                  fleetSize: Object.values(fleetTroops).reduce(function(a,b){return a+b;}, 0)
+                  origin: { galaxy: origin.galaxy, sector: origin.sector, planet: origin.planet }
                 });
               }
             });
