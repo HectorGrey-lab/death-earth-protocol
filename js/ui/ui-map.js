@@ -1093,10 +1093,6 @@ window.UIMap = (function () {
         }
       };
     }
-          console.log('[ATTACK] Confirm cancelled');
-        }
-      };
-    }
 
     // Universe zoom controls
     const zoomInBtn = document.getElementById('uvZoomInBtn');
