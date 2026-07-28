@@ -162,7 +162,19 @@ function processPendingAttacks(now) {
   });
   due.sort(function(a,b){return b-a}).forEach(function(idx) {
     var pa = pendingAttacks.splice(idx, 1)[0];
-    resolvePendingAttack(pa);
+    if (pa.type === 'return') {
+      // Fleet returns home — clear transit so it can be used again
+      var att = DB.db.users[pa.attacker];
+      if (att && att.colony && att.colony.troops && att.colony.troops.fleets) {
+        var f = att.colony.troops.fleets[pa.fleetId];
+        if (f) {
+          var fleetName = f.name || 'Fleet';
+          delete f.transit;
+        }
+      }
+    } else {
+      resolvePendingAttack(pa);
+    }
   });
 }
 
@@ -276,9 +288,19 @@ function resolvePendingAttack(pa) {
   if (attackerWins) { att.colony.combat.attackWins = (att.colony.combat.attackWins||0)+1; def.colony.combat.defenseWins = (def.colony.combat.defenseWins||0)+1; }
   else { def.colony.combat.defenseWins = (def.colony.combat.defenseWins||0)+1; }
 
-  // Unlock / cleanup fleet
-  delete fleet.transit;
-  if (Object.keys(fleetTroops).length === 0) delete att.colony.troops.fleets[pa.fleetId];
+  // Fleet return — survivors head home
+  if (Object.keys(fleetTroops).length > 0) {
+    var returnTravelMs = Math.max(5000, (pa.travelTime || 30) * 1000);
+    fleet.transit = { returning: true, arrivalTime: Date.now() + returnTravelMs, origin: pa.origin };
+    pendingAttacks.push({
+      type: 'return',
+      attacker: pa.attacker,
+      fleetId: pa.fleetId,
+      arrivalTime: Date.now() + returnTravelMs
+    });
+  } else {
+    delete att.colony.troops.fleets[pa.fleetId];
+  }
 
   DB.saveDB();
 

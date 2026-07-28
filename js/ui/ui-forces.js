@@ -2,6 +2,22 @@ window.UIForces = (function () {
   var _createData = { name: '', qty: {} };
   var _editData = { name: '', qty: {} };
 
+  // Live countdown timer for transit fleets
+  var _transitTimer = null;
+  function _startTransitTimer(state) {
+    if (_transitTimer) clearInterval(_transitTimer);
+    _transitTimer = null;
+    var hasTransit = false;
+    Object.keys(state.fleets || {}).forEach(function(fid) {
+      if (state.fleets[fid].transit) hasTransit = true;
+    });
+    if (hasTransit) {
+      _transitTimer = setInterval(function() {
+        window.App.render();
+      }, 1000);
+    }
+  }
+
   function renderRoster(state) {
     return Object.keys(GameData.troops).map(function (key) {
       var t = GameData.troops[key];
@@ -47,11 +63,23 @@ window.UIForces = (function () {
       var fc = FleetSystem.getFleetCarry(fleet);
       var fz = FleetSystem.getFleetSize(fleet);
 
+      // Build transit label with live countdown
+      var transitLabel = '';
+      if (fleet.transit) {
+        var remaining = Math.max(0, Math.floor((fleet.transit.arrivalTime - Date.now()) / 1000));
+        var mins = Math.floor(remaining / 60);
+        var secs = remaining % 60;
+        var label = fleet.transit.returning
+          ? '\u21A9 Returning home'
+          : '\uD83D\uDE80 En route \u2014 ' + (fleet.transit.target || '?');
+        transitLabel = '<div class="small" style="color:var(--orange);margin-top:2px;">' + label + ' \u2014 ' + mins + 'm ' + (secs < 10 ? '0' : '') + secs + 's</div>';
+      }
+
       html += '<div class="card fleet-card">' +
         '<div class="space-between">' +
           '<div>' +
             '<strong>' + (fleet.name || 'Unnamed Fleet').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</strong>' +
-            (fleet.transit ? '<div class="small" style="color:var(--orange);margin-top:2px;">🚀 In transit — arriving at ' + (fleet.transit.target || '?') + '</div>' : '') +
+            transitLabel +
           '</div>' +
           '<div class="row">' +
             '<button class="btn tiny btn-attack attack-fleet' + (fleet.transit ? ' disabled' : '') + '" data-fid="' + fid + '" title="Attack with this fleet"' + (fleet.transit ? ' disabled' : '') + '>⚔️</button>' +
@@ -153,7 +181,7 @@ window.UIForces = (function () {
       _editData.qty[key] = fleet.troops[key] || 0;
     });
 
-    var nameHtml = '<input id="editFleetModalName" type="text" placeholder="Fleet name..." class="input" style="width:100%;box-sizing:border-box;margin-bottom:12px;" value="' + fleet.name.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;') + '">';
+    var nameHtml = '<input id="editFleetModalName" type="text" placeholder="Fleet name..." class="input" style="width:100%;box-sizing:border-box;margin-bottom:12px;" value="' + fleet.name.replace(/&/g,'&amp;').replace(/\"/g,'&quot;').replace(/</g,'&lt;') + '">';
 
     var troopsHtml = Object.keys(GameData.troops).map(function (key) {
       var t = GameData.troops[key];
@@ -224,6 +252,8 @@ window.UIForces = (function () {
   }
 
   function bind(state) {
+    _startTransitTimer(state);
+
     var openBtn = document.getElementById('openCreateFleetBtn');
     if (openBtn) {
       openBtn.onclick = function () {
