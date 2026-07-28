@@ -326,6 +326,10 @@ window.App = (function () {
         };
         FleetSystem._sync(s);
       }
+      // Provide visual feedback — log + clear selection
+      var eta = msg.eta || '?';
+      MailboxSystem.addLog(s, '🚀 Fleet launched to ' + (msg.target || 'unknown') + '. ETA ' + eta + 's');
+      s._selectedFleetId = null;
       render();
     });
 
