@@ -414,7 +414,7 @@ window.App = (function () {
       troops: { counts: {}, queue: [] },
       fleets: {},
       research: { levels: { economy: 0, military: 0, defense: 0 }, active: null, completedTotal: 0 },
-      commander: { name: loggedUser ? "Commander " + loggedUser : "Commander Unknown", factionTitle: "Awaiting Server...", emblem: "\u25B3", theme: "cyan", planetName: "Unknown Planet" },
+      commander: { name: loggedUser ? "Commander " + loggedUser : "Commander Unknown", factionTitle: "No Faction", emblem: "\u25B3", theme: "cyan", planetName: "Unknown Planet" },
       universe: { galaxies: [], zoomLevel: "universe", activeGalaxyId: null, activeSectorId: null, activePlanetId: null, showUniverseView: false, fleets: [], discoveredPlanets: {}, hasWarpGate: false },
       events: { active: null, history: [] },
       combat: { scoutsCompleted: 0, attackWins: 0, defenseWins: 0, incomingAttacks: [], lastScouted: 0, raidHistory: [] },
