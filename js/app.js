@@ -314,6 +314,38 @@ window.App = (function () {
       render();
     });
 
+    Network.on("attack_launched", function (msg) {
+      var s = window.gameState;
+      if (!msg.ok) return;
+      // Update fleet with transit state
+      if (msg.fleetId && s.fleets[msg.fleetId]) {
+        s.fleets[msg.fleetId].transit = {
+          target: msg.target,
+          arrivalTime: msg.arrivalTime,
+          origin: null
+        };
+        FleetSystem._sync(s);
+      }
+      MailboxSystem.addSystemMail(s, '🚀 Fleet launched to ' + msg.target + '. ETA: ' + msg.eta + 's (attack power ' + msg.atkPower + ')');
+      // Ensure forces page is showing to see transit status
+      render();
+    });
+
+    Network.on("incoming_attack", function (msg) {
+      var s = window.gameState;
+      if (!s._incomingAttacks) s._incomingAttacks = [];
+      s._incomingAttacks.push({
+        attacker: msg.attacker,
+        eta: msg.eta,
+        arrivalTime: msg.arrivalTime,
+        origin: msg.origin,
+        fleetPower: msg.fleetPower,
+        fleetSize: msg.fleetSize
+      });
+      MailboxSystem.addSystemMail(s, '⚠ Incoming attack from ' + msg.attacker + '! ETA: ' + msg.eta + 's (fleet power ' + msg.fleetPower + ')');
+      render();
+    });
+
     Network.on("attack_result", function (msg) {
       var s = window.gameState;
       if (!msg.ok) {
@@ -321,30 +353,57 @@ window.App = (function () {
         render();
         return;
       }
-      // Apply fleet casualties
-      if (msg.fleetId && msg.casualties && s.fleets[msg.fleetId]) {
-        var ft = s.fleets[msg.fleetId].troops || {};
-        Object.keys(msg.casualties).forEach(function (key) {
-          ft[key] = Math.max(0, (ft[key] || 0) - msg.casualties[key]);
-          if (ft[key] <= 0) delete ft[key];
-        });
+      // Apply full colony state if provided (server sends this for both sides)
+      if (msg.colony) {
+        var c = msg.colony;
+        s.resources = c.resources;
+        s.troops = c.troops;
+        s.buildings = c.buildings;
+        if (c.combat) s.combat = c.combat;
+        if (c.research) s.research = c.research;
+        // Restore fleets from colony data (server has authoritative fleet state)
+        if (s.troops && s.troops.fleets) {
+          s.fleets = s.troops.fleets;
+          FleetSystem.reconcile(s);
+        }
+      } else {
+        // Fallback: apply casualties/fleet changes manually (old format)
+        if (msg.fleetId && msg.casualties && s.fleets[msg.fleetId]) {
+          var ft = s.fleets[msg.fleetId].troops || {};
+          Object.keys(msg.casualties).forEach(function (key) {
+            ft[key] = Math.max(0, (ft[key] || 0) - msg.casualties[key]);
+            if (ft[key] <= 0) delete ft[key];
+          });
+          // Clear transit state
+          delete s.fleets[msg.fleetId].transit;
+          if (Object.keys(ft).length === 0) delete s.fleets[msg.fleetId];
+        }
+        if (msg.attackedBy && msg.casualties) {
+          Object.keys(msg.casualties).forEach(function (key) {
+            s.troops.counts[key] = Math.max(0, (s.troops.counts[key] || 0) - msg.casualties[key]);
+          });
+        }
+        if (msg.loot && Object.keys(msg.loot).length) {
+          Object.keys(msg.loot).forEach(function (rt) {
+            if (s.resources[rt]) {
+              s.resources[rt].amount = Math.min(s.resources[rt].cap || 100000, (s.resources[rt].amount || 0) + msg.loot[rt]);
+            }
+          });
+        }
       }
-      // Apply general casualties (defender)
-      if (msg.attackedBy && msg.casualties) {
-        Object.keys(msg.casualties).forEach(function (key) {
-          s.troops.counts[key] = Math.max(0, (s.troops.counts[key] || 0) - msg.casualties[key]);
-        });
-      }
-      // Apply loot
-      if (msg.loot && Object.keys(msg.loot).length) {
-        Object.keys(msg.loot).forEach(function (rt) {
-          if (s.resources[rt]) {
-            s.resources[rt].amount = Math.min(s.resources[rt].cap || 100000, (s.resources[rt].amount || 0) + msg.loot[rt]);
-          }
-        });
+      // Clear incoming attacks from this attacker
+      if (s._incomingAttacks && msg.attackedBy) {
+        s._incomingAttacks = s._incomingAttacks.filter(function(a) { return a.attacker !== msg.attackedBy; });
       }
       s._selectedFleetId = null;
-      MailboxSystem.addSystemMail(s, '⚔ ' + (msg.victory ? 'Victory' : 'Defeat') + ' against ' + (msg.target || msg.attackedBy || 'unknown') + '.' + (Object.keys(msg.loot || {}).length ? ' Looted ' + Object.keys(msg.loot).map(function (k) { return msg.loot[k] + ' ' + k; }).join(', ') : ''));
+      var logMsg = '⚔ ' + (msg.victory ? 'Victory' : 'Defeat') + ' against ' + (msg.target || msg.attackedBy || 'unknown');
+      if (Object.keys(msg.loot || {}).length) {
+        logMsg += '. Looted ' + Object.keys(msg.loot).map(function (k) { return msg.loot[k] + ' ' + k; }).join(', ');
+      }
+      if (msg.log && msg.log.length) {
+        logMsg += ' | ' + msg.log.join(' | ');
+      }
+      MailboxSystem.addSystemMail(s, logMsg);
       render();
     });
   }
@@ -371,6 +430,7 @@ window.App = (function () {
       map: { nodes: [], scanProgress: 0, selectedNodeId: null, discoveredNodes: {}, scanPulses: [], camera: { zoom: 1, offsetX: 0, offsetY: 0 } },
       alliance: { joinedId: null },
       commanderStats: { rankPoints: 0 },
+      _incomingAttacks: [],
       log: [],
       market: { transactions: [], listings: [] },
       statusFlags: {},

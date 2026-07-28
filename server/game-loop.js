@@ -16,7 +16,7 @@ const SAVE_INTERVAL = 10; // auto-save every 10 ticks
 let tickCount = 0;
 let intervalHandle = null;
 
-function tickAllPlayers(db, wsServer, saveCallback) {
+function tickAllPlayers(db, wsServer, saveCallback, processAttacksFn) {
   tickCount++;
   const now = Date.now();
   const usernameSet = new Set();
@@ -49,6 +49,9 @@ function tickAllPlayers(db, wsServer, saveCallback) {
     // Tick expeditions
     ExpeditionSystem.tick(user.colony, elapsed);
   });
+
+  // Process pending PvP attacks (delayed resolution with travel time)
+  if (processAttacksFn) processAttacksFn(now);
 
   // Auto-save periodically
   if (tickCount % SAVE_INTERVAL === 0 && saveCallback) {

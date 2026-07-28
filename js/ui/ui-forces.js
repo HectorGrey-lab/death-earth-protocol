@@ -49,11 +49,14 @@ window.UIForces = (function () {
 
       html += '<div class="card fleet-card">' +
         '<div class="space-between">' +
-          '<strong>' + (fleet.name || 'Unnamed Fleet').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</strong>' +
+          '<div>' +
+            '<strong>' + (fleet.name || 'Unnamed Fleet').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</strong>' +
+            (fleet.transit ? '<div class="small" style="color:var(--orange);margin-top:2px;">🚀 In transit — arriving at ' + (fleet.transit.target || '?') + '</div>' : '') +
+          '</div>' +
           '<div class="row">' +
-            '<button class="btn tiny btn-attack attack-fleet" data-fid="' + fid + '" title="Attack with this fleet">\u2694\uFE0F</button>' +
-            '<button class="btn tiny btn-info edit-fleet" data-fid="' + fid + '" title="Edit fleet">\u270E</button>' +
-            '<button class="btn tiny btn-danger delete-fleet" data-fid="' + fid + '">\u2715</button></div></div>' +
+            '<button class="btn tiny btn-attack attack-fleet' + (fleet.transit ? ' disabled' : '') + '" data-fid="' + fid + '" title="Attack with this fleet"' + (fleet.transit ? ' disabled' : '') + '>⚔️</button>' +
+            '<button class="btn tiny btn-info edit-fleet" data-fid="' + fid + '" title="Edit fleet">✎</button>' +
+            '<button class="btn tiny btn-danger delete-fleet" data-fid="' + fid + '">✕</button></div></div>' +
         '<div class="fleet-stats">' +
           '<span>\u2694\uFE0F ' + fp + '</span>' +
           '<span>\uD83D\uDEE1\uFE0F ' + fd + '</span>' +

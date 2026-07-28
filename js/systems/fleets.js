@@ -137,6 +137,6 @@ window.FleetSystem = (function () {
     getFleetPower, getFleetDefense, getFleetCarry, getFleetSize,
     getFleetIds, getFleet,
     createFleet, deleteFleet, addToFleet, removeFromFleet, renameFleet,
-    reconcile
+    reconcile, _sync
   };
 })();

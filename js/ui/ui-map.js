@@ -773,21 +773,43 @@ window.UIMap = (function () {
   }
 
   // Universe mode sidebar
+  // Incoming attack banner
+  function renderIncomingAttacks(state) {
+    if (!state._incomingAttacks || !state._incomingAttacks.length) return '';
+    var html = '';
+    var now = Date.now();
+    state._incomingAttacks.forEach(function(a) {
+      var remaining = Math.max(0, Math.floor((a.arrivalTime - now) / 1000));
+      var mins = Math.floor(remaining / 60);
+      var secs = remaining % 60;
+      html += '<div class="card" style="border-left:3px solid var(--orange);margin-bottom:8px;">' +
+        '<div class="small" style="color:var(--red);font-weight:bold;">⚠ INCOMING ATTACK</div>' +
+        '<div><strong>' + esc(a.attacker) + '</strong> — ETA: ' + mins + 'm' + secs + 's</div>' +
+        '<div class="small">Power: ' + a.fleetPower + ' | Units: ' + a.fleetSize +
+        ' | From: S' + (a.origin ? a.origin.sector : '?') + ' P' + (a.origin ? a.origin.planet : '?') + '</div>' +
+        '</div>';
+    });
+    return html;
+  }
+
   function renderUniverseSidebar(state) {
     const zoom = state.universe.zoomLevel;
+
+    // Incoming attack warnings (shown at top regardless of zoom)
+    var incHtml = renderIncomingAttacks(state);
 
     // Show planet details if a planet is selected
     if (zoom === 'sector' && state.universe.activePlanetId) {
       const p = Universe.getPlanet(state.universe.activeGalaxyId, state.universe.activeSectorId, state.universe.activePlanetId);
-      if (p) return renderPlanetTravelInfo(state, p) + renderTravelQueue(state);
+      if (p) return incHtml + renderPlanetTravelInfo(state, p) + renderTravelQueue(state);
     }
 
     // Sector report
     if (zoom === 'sector' && state.universe.activeSectorId) {
       const sec = Universe.getSector(state.universe.activeGalaxyId, state.universe.activeSectorId);
-      if (!sec) return '';
+      if (!sec) return incHtml;
       const players = sec.planets.filter(p => p.isPlayerBase);
-      return `
+      return incHtml + `
         <div class="card">
           <div class="panel-title">Sector Report</div>
           <h3>${sec.name}</h3>
@@ -802,9 +824,9 @@ window.UIMap = (function () {
     // Galaxy report
     if (zoom === 'galaxy' && state.universe.activeGalaxyId) {
       const gal = Universe.getGalaxy(state.universe.activeGalaxyId);
-      if (!gal) return '';
+      if (!gal) return incHtml;
       const playerPlanets = gal.sectors.reduce((sum, s) => sum + s.planets.filter(p => p.isPlayerBase).length, 0);
-      return `
+      return incHtml + `
         <div class="card">
           <div class="panel-title">Galaxy Report</div>
           <h3 style="color:${gal.color}">${gal.name}</h3>
@@ -817,7 +839,7 @@ window.UIMap = (function () {
 
     // Universe census
     const total = Universe.getGalaxies().reduce((s, g) => s + g.sectors.reduce((s2, sec) => s2 + sec.planets.length, 0), 0);
-    return `
+    return incHtml + `
       <div class="card">
         <div class="panel-title">Universe Census</div>
         <h3>Known Space</h3>
