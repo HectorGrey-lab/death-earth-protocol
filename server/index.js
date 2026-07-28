@@ -827,10 +827,15 @@ server.on('upgrade', function(req, socket, head) {
         }
       }
 
+      if (msg.type === 'sync_fleets') {
+        user.colony.troops.fleets = msg.fleets || {};
+        DB.saveDB();
+      }
+
       if (msg.type === 'attack_fleet') {
         var fleetId = msg.fleetId;
         var targetName = msg.target;
-        var fleet = user.colony.fleets ? user.colony.fleets[fleetId] : null;
+        var fleet = user.colony.troops && user.colony.troops.fleets ? user.colony.troops.fleets[fleetId] : null;
         if (!fleet) {
           socket.write(wsEncodeFrame(JSON.stringify({ type: 'attack_result', ok: false, error: 'Fleet not found' })));
         } else if (targetName === username) {

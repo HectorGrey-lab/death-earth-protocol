@@ -90,8 +90,11 @@ window.App = (function () {
           window.gameState.mailbox = c.mailbox;
         }
 
-        // Restore fleets from localStorage and reconcile troop counts
-        FleetSystem.loadFleets(window.gameState);
+        // Restore fleets from server data (sent inside troops)
+        if (window.gameState.troops && window.gameState.troops.fleets) {
+          window.gameState.fleets = window.gameState.troops.fleets;
+          FleetSystem.reconcile(window.gameState);
+        }
         // Store alliance if sent by server
         if (c.alliance) {
           window.gameState.alliance = c.alliance;

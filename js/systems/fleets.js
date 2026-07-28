@@ -1,18 +1,10 @@
 window.FleetSystem = (function () {
-  // ── Persistence ──
-  function _save(state) {
-    try { localStorage.setItem('de_fleets', JSON.stringify(state.fleets || {})); } catch(e) {}
-  }
-
-  function loadFleets(state) {
-    var raw;
-    try { raw = localStorage.getItem('de_fleets'); } catch(e) {}
-    if (!raw) return;
-    var saved;
-    try { saved = JSON.parse(raw); } catch(e) { return; }
-    if (typeof saved !== 'object') return;
-    state.fleets = saved;
-    reconcile(state);
+  // ── Server sync ──
+  function _sync(state) {
+    // Send fleet data to server for persistence
+    if (window.Network) {
+      Network.send({ type: 'sync_fleets', fleets: state.fleets || {} });
+    }
   }
 
   /** After server overwrites troop counts, subtract fleet troops from reserve so they aren't double-counted */
@@ -86,7 +78,7 @@ window.FleetSystem = (function () {
       troops: {},
       createdAt: Date.now()
     };
-    _save(state);
+    _sync(state);
     return id;
   }
 
@@ -100,7 +92,7 @@ window.FleetSystem = (function () {
       state.troops.counts[key] += count;
     });
     delete state.fleets[fleetId];
-    _save(state);
+    _sync(state);
     return true;
   }
 
@@ -114,7 +106,7 @@ window.FleetSystem = (function () {
     state.troops.counts[troopKey] = Math.max(0, (state.troops.counts[troopKey] || 0) - quantity);
     if (!fleet.troops[troopKey]) fleet.troops[troopKey] = 0;
     fleet.troops[troopKey] += quantity;
-    _save(state);
+    _sync(state);
     return { ok: true };
   }
 
@@ -129,7 +121,7 @@ window.FleetSystem = (function () {
     if (fleet.troops[troopKey] <= 0) delete fleet.troops[troopKey];
     if (!state.troops.counts[troopKey]) state.troops.counts[troopKey] = 0;
     state.troops.counts[troopKey] += quantity;
-    _save(state);
+    _sync(state);
     return { ok: true };
   }
 
@@ -137,7 +129,7 @@ window.FleetSystem = (function () {
     var fleet = state.fleets[fleetId];
     if (!fleet) return false;
     fleet.name = newName || 'Unnamed Fleet';
-    _save(state);
+    _sync(state);
     return true;
   }
 
@@ -145,6 +137,6 @@ window.FleetSystem = (function () {
     getFleetPower, getFleetDefense, getFleetCarry, getFleetSize,
     getFleetIds, getFleet,
     createFleet, deleteFleet, addToFleet, removeFromFleet, renameFleet,
-    loadFleets, reconcile
+    reconcile
   };
 })();
