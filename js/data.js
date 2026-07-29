@@ -88,7 +88,7 @@ window.GameData = {
       name: "Recon Scout",
       image: "assets/buildings/troops/recon-scout.svg",
       cost: { ore: 30, solar: 20, crystal: 8, isotopes: 2 },
-      upkeep: 0.00015, power: 8, defense: 4, role: "Scout", trainTime: 12,
+      upkeep: 0.000003, power: 8, defense: 4, role: "Scout", trainTime: 12,
       carryCapacity: 15,
       traits: ["scout"]
     },
@@ -96,7 +96,7 @@ window.GameData = {
       name: "Rifle Unit",
       image: "assets/buildings/troops/rifle-unit.svg",
       cost: { ore: 40, solar: 25, crystal: 10, isotopes: 3 },
-      upkeep: 0.0002, power: 12, defense: 8, role: "Line", trainTime: 15,
+      upkeep: 0.000004, power: 12, defense: 8, role: "Line", trainTime: 15,
       carryCapacity: 25,
       traits: []
     },
@@ -104,7 +104,7 @@ window.GameData = {
       name: "Heavy Trooper",
       image: "assets/buildings/troops/heavy-trooper.svg",
       cost: { ore: 55, solar: 30, crystal: 14, isotopes: 4 },
-      upkeep: 0.0003, power: 18, defense: 13, role: "Assault", trainTime: 20,
+      upkeep: 0.000006, power: 18, defense: 13, role: "Assault", trainTime: 20,
       carryCapacity: 40,
       traits: []
     },
@@ -112,7 +112,7 @@ window.GameData = {
       name: "Siege Mech",
       image: "assets/buildings/troops/siege-mech.svg",
       cost: { ore: 90, solar: 45, crystal: 24, isotopes: 7 },
-      upkeep: 0.00055, power: 28, defense: 18, role: "Siege", trainTime: 35,
+      upkeep: 0.000011, power: 28, defense: 18, role: "Siege", trainTime: 35,
       carryCapacity: 120,
       traits: ["siege"]
     },
@@ -120,7 +120,7 @@ window.GameData = {
       name: "Drone Swarm",
       image: "assets/buildings/troops/drone-swarm.svg",
       cost: { ore: 50, solar: 45, crystal: 16, isotopes: 4 },
-      upkeep: 0.00025, power: 14, defense: 7, role: "Harass", trainTime: 18,
+      upkeep: 0.000005, power: 14, defense: 7, role: "Harass", trainTime: 18,
       carryCapacity: 8,
       traits: ["swarm"]
     },
@@ -128,7 +128,7 @@ window.GameData = {
       name: "Sniper Cell",
       image: "assets/buildings/troops/sniper-cell.svg",
       cost: { ore: 48, solar: 30, crystal: 18, isotopes: 4 },
-      upkeep: 0.00025, power: 17, defense: 6, role: "Precision", trainTime: 19,
+      upkeep: 0.000005, power: 17, defense: 6, role: "Precision", trainTime: 19,
       carryCapacity: 15,
       traits: ["precision"]
     },
@@ -136,7 +136,7 @@ window.GameData = {
       name: "Shield Guard",
       image: "assets/buildings/troops/shield-guard.svg",
       cost: { ore: 60, solar: 35, crystal: 20, isotopes: 5 },
-      upkeep: 0.00035, power: 13, defense: 19, role: "Defense", trainTime: 22,
+      upkeep: 0.000007, power: 13, defense: 19, role: "Defense", trainTime: 22,
       carryCapacity: 35,
       traits: ["supportShield"]
     },
@@ -144,7 +144,7 @@ window.GameData = {
       name: "Plasma Tank",
       image: "assets/buildings/troops/plasma-tank.svg",
       cost: { ore: 120, solar: 70, crystal: 28, isotopes: 9 },
-      upkeep: 0.0007, power: 36, defense: 25, role: "Armor", trainTime: 42,
+      upkeep: 0.000014, power: 36, defense: 25, role: "Armor", trainTime: 42,
       carryCapacity: 150,
       traits: ["shieldBreak"]
     },
@@ -152,7 +152,7 @@ window.GameData = {
       name: "EMP Specialist",
       image: "assets/buildings/troops/emp-specialist.svg",
       cost: { ore: 68, solar: 45, crystal: 22, isotopes: 6 },
-      upkeep: 0.0004, power: 16, defense: 10, role: "Tech", trainTime: 24,
+      upkeep: 0.000008, power: 16, defense: 10, role: "Tech", trainTime: 24,
       carryCapacity: 20,
       traits: ["shieldBreak"]
     },
@@ -160,7 +160,7 @@ window.GameData = {
       name: "Prototype Unit",
       image: "assets/buildings/troops/prototype-unit.svg",
       cost: { ore: 180, solar: 110, crystal: 50, isotopes: 15 },
-      upkeep: 0.001, power: 55, defense: 34, role: "Prototype", trainTime: 65,
+      upkeep: 0.000020, power: 55, defense: 34, role: "Prototype", trainTime: 65,
       carryCapacity: 80,
       traits: ["siege", "shieldBreak"]
     }
