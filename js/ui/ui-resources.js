@@ -11,7 +11,7 @@ window.UIResources = (function () {
             <strong>${GameData.resources[key].name}</strong>
             <span>${Utils.formatNumber(r.amount)} / ${Utils.formatNumber(r.cap)}</span>
           </div>
-          <div class="small">Production ${Utils.format1(rates[key])}/s</div>
+          <div class="small">Production ${Utils.format1(rates[key] * 3600)}/h</div>
           <div class="progress"><span style="width:${pct}%"></span></div>
         </div>
       `;

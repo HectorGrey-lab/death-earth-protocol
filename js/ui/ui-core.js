@@ -16,7 +16,7 @@ window.UICore = (function () {
   function renderHeader(state) {
     Utils.el("headerBasePower").textContent = Utils.formatNumber(BuildingSystem.getBasePower(state));
     Utils.el("headerPopulation").textContent = Utils.formatNumber(BuildingSystem.getPopulation(state));
-    Utils.el("headerUpkeep").textContent = `${Utils.format1(ResourceSystem.getUpkeep(state))}/s`;
+    Utils.el("headerUpkeep").textContent = `${Utils.format1(ResourceSystem.getUpkeep(state) * 3600)}/h`;
     Utils.el("headerRank").textContent = CommanderSystem.getRank(state);
   }
 
