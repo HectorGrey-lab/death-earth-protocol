@@ -56,11 +56,35 @@ function tick(colony, dt) {
         b.integrity = Math.min(100, (b.integrity || 100) + 15);
       }
     }
-    // Passive integrity repair: 1% per 30s of uptime
-    if ((b.integrity || 100) < 100) {
-      b.integrity = Math.min(100, (b.integrity || 100) + 0.002 * dt);
-    }
   });
 }
 
-module.exports = { getUpgradeCost, getUpgradeTime, startUpgrade, tick };
+function getRepairCost(buildingKey, level) {
+  var upgradeCost = getUpgradeCost(buildingKey, level);
+  if (!upgradeCost) return null;
+  var cost = {};
+  Object.keys(upgradeCost).forEach(function(k) {
+    cost[k] = Math.max(1, Math.ceil(upgradeCost[k] / 2));
+  });
+  return cost;
+}
+
+function startRepair(colony, buildingKey) {
+  var b = colony.buildings[buildingKey];
+  if (!b) return { ok: false, reason: 'Unknown building' };
+  if (b.integrity >= 100) return { ok: false, reason: 'Building is at full integrity' };
+  var cost = getRepairCost(buildingKey, b.level);
+  if (!cost) return { ok: false, reason: 'Invalid building' };
+  for (var k of Object.keys(cost)) {
+    if ((colony.resources[k]?.amount || 0) < cost[k]) {
+      return { ok: false, reason: 'Insufficient ' + k };
+    }
+  }
+  for (var k of Object.keys(cost)) {
+    colony.resources[k].amount -= cost[k];
+  }
+  b.integrity = 100;
+  return { ok: true, message: GAME.buildings[buildingKey].name + ' repaired to 100%' };
+}
+
+module.exports = { getUpgradeCost, getUpgradeTime, startUpgrade, tick, getRepairCost, startRepair };

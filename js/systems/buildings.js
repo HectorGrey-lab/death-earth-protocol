@@ -14,6 +14,16 @@ window.BuildingSystem = (function () {
     return Math.floor(def.timeBase * (1 + (level - 1) * 0.18));
   }
 
+  function getRepairCost(buildingKey, level) {
+    const upgradeCost = getUpgradeCost(buildingKey, level);
+    if (!upgradeCost) return null;
+    const cost = {};
+    Object.keys(upgradeCost).forEach(function(k) {
+      cost[k] = Math.max(1, Math.ceil(upgradeCost[k] / 2));
+    });
+    return cost;
+  }
+
   function startUpgrade(state, buildingKey) {
     const b = state.buildings[buildingKey];
     if (b.upgrading) return { ok: false, reason: "Already upgrading" };
@@ -25,23 +35,6 @@ window.BuildingSystem = (function () {
       targetLevel: b.level + 1
     };
     MailboxSystem.addSystemMail(state, `${GameData.buildings[buildingKey].name} upgrade initiated.`);
-    return { ok: true };
-  }
-
-  function repairBuilding(state, buildingKey) {
-    const b = state.buildings[buildingKey];
-    if (b.integrity >= 100) return { ok: false, reason: "Integrity full" };
-
-    const missing = 100 - b.integrity;
-    const cost = {
-      ore: Math.floor(missing * 1.2),
-      solar: Math.floor(missing * 0.7),
-      crystal: Math.floor(missing * 0.4)
-    };
-    if (!Utils.payCost(state, cost)) return { ok: false, reason: "Insufficient resources" };
-
-    b.integrity = Math.min(100, b.integrity + 25);
-    MailboxSystem.addSystemMail(state, `${GameData.buildings[buildingKey].name} repair cycle completed.`);
     return { ok: true };
   }
 
@@ -73,7 +66,7 @@ window.BuildingSystem = (function () {
         if (b.upgrading.remaining <= 0) {
           b.level = b.upgrading.targetLevel;
           b.upgrading = null;
-          b.integrity = Math.min(100, b.integrity + 5);
+          b.integrity = Math.min(100, b.integrity + 15);
           MailboxSystem.addSystemMail(state, `${GameData.buildings[key].name} upgraded to level ${b.level}.`);
           CommanderSystem.addRankPoints(state, 1);
         }
@@ -84,8 +77,8 @@ window.BuildingSystem = (function () {
   return {
     getUpgradeCost,
     getUpgradeTime,
+    getRepairCost,
     startUpgrade,
-    repairBuilding,
     getShieldStats,
     getBasePower,
     getPopulation,

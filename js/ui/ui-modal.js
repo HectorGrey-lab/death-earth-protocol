@@ -14,6 +14,8 @@ window.UIModal = (function () {
     const def = GameData.buildings[buildingKey];
     const b = state.buildings[buildingKey];
     const cost = BuildingSystem.getUpgradeCost(buildingKey, b.level);
+    const repairCost = BuildingSystem.getRepairCost(buildingKey, b.level);
+    const canRepair = b.integrity < 100;
 
     let special = "";
     if (buildingKey === "extractionGrid") {
@@ -59,7 +61,7 @@ window.UIModal = (function () {
           <div class="small">Status: ${b.upgrading ? `Upgrading • ${Utils.formatTime(b.upgrading.remaining)}` : "Operational"}</div>
           <div class="row" style="margin-top:10px;">
             <button class="btn" ${b.upgrading ? "disabled" : ""} onclick="Network.build('${buildingKey}'); UIModal.close();">Upgrade</button>
-            <button class="btn warn" onclick="UIModal.close();">Repair</button>
+            ${canRepair ? `<button class="btn warn" onclick="Network.send({type:'building_repair',buildingId:'${buildingKey}'}); UIModal.close();">Repair (${Utils.costToHtml(repairCost)})</button>` : ""}
           </div>
         </div>
         ${special}

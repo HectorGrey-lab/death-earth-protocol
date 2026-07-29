@@ -847,6 +847,20 @@ server.on('upgrade', function(req, socket, head) {
         }
       }
 
+      // ── Repair ──
+      if (msg.type === 'building_repair') {
+        var result = BuildingSystem.startRepair(user.colony, msg.buildingId);
+        if (result.ok) {
+          DB.saveDB();
+          var colony = JSON.parse(JSON.stringify(user.colony));
+          colony.productionRates = ResourceSystem.getProductionRates(user.colony);
+          socket.write(wsEncodeFrame(JSON.stringify({ type: 'build_result', ok: true, colony: colony })));
+          log(ip, 'repair ' + username + ' ' + msg.buildingId);
+        } else {
+          socket.write(wsEncodeFrame(JSON.stringify({ type: 'build_result', ok: false, error: result.reason })));
+        }
+      }
+
       // ── Train ──
       if (msg.type === 'train') {
         var result = TroopSystem.queueTrain(user.colony, msg.troopId, msg.qty || 1);
