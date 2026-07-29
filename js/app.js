@@ -291,7 +291,9 @@ window.App = (function () {
         };
         FleetSystem._sync(s);
       }
-      var eta = msg.eta || '?';
+      var eta = msg.eta;
+      if (!eta && msg.arrivalTime) eta = Math.round((msg.arrivalTime - Date.now()) / 1000);
+      if (!eta) eta = '?';
       MailboxSystem.addLog(s, '🚀 Fleet launched to ' + (msg.target || 'unknown') + '. ETA ' + eta + 's');
       s._selectedFleetId = null;
       render();

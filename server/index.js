@@ -146,13 +146,18 @@ function log(ip, msg) {
 
 // ─── PvP Travel Time & Pending Attack Resolution ────────────────
 function calculateTravelTime(origin, target) {
-  if (origin.galaxy === target.galaxy && origin.sector === target.sector) {
-    return Math.max(30, Math.abs(origin.planet - target.planet) * 30); // 30s–2min
+  // Guard against NaN/undefined position values
+  var og = Number(origin.galaxy), tg = Number(target.galaxy);
+  var os = Number(origin.sector), ts = Number(target.sector);
+  var op = Number(origin.planet), tp = Number(target.planet);
+  if (isNaN(og) || isNaN(tg)) return 300;
+  if (og === tg && os === ts) {
+    return Math.max(30, Math.abs((op||0) - (tp||0)) * 30);
   }
-  if (origin.galaxy === target.galaxy) {
-    return Math.abs(origin.sector - target.sector) * 300 + Math.abs(origin.planet - target.planet) * 30; // 5min+ per sector
+  if (og === tg) {
+    return Math.abs((os||0) - (ts||0)) * 300 + Math.abs((op||0) - (tp||0)) * 30;
   }
-  return 1800; // 30 min across galaxies
+  return 1800;
 }
 
 function processPendingAttacks(now) {
