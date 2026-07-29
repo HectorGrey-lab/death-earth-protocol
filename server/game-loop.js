@@ -64,11 +64,11 @@ function tickAllPlayers(db, wsServer, saveCallback, processAttacksFn) {
   }
 }
 
-function startLoop(db, wsServer, saveCallback) {
+function startLoop(db, wsServer, saveCallback, processAttacksFn) {
   if (intervalHandle) return;
   console.log('  [Tick] World loop started (every ' + TICK_INTERVAL + 's)');
   intervalHandle = setInterval(() => {
-    tickAllPlayers(db, wsServer, saveCallback);
+    tickAllPlayers(db, wsServer, saveCallback, processAttacksFn);
   }, TICK_INTERVAL * 1000);
 }
 
