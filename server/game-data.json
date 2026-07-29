@@ -130,7 +130,7 @@
         "crystal": 8,
         "isotopes": 2
       },
-      "upkeep": 0.3,
+      "upkeep": 0.000003,
       "power": 8,
       "defense": 4,
       "role": "Scout",
@@ -148,7 +148,7 @@
         "crystal": 10,
         "isotopes": 3
       },
-      "upkeep": 0.4,
+      "upkeep": 0.000004,
       "power": 12,
       "defense": 8,
       "role": "Line",
@@ -164,7 +164,7 @@
         "crystal": 14,
         "isotopes": 4
       },
-      "upkeep": 0.6,
+      "upkeep": 0.000006,
       "power": 18,
       "defense": 13,
       "role": "Assault",
@@ -180,7 +180,7 @@
         "crystal": 24,
         "isotopes": 7
       },
-      "upkeep": 1.1,
+      "upkeep": 0.000011,
       "power": 28,
       "defense": 18,
       "role": "Siege",
@@ -198,7 +198,7 @@
         "crystal": 16,
         "isotopes": 4
       },
-      "upkeep": 0.5,
+      "upkeep": 0.000005,
       "power": 14,
       "defense": 7,
       "role": "Harass",
@@ -216,7 +216,7 @@
         "crystal": 18,
         "isotopes": 4
       },
-      "upkeep": 0.5,
+      "upkeep": 0.000005,
       "power": 17,
       "defense": 6,
       "role": "Precision",
@@ -234,7 +234,7 @@
         "crystal": 20,
         "isotopes": 5
       },
-      "upkeep": 0.7,
+      "upkeep": 0.000007,
       "power": 13,
       "defense": 19,
       "role": "Defense",
@@ -252,7 +252,7 @@
         "crystal": 28,
         "isotopes": 9
       },
-      "upkeep": 1.4,
+      "upkeep": 0.000014,
       "power": 36,
       "defense": 25,
       "role": "Armor",
@@ -270,7 +270,7 @@
         "crystal": 22,
         "isotopes": 6
       },
-      "upkeep": 0.8,
+      "upkeep": 0.000008,
       "power": 16,
       "defense": 10,
       "role": "Tech",
@@ -288,7 +288,7 @@
         "crystal": 50,
         "isotopes": 15
       },
-      "upkeep": 2,
+      "upkeep": 0.000020,
       "power": 55,
       "defense": 34,
       "role": "Prototype",
