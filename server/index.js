@@ -1029,6 +1029,29 @@ server.on('upgrade', function(req, socket, head) {
         }
       }
 
+      if (msg.type === 'alliance_join') {
+        var allianceId = msg.allianceId;
+        if (!allianceId) {
+          socket.write(wsEncodeFrame(JSON.stringify({ type: 'alliance_result', ok: false, error: 'No alliance specified' })));
+        } else {
+          user.colony.alliance.joinedId = allianceId;
+          DB.saveDB();
+          var colony = JSON.parse(JSON.stringify(user.colony));
+          colony.productionRates = ResourceSystem.getProductionRates(user.colony);
+          socket.write(wsEncodeFrame(JSON.stringify({ type: 'alliance_result', ok: true, colony: colony })));
+          log(ip, 'alliance_join ' + username + ' -> ' + allianceId);
+        }
+      }
+
+      if (msg.type === 'alliance_leave') {
+        user.colony.alliance.joinedId = null;
+        DB.saveDB();
+        var colony = JSON.parse(JSON.stringify(user.colony));
+        colony.productionRates = ResourceSystem.getProductionRates(user.colony);
+        socket.write(wsEncodeFrame(JSON.stringify({ type: 'alliance_result', ok: true, colony: colony })));
+        log(ip, 'alliance_leave ' + username);
+      }
+
       if (msg.type === 'sync_fleets') {
         // Merge: preserve server-side transit state (client may not have it yet)
         var incoming = msg.fleets || {};

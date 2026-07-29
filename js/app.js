@@ -279,6 +279,20 @@ window.App = (function () {
       render();
     });
 
+    Network.on("alliance_result", function (msg) {
+      var s = window.gameState;
+      if (msg.colony) {
+        s.alliance = msg.colony.alliance || s.alliance;
+        s.mailbox = msg.colony.mailbox || s.mailbox;
+        s._productionRates = msg.colony.productionRates || null;
+      }
+      if (!msg.ok) {
+        if (!s.mailbox) s.mailbox = { messages: [], selectedTab: "System", selectedMessageId: null };
+        MailboxSystem.addSystemMail(s, '⚠ Alliance update failed: ' + (msg.error || 'Unknown error'));
+      }
+      render();
+    });
+
     Network.on("attack_launched", function (msg) {
       console.log('[ATTACK] attack_launched received:', JSON.stringify(msg).substring(0, 200));
       var s = window.gameState;

@@ -5,15 +5,11 @@ window.AllianceSystem = (function () {
   }
 
   function joinAlliance(state, allianceId) {
-    state.alliance.joinedId = allianceId;
-    const alliance = getJoinedAlliance(state);
-    MailboxSystem.addMessage(state, "Alliance", "Alliance Membership Updated", `You joined ${alliance.name}. Perk: ${alliance.perkType} +${Math.round(alliance.perkValue * 100)}%.`);
+    Network.send({ type: 'alliance_join', allianceId: allianceId });
   }
 
   function leaveAlliance(state) {
-    const prev = getJoinedAlliance(state);
-    state.alliance.joinedId = null;
-    if (prev) MailboxSystem.addMessage(state, "Alliance", "Alliance Membership Updated", `You left ${prev.name}.`);
+    Network.send({ type: 'alliance_leave' });
   }
 
   return {
