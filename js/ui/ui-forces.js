@@ -67,6 +67,7 @@ window.UIForces = (function () {
       var transitLabel = '';
       if (fleet.transit) {
         var remaining = Math.max(0, Math.floor((fleet.transit.arrivalTime - Date.now()) / 1000));
+        console.log('[TRANSIT] fid=' + fid + ' arrivalTime=' + fleet.transit.arrivalTime + ' remaining=' + remaining + ' now=' + Date.now());
         var mins = Math.floor(remaining / 60);
         var secs = remaining % 60;
         var label = fleet.transit.returning
