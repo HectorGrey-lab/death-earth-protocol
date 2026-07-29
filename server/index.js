@@ -541,11 +541,21 @@ const server = http.createServer(function(req, res) {
         if (!user.colony) {
           const planetInfo = Universe.ensurePlanetAvailable(DB.db.universe);
           if (planetInfo) {
-            const claim = Universe.claimPlanet(DB.db.
+            const claim = Universe.claimPlanet(DB.db.universe, planetInfo, username);
+            user.colony = createInitialColony(username, claim.planetName, claim.galaxyId, claim.sectorId, claim.planetId);
+            if (gameData.missions) {
+              user.colony.missions = {};
+              gameData.missions.forEach(m => {
+                user.colony.missions[m.id] = { claimed: false };
+              });
+            }
+            DB.saveDB();
+          }
+        }
 
-... [OUTPUT TRUNCATED - 595 chars omitted out of 50,525 total] ...
-
-tion/json' });
+        const token = generateToken(username);
+        log(ip, 'POST /api/login (' + username + ')');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true, token: token, username: username }));
       } catch (e) {
         log(ip, 'LOGIN ERROR: ' + e.message + ' body=' + body.substring(0, 200));
