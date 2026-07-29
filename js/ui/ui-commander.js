@@ -16,23 +16,23 @@ window.UICommander = (function () {
             <strong>${joined.name}</strong>
             <button class="btn small danger" onclick="AllianceSystem.leaveAlliance(window.gameState); window.App.render();">Leave</button>
           </div>
-          <div class="small">Perk: ${joined.perkType} +${Math.round(joined.perkValue * 100)}%</div>
+          <div class="small">Founder: ${joined.founder}</div>
           <div class="small">Members: ${joined.members.join(", ")}</div>
-          <div class="list-tight" style="margin-top:8px;">
-            ${joined.notices.map(n => `<div class="small">• ${n}</div>`).join("")}
-          </div>
         </div>
       `;
     }
 
-    return GameData.alliances.map(a => `
+    var alls = AllianceSystem.getAlliancesList(state);
+    if (alls.length === 0) {
+      return `<div class="small">No alliances available.</div>`;
+    }
+    return alls.map(a => `
       <div class="card">
         <div class="space-between">
           <strong>${a.name}</strong>
           <button class="btn small" onclick="AllianceSystem.joinAlliance(window.gameState, '${a.id}'); window.App.render();">Join</button>
         </div>
-        <div class="small">Perk: ${a.perkType} +${Math.round(a.perkValue * 100)}%</div>
-        <div class="small">Members: ${a.members.length + 1}</div>
+        <div class="small">Founder: ${a.founder} — ${a.members.length} members</div>
       </div>
     `).join("");
   }

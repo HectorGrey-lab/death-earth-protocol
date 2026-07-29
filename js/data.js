@@ -187,36 +187,7 @@ window.GameData = {
     }
   },
 
-  alliances: [
-    {
-      id: "iron-sigil",
-      name: "Iron Sigil Pact",
-      image: "assets/alliances/iron-sigil.svg",
-      perkType: "economy",
-      perkValue: 0.12,
-      notices: ["Extraction sectors stabilized.", "Shared ore convoy routing active."],
-      members: ["Astra-9", "Vel Mourne", "Kestrel Unit", "Null Harbor"]
-    },
-    {
-      id: "aeon-lattice",
-      name: "Aeon Lattice",
-      image: "assets/alliances/aeon-lattice.svg",
-      perkType: "research",
-      perkValue: 0.15,
-      notices: ["Data vault exchange window open.", "Relay scientists available for support."],
-      members: ["Dr. Sel", "Orion Crest", "Helix Dawn", "Proxy-17"]
-    },
-    {
-      id: "red-vanguard",
-      name: "Red Vanguard",
-      image: "assets/alliances/red-vanguard.svg",
-
-      perkType: "military",
-      perkValue: 0.12,
-      notices: ["Forward strike doctrine uploaded.", "Militia synchronization active."],
-      members: ["Morrow Lance", "Black Tide", "Karst", "Sable Wake"]
-    }
-  ],
+  alliances: [],
 
   events: [
     {

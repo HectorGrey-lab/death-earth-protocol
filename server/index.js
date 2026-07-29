@@ -144,6 +144,17 @@ function log(ip, msg) {
   console.log('[' + ts + '] ' + ip + ' ' + msg);
 }
 
+// ─── Alliance helpers ──────────────────────────────────────────
+function getAlliancesList() {
+  var result = [];
+  var alls = DB.db.universe.alliances || {};
+  Object.keys(alls).forEach(function(id) {
+    var a = alls[id];
+    result.push({ id: id, name: a.name, founder: a.founder, members: a.members || [], created: a.created });
+  });
+  return result;
+}
+
 // ─── PvP Travel Time & Pending Attack Resolution ────────────────
 function calculateTravelTime(origin, target) {
   // Guard against NaN/undefined position values
@@ -738,7 +749,8 @@ server.on('upgrade', function(req, socket, head) {
             socket.write(wsEncodeFrame(JSON.stringify({
               type: 'colony_state',
               colony: colony,
-              universe: DB.db.universe
+              universe: DB.db.universe,
+              alliances: getAlliancesList()
             })));
           }
           log(ip, 'WS auth (' + uname + ')');
@@ -818,7 +830,7 @@ server.on('upgrade', function(req, socket, head) {
       if (msg.type === 'get_colony') {
         var colony = JSON.parse(JSON.stringify(user.colony));
         colony.productionRates = ResourceSystem.getProductionRates(user.colony);
-        socket.write(wsEncodeFrame(JSON.stringify({ type: 'colony_state', colony: colony, universe: DB.db.universe })));
+        socket.write(wsEncodeFrame(JSON.stringify({ type: 'colony_state', colony: colony, universe: DB.db.universe, alliances: getAlliancesList() })));
       }
 
       // ── Build ──
@@ -1039,27 +1051,91 @@ server.on('upgrade', function(req, socket, head) {
         }
       }
 
+      if (msg.type === 'alliance_create') {
+        var aName = msg.name;
+        if (!aName || typeof aName !== 'string' || aName.trim().length < 2) {
+          socket.write(wsEncodeFrame(JSON.stringify({ type: 'alliance_result', ok: false, error: 'Alliance name must be at least 2 characters' })));
+        } else if (user.colony.alliance.joinedId) {
+          socket.write(wsEncodeFrame(JSON.stringify({ type: 'alliance_result', ok: false, error: 'You are already in an alliance' })));
+        } else {
+          var alls = DB.db.universe.alliances = DB.db.universe.alliances || {};
+          var id = 'alliance_' + Date.now();
+          alls[id] = {
+            id: id,
+            name: aName.trim(),
+            founder: username,
+            members: [username],
+            created: Date.now()
+          };
+          user.colony.alliance.joinedId = id;
+          DB.saveDB();
+          var colony = JSON.parse(JSON.stringify(user.colony));
+          colony.productionRates = ResourceSystem.getProductionRates(user.colony);
+          socket.write(wsEncodeFrame(JSON.stringify({
+            type: 'alliance_result', ok: true, colony: colony,
+            alliances: getAlliancesList()
+          })));
+          log(ip, 'alliance_create ' + username + ' -> ' + aName.trim());
+        }
+      }
+
       if (msg.type === 'alliance_join') {
         var allianceId = msg.allianceId;
         if (!allianceId) {
           socket.write(wsEncodeFrame(JSON.stringify({ type: 'alliance_result', ok: false, error: 'No alliance specified' })));
         } else {
-          user.colony.alliance.joinedId = allianceId;
-          DB.saveDB();
-          var colony = JSON.parse(JSON.stringify(user.colony));
-          colony.productionRates = ResourceSystem.getProductionRates(user.colony);
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'alliance_result', ok: true, colony: colony })));
-          log(ip, 'alliance_join ' + username + ' -> ' + allianceId);
+          var alls = DB.db.universe.alliances || {};
+          var alliance = alls[allianceId];
+          if (!alliance) {
+            socket.write(wsEncodeFrame(JSON.stringify({ type: 'alliance_result', ok: false, error: 'Alliance not found' })));
+          } else {
+            if (alliance.members.indexOf(username) !== -1) {
+              socket.write(wsEncodeFrame(JSON.stringify({ type: 'alliance_result', ok: false, error: 'Already in this alliance' })));
+            } else {
+              alliance.members.push(username);
+              user.colony.alliance.joinedId = allianceId;
+              DB.saveDB();
+              var colony = JSON.parse(JSON.stringify(user.colony));
+              colony.productionRates = ResourceSystem.getProductionRates(user.colony);
+              socket.write(wsEncodeFrame(JSON.stringify({
+                type: 'alliance_result', ok: true, colony: colony,
+                alliances: getAlliancesList()
+              })));
+              log(ip, 'alliance_join ' + username + ' -> ' + allianceId);
+            }
+          }
         }
       }
 
       if (msg.type === 'alliance_leave') {
-        user.colony.alliance.joinedId = null;
-        DB.saveDB();
-        var colony = JSON.parse(JSON.stringify(user.colony));
-        colony.productionRates = ResourceSystem.getProductionRates(user.colony);
-        socket.write(wsEncodeFrame(JSON.stringify({ type: 'alliance_result', ok: true, colony: colony })));
-        log(ip, 'alliance_leave ' + username);
+        var joinedId = user.colony.alliance.joinedId;
+        if (!joinedId) {
+          socket.write(wsEncodeFrame(JSON.stringify({ type: 'alliance_result', ok: false, error: 'Not in an alliance' })));
+        } else {
+          var alls = DB.db.universe.alliances || {};
+          var alliance = alls[joinedId];
+          if (alliance) {
+            var idx = alliance.members.indexOf(username);
+            if (idx !== -1) alliance.members.splice(idx, 1);
+            // If founder leaves and there are other members, transfer founder
+            if (alliance.founder === username && alliance.members.length > 0) {
+              alliance.founder = alliance.members[0];
+            }
+            // Remove alliance if no members left
+            if (alliance.members.length === 0) {
+              delete alls[joinedId];
+            }
+          }
+          user.colony.alliance.joinedId = null;
+          DB.saveDB();
+          var colony = JSON.parse(JSON.stringify(user.colony));
+          colony.productionRates = ResourceSystem.getProductionRates(user.colony);
+          socket.write(wsEncodeFrame(JSON.stringify({
+            type: 'alliance_result', ok: true, colony: colony,
+            alliances: getAlliancesList()
+          })));
+          log(ip, 'alliance_leave ' + username);
+        }
       }
 
       if (msg.type === 'sync_fleets') {

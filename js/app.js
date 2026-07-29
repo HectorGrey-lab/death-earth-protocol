@@ -89,6 +89,10 @@ window.App = (function () {
         if (c.alliance) {
           window.gameState.alliance = c.alliance;
         }
+        // Update global alliances list from server
+        if (msg.alliances) {
+          window.GameData.alliances = msg.alliances;
+        }
         if (c.events) {
           window.gameState.events = c.events;
         }
@@ -285,6 +289,9 @@ window.App = (function () {
         s.alliance = msg.colony.alliance || s.alliance;
         s.mailbox = msg.colony.mailbox || s.mailbox;
         s._productionRates = msg.colony.productionRates || null;
+      }
+      if (msg.alliances) {
+        GameData.alliances = msg.alliances;
       }
       if (!msg.ok) {
         if (!s.mailbox) s.mailbox = { messages: [], selectedTab: "System", selectedMessageId: null };

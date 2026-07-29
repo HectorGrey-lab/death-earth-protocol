@@ -193,7 +193,7 @@ function resolveIncoming(colony, attack) {
     const hits = rand(1, 3);
     for (let i = 0; i < hits; i++) {
       const k = keys[Math.floor(Math.random() * keys.length)];
-      colony.buildings[k].integrity = Math.max(40, (colony.buildings[k].integrity || 100) - rand(8, 20));
+      colony.buildings[k].integrity = Math.max(20, (colony.buildings[k].integrity || 100) - rand(8, 20));
     }
   }
 

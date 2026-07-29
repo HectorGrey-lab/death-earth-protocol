@@ -53,8 +53,12 @@ function tick(colony, dt) {
       if (b.upgrading.remaining <= 0) {
         b.level = b.upgrading.targetLevel;
         b.upgrading = null;
-        b.integrity = Math.min(100, (b.integrity || 100) + 5);
+        b.integrity = Math.min(100, (b.integrity || 100) + 15);
       }
+    }
+    // Passive integrity repair: 1% per 30s of uptime
+    if ((b.integrity || 100) < 100) {
+      b.integrity = Math.min(100, (b.integrity || 100) + 0.002 * dt);
     }
   });
 }
