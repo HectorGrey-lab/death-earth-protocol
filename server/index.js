@@ -190,7 +190,7 @@ function resolvePendingAttack(pa) {
 
   var fleet = att.colony.troops && att.colony.troops.fleets ? att.colony.troops.fleets[pa.fleetId] : null;
   if (!fleet) return;
-  var fleetTroops = fleet.troops || {};
+  var fleetTroops = pa.fleetComposition || fleet.troops || {};
 
   // Recalculate defender's current power (troops + research + shield at arrival time)
   var defMod = 1 + (def.colony.research.levels.defense || 0) * 0.06;
@@ -206,8 +206,9 @@ function resolvePendingAttack(pa) {
   var defPowerWithShield = defPowerNow + shieldNow;
 
   // Ratio combat
-  var total = pa.atkPower + defPowerWithShield;
-  var ratio = total > 0 ? pa.atkPower / total : 0;
+  var atkPower = pa.atkPower || 0;
+  var total = atkPower + defPowerWithShield;
+  var ratio = total > 0 ? atkPower / total : 0;
   var attackerWins = ratio >= 0.33;
 
   var atkLossRate = Math.min(0.8, Math.max(0.05, attackerWins ? (1 - ratio) * 0.6 : 0.5));
@@ -308,6 +309,27 @@ function resolvePendingAttack(pa) {
   }
 
   DB.saveDB();
+
+  // Save combat report to mailboxes (persists for offline users)
+  function makeMailMsg(tab, subject, body) {
+    return { id: 'cmbt_' + Date.now() + '_' + Math.random().toString(36).substr(2,4), tab: tab, subject: subject, body: body, time: Date.now() };
+  }
+  if (!att.colony.mailbox) att.colony.mailbox = { messages: [], selectedTab: 'System', selectedMessageId: null };
+  if (!def.colony.mailbox) def.colony.mailbox = { messages: [], selectedTab: 'System', selectedMessageId: null };
+  var atkBody = '⚔ Attack against ' + pa.defender + '\n' +
+    (attackerWins ? '✅ VICTORY' : '❌ DEFEAT') + '\n' +
+    'Fleet power: ' + (pa.atkPower || 0) + '\n' +
+    'Attacker losses: ' + JSON.stringify(atkCas) + '\n' +
+    (attackerWins && Object.keys(loot).length ? 'Loot: ' + JSON.stringify(loot) : '') + '\n' +
+    'Travel time: ' + (pa.travelTime || '?') + 's';
+  var defBody = '⚔ Incoming attack from ' + pa.attacker + '\n' +
+    (!attackerWins ? '✅ DEFENDER VICTORY' : '❌ COLONY RAIDED') + '\n' +
+    'Defender losses: ' + JSON.stringify(defCas) + '\n' +
+    'Defender shield: ' + ((def.colony.buildings.shieldGenerator && def.colony.buildings.shieldGenerator.level || 0) * 25);
+  att.colony.mailbox.messages.unshift(makeMailMsg('Attack', 'Attack Report: ' + pa.defender, atkBody));
+  def.colony.mailbox.messages.unshift(makeMailMsg('Defense', 'Combat Report: ' + pa.attacker, defBody));
+  if (att.colony.mailbox.messages.length > 120) att.colony.mailbox.messages = att.colony.mailbox.messages.slice(0, 120);
+  if (def.colony.mailbox.messages.length > 120) def.colony.mailbox.messages = def.colony.mailbox.messages.slice(0, 120);
 
   // Send results
   var atkCol = JSON.parse(JSON.stringify(att.colony));
@@ -519,21 +541,11 @@ const server = http.createServer(function(req, res) {
         if (!user.colony) {
           const planetInfo = Universe.ensurePlanetAvailable(DB.db.universe);
           if (planetInfo) {
-            const claim = Universe.claimPlanet(DB.db.universe, planetInfo, username);
-            user.colony = createInitialColony(username, claim.planetName, claim.galaxyId, claim.sectorId, claim.planetId);
-            if (gameData.missions) {
-              user.colony.missions = {};
-              gameData.missions.forEach(m => {
-                user.colony.missions[m.id] = { claimed: false };
-              });
-            }
-            DB.saveDB();
-          }
-        }
+            const claim = Universe.claimPlanet(DB.db.
 
-        const token = generateToken(username);
-        log(ip, 'POST /api/login (' + username + ')');
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+... [OUTPUT TRUNCATED - 595 chars omitted out of 50,525 total] ...
+
+tion/json' });
         res.end(JSON.stringify({ ok: true, token: token, username: username }));
       } catch (e) {
         log(ip, 'LOGIN ERROR: ' + e.message + ' body=' + body.substring(0, 200));
@@ -1082,10 +1094,15 @@ server.on('upgrade', function(req, socket, head) {
             var shieldBonus = (targetUser.colony.buildings.shieldGenerator && targetUser.colony.buildings.shieldGenerator.level || 0) * 25;
             var defPowerWithShield = defPower + shieldBonus;
 
-            // Mark fleet as in transit
+            // Mark fleet as in transit (store full combat snapshot for restart resilience)
             fleet.transit = {
               target: targetName,
               arrivalTime: arrivalTime,
+              targetBuilding: targetBuilding,
+              fleetComposition: JSON.parse(JSON.stringify(fleetTroops)),
+              atkPower: atkPower,
+              defPowerWithShield: defPowerWithShield,
+              travelTime: travelTime,
               origin: { galaxy: origin.galaxy, sector: origin.sector, planet: origin.planet, planetName: username }
             };
 
@@ -1162,38 +1179,37 @@ server.on('upgrade', function(req, socket, head) {
     console.log('  Chat:     (no saved history)');
   }
 
-  // ─── Clean up stale fleet transits (from NaN arrivalTime bug) ───
+  // ─── Clean up / restore fleet transits after restart ───
   var users = DB.db.users || {};
-  var cleaned = 0;
+  var restored = 0;
+  var resolved = 0;
   Object.keys(users).forEach(function(uname) {
     var colony = users[uname].colony;
     if (!colony || !colony.troops || !colony.troops.fleets) return;
     Object.keys(colony.troops.fleets).forEach(function(fid) {
       var f = colony.troops.fleets[fid];
-      if (f.transit) {
-        if (!f.transit.arrivalTime || isNaN(f.transit.arrivalTime) || f.transit.arrivalTime < Date.now()) {
-          // Stale transit — clear it
-          delete f.transit;
-          f.inTransit = false;
-          f.returning = false;
-          cleaned++;
-        } else if (f.transit.arrivalTime >= Date.now()) {
-          // Legitimate transit — re-add to pending queue
-          pendingAttacks.push({
-            attacker: f.transit.origin ? f.transit.origin.planetName : uname,
-            defender: f.transit.target,
-            fleetId: fid,
-            arrivalTime: f.transit.arrivalTime
-          });
-        }
-      }
+      if (!f.transit || f.transit.returning) return;
+      // If arrivalTime is missing/invalid, or attack should have already landed,
+      // resolve it immediately (push with arrived timestamp)
+      var arrived = !f.transit.arrivalTime || isNaN(f.transit.arrivalTime) || f.transit.arrivalTime < Date.now();
+      pendingAttacks.push({
+        attacker: f.transit.origin ? f.transit.origin.planetName : uname,
+        defender: f.transit.target,
+        fleetId: fid,
+        targetBuilding: f.transit.targetBuilding || 'any',
+        fleetComposition: f.transit.fleetComposition || f.troops || {},
+        atkPower: f.transit.atkPower || 0,
+        defPowerWithShield: f.transit.defPowerWithShield || 0,
+        arrivalTime: arrived ? Date.now() : f.transit.arrivalTime,
+        travelTime: f.transit.travelTime || 30,
+        origin: f.transit.origin || { planetName: uname }
+      });
+      if (arrived) resolved++; else restored++;
     });
   });
-  if (cleaned > 0) {
-    DB.saveDB();
-    console.log('  Fleet:    ' + cleaned + ' stale transits cleaned');
-  }
-  console.log('  Fleet:    ' + pendingAttacks.length + ' active transits restored');
+  if (resolved > 0) { DB.saveDB(); console.log('  Fleet:    ' + resolved + ' overdue attacks queued for resolution'); }
+  if (restored > 0) console.log('  Fleet:    ' + restored + ' active transits restored');
+  console.log('  Fleet:    ' + pendingAttacks.length + ' total pending attacks');
 
   server.listen(PORT, '0.0.0.0', function() {
     console.log('');
