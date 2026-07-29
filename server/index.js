@@ -1048,10 +1048,10 @@ server.on('upgrade', function(req, socket, head) {
           } else {
             // Ensure both sides have position (handle legacy players without it)
             if (!targetUser.colony.position) {
-              targetUser.colony.position = { galaxy: targetUser.colony.homeGalaxy, sector: targetUser.colony.homeSector, planet: targetUser.colony.homePlanet };
+              targetUser.colony.position = { galaxy: targetUser.homeGalaxy, sector: targetUser.homeSector, planet: targetUser.homePlanet };
             }
             if (!user.colony.position) {
-              user.colony.position = { galaxy: user.colony.homeGalaxy, sector: user.colony.homeSector, planet: user.colony.homePlanet };
+              user.colony.position = { galaxy: user.homeGalaxy, sector: user.homeSector, planet: user.homePlanet };
             }
             var origin = user.colony.position;
             var target = targetUser.colony.position;
@@ -1161,6 +1161,39 @@ server.on('upgrade', function(req, socket, head) {
   } catch (e) {
     console.log('  Chat:     (no saved history)');
   }
+
+  // ─── Clean up stale fleet transits (from NaN arrivalTime bug) ───
+  var users = DB.db.users || {};
+  var cleaned = 0;
+  Object.keys(users).forEach(function(uname) {
+    var colony = users[uname].colony;
+    if (!colony || !colony.troops || !colony.troops.fleets) return;
+    Object.keys(colony.troops.fleets).forEach(function(fid) {
+      var f = colony.troops.fleets[fid];
+      if (f.transit) {
+        if (!f.transit.arrivalTime || isNaN(f.transit.arrivalTime) || f.transit.arrivalTime < Date.now()) {
+          // Stale transit — clear it
+          delete f.transit;
+          f.inTransit = false;
+          f.returning = false;
+          cleaned++;
+        } else if (f.transit.arrivalTime >= Date.now()) {
+          // Legitimate transit — re-add to pending queue
+          pendingAttacks.push({
+            attacker: f.transit.origin ? f.transit.origin.planetName : uname,
+            defender: f.transit.target,
+            fleetId: fid,
+            arrivalTime: f.transit.arrivalTime
+          });
+        }
+      }
+    });
+  });
+  if (cleaned > 0) {
+    DB.saveDB();
+    console.log('  Fleet:    ' + cleaned + ' stale transits cleaned');
+  }
+  console.log('  Fleet:    ' + pendingAttacks.length + ' active transits restored');
 
   server.listen(PORT, '0.0.0.0', function() {
     console.log('');
