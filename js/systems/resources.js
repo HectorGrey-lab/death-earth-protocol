@@ -7,11 +7,11 @@ window.ResourceSystem = (function () {
     // Fallback: calculate from building levels (only if _productionRates not sent by server)
     var rates = { ore: 0, solar: 0, crystal: 0, isotopes: 0 };
     if (state.buildings.extractionGrid) {
-      var mult = 1 + (state.buildings.extractionGrid.level - 1) * 0.12;
-      rates.ore = 8 * mult;
-      rates.solar = 7 * mult;
-      rates.crystal = 5 * mult;
-      rates.isotopes = 5.4 * (1 + (state.buildings.extractionGrid.level - 1) * 0.30);
+      var mult = 1 + (state.buildings.extractionGrid.level - 1) * 0.08;
+      rates.ore = 1.1 * mult;
+      rates.solar = 0.9 * mult;
+      rates.crystal = 1.0 * mult;
+      rates.isotopes = 2.2 * (1 + (state.buildings.extractionGrid.level - 1) * 0.18);
     }
     return rates;
   }

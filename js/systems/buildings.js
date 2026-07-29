@@ -27,6 +27,7 @@ window.BuildingSystem = (function () {
   function startUpgrade(state, buildingKey) {
     const b = state.buildings[buildingKey];
     if (b.upgrading) return { ok: false, reason: "Already upgrading" };
+    if (b.level >= 20) return { ok: false, reason: "Maximum level (20) reached" };
     const cost = getUpgradeCost(buildingKey, b.level);
     if (!Utils.payCost(state, cost)) return { ok: false, reason: "Insufficient resources" };
 

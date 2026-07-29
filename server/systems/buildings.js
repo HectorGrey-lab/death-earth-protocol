@@ -26,6 +26,7 @@ function startUpgrade(colony, buildingKey) {
   const b = colony.buildings[buildingKey];
   if (!b) return { ok: false, reason: 'Unknown building' };
   if (b.upgrading) return { ok: false, reason: 'Already upgrading' };
+  if (b.level >= 20) return { ok: false, reason: 'Maximum level (20) reached' };
   const cost = getUpgradeCost(buildingKey, b.level);
   if (!cost) return { ok: false, reason: 'Invalid building' };
   // Check resources

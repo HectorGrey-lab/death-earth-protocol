@@ -7,12 +7,12 @@ const GAME = require('../game-data.json');
 function getProductionRates(colony) {
   const extLevel = colony.buildings.extractionGrid.level || 0;
   const ecoResearch = colony.research.levels.economy || 0;
-  const mult = 1 + (extLevel - 1) * 0.12 + ecoResearch * 0.08;
+  const mult = 1 + (extLevel - 1) * 0.08 + ecoResearch * 0.08;
   return {
-    ore: 8 * mult,
-    solar: 7 * mult,
-    crystal: 5 * mult,
-    isotopes: 5.4 * (1 + (extLevel - 1) * 0.30 + ecoResearch * 0.08)
+    ore: 1.1 * mult,
+    solar: 0.9 * mult,
+    crystal: 1.0 * mult,
+    isotopes: 2.2 * (1 + (extLevel - 1) * 0.18 + ecoResearch * 0.08)
   };
 }
 
