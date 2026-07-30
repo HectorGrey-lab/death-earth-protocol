@@ -184,6 +184,7 @@ window.UICore = (function () {
       case "mailbox":
         target.innerHTML = UIMailbox.renderPage(state);
         state._hasNewMail = false;
+        setTimeout(function() { UIMailbox.bind(state); }, 0);
         break;
       case "leaderboard":
         target.innerHTML = UILeaderboard.renderPage(state);
