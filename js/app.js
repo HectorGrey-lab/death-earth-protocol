@@ -96,7 +96,12 @@ window.App = (function () {
           window.gameState.combat = c.combat;
         }
         if (c.mailbox) {
-          window.gameState.mailbox = _mergeMailboxReadState(window.gameState.mailbox, c.mailbox);
+          // On initial load, seed the mailbox from server. On periodic syncs (every ~5s),
+          // skip it — push events (mailbox_update, private_message_result, alliance_result)
+          // already deliver every change in real-time.
+          if (!window._colonyInitialized) {
+            window.gameState.mailbox = c.mailbox;
+          }
         }
         // Default to Inbox tab so PMs are visible
         if (window.gameState.mailbox) {
