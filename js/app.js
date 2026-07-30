@@ -81,6 +81,10 @@ window.App = (function () {
         if (c.mailbox) {
           window.gameState.mailbox = c.mailbox;
         }
+        // Default to Inbox tab so PMs are visible
+        if (window.gameState.mailbox) {
+          window.gameState.mailbox.selectedTab = 'Inbox';
+        }
 
         if (window.gameState.troops && window.gameState.troops.fleets) {
           window.gameState.fleets = window.gameState.troops.fleets;
