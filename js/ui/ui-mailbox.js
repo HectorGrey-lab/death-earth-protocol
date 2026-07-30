@@ -2,6 +2,12 @@ window.UIMailbox = (function () {
   const tabs = ["Attack", "Defense", "Inbox", "Alliance", "System"];
 
   function renderPage(state) {
+    // Mark all messages as read when mailbox is opened
+    if (state.mailbox && state.mailbox.messages) {
+      for (var i = 0; i < state.mailbox.messages.length; i++) {
+        state.mailbox.messages[i].isNew = false;
+      }
+    }
     const filtered = state.mailbox.messages.filter(m => m.tab === state.mailbox.selectedTab);
     const selected = filtered.find(m => m.id === state.mailbox.selectedMessageId) || filtered[0] || null;
 

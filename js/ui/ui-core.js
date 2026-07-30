@@ -27,7 +27,7 @@ window.UICore = (function () {
     // Mailbox message count badge
     var countEl = document.getElementById('mailCount');
     if (countEl) {
-      var total = (state.mailbox && state.mailbox.messages) ? state.mailbox.messages.length : 0;
+      var total = (state.mailbox && state.mailbox.messages) ? state.mailbox.messages.filter(function(m) { return m.isNew; }).length : 0;
       if (total > 0) {
         countEl.textContent = total;
         countEl.style.display = 'inline';
@@ -184,6 +184,7 @@ window.UICore = (function () {
       case "mailbox":
         target.innerHTML = UIMailbox.renderPage(state);
         state._hasNewMail = false;
+        renderNav(state);
         setTimeout(function() { UIMailbox.bind(state); }, 0);
         break;
       case "leaderboard":

@@ -330,7 +330,7 @@ function resolvePendingAttack(pa) {
 
   // Save combat report to mailboxes (persists for offline users)
   function makeMailMsg(tab, subject, body) {
-    return { id: 'cmbt_' + Date.now() + '_' + Math.random().toString(36).substr(2,4), tab: tab, subject: subject, body: body, time: Date.now() };
+    return { id: 'cmbt_' + Date.now() + '_' + Math.random().toString(36).substr(2,4), tab: tab, subject: subject, body: body, time: Date.now(), isNew: true };
   }
   if (!att.colony.mailbox) att.colony.mailbox = { messages: [], selectedTab: 'Inbox', selectedMessageId: null };
   if (!def.colony.mailbox) def.colony.mailbox = { messages: [], selectedTab: 'Inbox', selectedMessageId: null };
@@ -1037,7 +1037,8 @@ server.on('upgrade', function(req, socket, head) {
             subject: 'From: ' + username,
             body: text,
             time: Date.now(),
-            from: username
+            from: username,
+            isNew: true
           };
           // Add to target's mailbox
           if (!targetUser.colony.mailbox) targetUser.colony.mailbox = { messages: [], selectedTab: 'Inbox', selectedMessageId: null };
@@ -1060,7 +1061,8 @@ server.on('upgrade', function(req, socket, head) {
             subject: 'To: ' + target,
             body: text,
             time: Date.now(),
-            to: target
+            to: target,
+            isNew: true
           };
           user.colony.mailbox.messages.unshift(sentPm);
           user.colony.mailbox.messages = user.colony.mailbox.messages.slice(0, 120);
