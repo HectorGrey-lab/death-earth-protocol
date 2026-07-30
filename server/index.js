@@ -199,6 +199,13 @@ function resolvePendingAttack(pa) {
   var def = DB.db.users[pa.defender];
   if (!att || !def || !att.colony || !def.colony) return;
 
+  // Remove this PvP attack from defender's incomingAttacks
+  if (def.colony.combat && def.colony.combat.incomingAttacks) {
+    def.colony.combat.incomingAttacks = def.colony.combat.incomingAttacks.filter(function(a) {
+      return a.attacker !== pa.attacker;
+    });
+  }
+
   var fleet = att.colony.troops && att.colony.troops.fleets ? att.colony.troops.fleets[pa.fleetId] : null;
   if (!fleet) return;
   var fleetTroops = pa.fleetComposition || fleet.troops || {};
@@ -1268,6 +1275,18 @@ server.on('upgrade', function(req, socket, head) {
                   origin: { galaxy: origin.galaxy, sector: origin.sector, planet: origin.planet }
                 });
               }
+            });
+
+            // Add PvP attack to defender's colony.combat.incomingAttacks so it persists across colony_state syncs
+            if (!targetUser.colony.combat) targetUser.colony.combat = { scoutsCompleted:0, attackWins:0, defenseWins:0, incomingAttacks:[], raidHistory:[] };
+            if (!targetUser.colony.combat.incomingAttacks) targetUser.colony.combat.incomingAttacks = [];
+            targetUser.colony.combat.incomingAttacks.push({
+              id: 'pvp-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+              threatLevel: '?',
+              remaining: travelTime,
+              retaliation: false,
+              attacker: username,
+              origin: { galaxy: origin.galaxy, sector: origin.sector, planet: origin.planet }
             });
 
             log(ip, 'attack_fleet ' + username + ' -> ' + targetName + ' (launched, ETA ' + travelTime + 's)');
