@@ -24,21 +24,15 @@ window.UICore = (function () {
     document.querySelectorAll(".nav-btn").forEach((btn) => {
       btn.classList.toggle("active", btn.dataset.page === state.ui.currentPage);
     });
-    // New mail dot indicator
-    var mailBtn = document.querySelector('.nav-btn[data-page="mailbox"]');
-    if (mailBtn) {
-      if (state._hasNewMail) {
-        mailBtn.style.position = 'relative';
-        if (!mailBtn.querySelector('.new-mail-dot')) {
-          var dot = document.createElement('span');
-          dot.className = 'new-mail-dot';
-          dot.textContent = '●';
-          dot.style.cssText = 'position:absolute;top:2px;right:2px;font-size:10px;color:#ff4444;';
-          mailBtn.appendChild(dot);
-        }
+    // Mailbox message count badge
+    var countEl = document.getElementById('mailCount');
+    if (countEl) {
+      var total = (state.mailbox && state.mailbox.messages) ? state.mailbox.messages.length : 0;
+      if (total > 0) {
+        countEl.textContent = total;
+        countEl.style.display = 'inline';
       } else {
-        var dotEl = mailBtn.querySelector('.new-mail-dot');
-        if (dotEl) dotEl.remove();
+        countEl.style.display = 'none';
       }
     }
   }

@@ -262,9 +262,7 @@ window.App = (function () {
         window.gameState.mailbox.messages = window.gameState.mailbox.messages.slice(0, 120);
         window.gameState.mailbox.selectedTab = 'Inbox';
         window.gameState.mailbox.selectedMessageId = msg.message.id;
-        if (window.gameState.ui.currentPage !== 'mailbox') {
-          window.gameState._hasNewMail = true;
-        }
+        render();
       }
     });
 
