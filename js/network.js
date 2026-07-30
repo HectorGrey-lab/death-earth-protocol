@@ -1,17 +1,21 @@
 /**
  * network.js — Multiplayer WebSocket client
  * Connects to the Dead Earth Protocol server for real-time multiplayer.
- * 
+ *
+ * v2 — Added heartbeat, exponential backoff reconnect, request IDs, callbacks.
+ *
  * Exposes:
  *   Network.connect(url)       — Connect to server
  *   Network.register(u, p, cb) — Register new account
  *   Network.login(u, p, cb)    — Login to existing account
+ *   Network.send(data, cb)     — Send any message with optional callback
  *   Network.sendChat(msg)      — Send chat message
- *   Network.updatePosition(g,s,p) — Update universe position
- *   Network.onPresence(cb)     — Listen for player presence updates
- *   Network.onChat(cb)         — Listen for chat messages
- *   Network.onSystem(cb)       — Listen for system messages
+ *   Network.on(event, cb)      — Listen for events
+ *   Network.off(handle)        — Remove listener
+ *   Network.disconnect()       — Disconnect and clean up
+ *   Network.init()             — Auto-connect if credentials exist
  *   Network.isConnected        — Boolean
+ *   Network.reconnectAttempt   — Current reconnect attempt number (0 = connected/first)
  *   Network.username           — Current player's username
  */
 
@@ -22,126 +26,210 @@ window.Network = (function () {
   let token = null;
   let username = null;
   let connected = false;
-  let reconnectTimer = null;
+  let serverUrl = null;
 
-  // Callbacks
-  const listeners = {
-    presence: [],
-    chat: [],
-    system: [],
-    auth_ok: [],
-    auth_error: [],
-    disconnect: [],
-  };
+  // ── Reconnect State ──
+  let reconnectTimer = null;
+  let reconnectAttempt = 0;
+  const MAX_RECONNECT_INTERVAL = 30; // seconds
+  const BASE_RECONNECT_INTERVAL = 1; // seconds
+
+  // ── Heartbeat ──
+  let heartbeatTimer = null;
+  let lastPongTime = 0;
+  const HEARTBEAT_INTERVAL = 15; // seconds — send ping every 15s
+  const HEARTBEAT_TIMEOUT = 10;  // seconds — consider dead if no pong in 10s
+
+  // ── Request IDs ──
+  let requestSeq = 0;
+  let pendingCallbacks = {}; // requestId -> { resolve, reject, timer }
+
+  // ── Event listeners ──
+  const listeners = {};
+
+  // ── Internal Helpers ──
 
   function trigger(event, data) {
     (listeners[event] || []).forEach(function (cb) { cb(data); });
   }
 
-  function connect(serverUrl) {
+  function clearTimers() {
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+    if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+  }
+
+  function getReconnectDelay() {
+    // Exponential backoff: 1s, 2s, 4s, 8s, 16s, 30s (capped)
+    var delay = BASE_RECONNECT_INTERVAL * Math.pow(2, reconnectAttempt - 1);
+    return Math.min(delay, MAX_RECONNECT_INTERVAL) * 1000;
+  }
+
+  function cleanupCallbacks(errMsg) {
+    var now = Date.now();
+    Object.keys(pendingCallbacks).forEach(function (id) {
+      var pc = pendingCallbacks[id];
+      if (pc.timer) clearTimeout(pc.timer);
+      if (pc.reject) pc.reject(new Error(errMsg || 'Connection lost'));
+      delete pendingCallbacks[id];
+    });
+  }
+
+  // ── Heartbeat ──
+
+  function startHeartbeat() {
+    stopHeartbeat();
+    lastPongTime = Date.now();
+    heartbeatTimer = setInterval(function () {
+      if (!socket || socket.readyState !== WebSocket.OPEN) {
+        // Socket already gone — heartbeat will be restarted on reconnect
+        return;
+      }
+      // Check if pong was missed
+      if (Date.now() - lastPongTime > HEARTBEAT_TIMEOUT * 1000) {
+        console.warn('[NET] Heartbeat timeout — closing socket');
+        cleanupCallbacks('Server unreachable (heartbeat timeout)');
+        trigger('system', { message: 'Connection lost (heartbeat timeout)' });
+        try { socket.close(); } catch (e) {}
+        return;
+      }
+      // Send ping frame (opcode 0x09) — raw WS ping, server responds with pong
+      try {
+        socket.send(new Uint8Array([0x89, 0x00]));
+      } catch (e) {
+        // Socket may have died between check and send
+      }
+    }, HEARTBEAT_INTERVAL * 1000);
+  }
+
+  function stopHeartbeat() {
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer);
+      heartbeatTimer = null;
+    }
+  }
+
+  function handlePong() {
+    lastPongTime = Date.now();
+  }
+
+  // ── Reconnect ──
+
+  function scheduleReconnect() {
+    var delay = getReconnectDelay();
+    console.log('[NET] Reconnect attempt ' + reconnectAttempt + ' in ' + Math.round(delay/1000) + 's');
+    trigger('reconnecting', { attempt: reconnectAttempt, delay: delay });
+
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(function () {
+      doConnect();
+    }, delay);
+  }
+
+  function resetReconnect() {
+    reconnectAttempt = 0;
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+  }
+
+  // ── Connection ──
+
+  function doConnect() {
     if (socket) {
       try { socket.close(); } catch (e) {}
+      socket = null;
     }
 
-    // If serverUrl is relative, assume same host
-    if (!serverUrl || serverUrl === 'auto') {
+    if (!serverUrl) {
       var loc = window.location;
       var protocol = loc.protocol === 'https:' ? 'wss:' : 'ws:';
       serverUrl = protocol + '//' + loc.host;
     }
 
+    reconnectAttempt++;
+    console.log('[NET] Connecting to ' + serverUrl + ' (attempt ' + reconnectAttempt + ')');
+    trigger('connecting', { attempt: reconnectAttempt, url: serverUrl });
+
     socket = new WebSocket(serverUrl);
 
     socket.onopen = function () {
       connected = true;
-      // If we have stored credentials, auto-authenticate
+      // If we have credentials, re-authenticate
       if (token && username) {
         doAuth();
       }
     };
 
     socket.onmessage = function (e) {
+      // Handle binary pong frames (opcode 0x0A = pong)
+      if (e.data instanceof ArrayBuffer || e.data instanceof Blob) {
+        // Browser WebSocket automatically responds to pings with pongs
+        // We don't receive them here — they're handled by the browser.
+        // If we received a text pong (server sends it as a string), handle it:
+        return;
+      }
+
       try {
         var msg = JSON.parse(e.data);
+
+        // ── Request callback routing ──
+        if (msg._reqId && pendingCallbacks[msg._reqId]) {
+          var pc = pendingCallbacks[msg._reqId];
+          delete pendingCallbacks[msg._reqId];
+          if (pc.timer) clearTimeout(pc.timer);
+          if (pc.resolve) pc.resolve(msg);
+          return; // Don't also trigger event — callback wins
+        }
+
+        // ── Pong (heartbeat reply) ──
+        if (msg.type === 'pong') {
+          handlePong();
+          return;
+        }
+
+        // ── Auth responses ──
         switch (msg.type) {
           case 'auth_ok':
             connected = true;
+            resetReconnect();
+            startHeartbeat();
             trigger('auth_ok', msg);
             break;
           case 'auth_error':
             token = null;
             connected = false;
+            stopHeartbeat();
             trigger('auth_error', msg);
             break;
-          case 'presence':
-            trigger('presence', msg.players || []);
-            break;
-          case 'chat':
-            trigger('chat', msg);
-            break;
-          case 'system':
-            trigger('system', msg);
-            break;
-          case 'colony_state':
-            trigger('colony_state', msg);
-            break;
-          case 'build_result':
-            trigger('build_result', msg);
-            break;
-          case 'train_result':
-            trigger('train_result', msg);
-            break;
-          case 'world_tick':
-            trigger('world_tick', msg);
-            break;
-          case 'research_result':
-            trigger('research_result', msg);
-            break;
-          case 'scout_result':
-            trigger('scout_result', msg);
-            break;
-          case 'raid_result':
-            trigger('raid_result', msg);
-            break;
-          case 'expedition_result':
-            trigger('expedition_result', msg);
-            break;
-          case 'exchange_result':
-            trigger('exchange_result', msg);
-            break;
-          case 'buy_artifact_result':
-            trigger('buy_artifact_result', msg);
-            break;
-          case 'mailbox_update':
-            trigger('mailbox_update', msg);
-            break;
-          case 'private_message_result':
-            trigger('private_message_result', msg);
-            break;
-          case 'action_result':
-            trigger('action_result', msg);
-            break;
           default:
-            // Forward unknown message types to listeners too
+            // Forward all other types to listeners
             trigger(msg.type, msg);
             break;
         }
-      } catch (e) {}
+      } catch (e) {
+        console.warn('[NET] Failed to parse message:', e);
+      }
     };
 
     socket.onclose = function () {
       connected = false;
-      trigger('disconnect', {});
-      // Auto-reconnect after 5s
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      reconnectTimer = setTimeout(function () {
-        if (token && username) connect(serverUrl);
-      }, 5000);
+      stopHeartbeat();
+      trigger('disconnect', { attempt: reconnectAttempt });
+
+      // Schedule reconnect if we have credentials
+      if (token && username) {
+        scheduleReconnect();
+      }
     };
 
     socket.onerror = function () {
-      // onclose will fire after this
+      // onclose fires after this
     };
+  }
+
+  function connect(url) {
+    serverUrl = url || serverUrl || 'auto';
+    if (serverUrl === 'auto') serverUrl = null;
+    resetReconnect();
+    doConnect();
   }
 
   function doAuth() {
@@ -154,15 +242,53 @@ window.Network = (function () {
     }
   }
 
-  function send(data) {
-      console.log('[NET] send:', JSON.stringify(data).substring(0, 200));
-      if (socket && socket.readyState === WebSocket.OPEN) {
-          socket.send(JSON.stringify(data));
-          return true;
-      }
+  // ── Public send with optional callback ──
+
+  function send(data, callback) {
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
       console.warn('[NET] send FAILED — socket not open');
+      if (callback) callback(new Error('Socket not open'), null);
       return false;
+    }
+
+    // Attach request ID for callback routing
+    if (callback) {
+      requestSeq++;
+      var reqId = 'req_' + requestSeq + '_' + Date.now();
+      data._reqId = reqId;
+
+      pendingCallbacks[reqId] = {
+        resolve: function (response) {
+          if (callback) callback(null, response);
+        },
+        reject: function (err) {
+          if (callback) callback(err, null);
+        },
+        timer: setTimeout(function () {
+          delete pendingCallbacks[reqId];
+          if (callback) callback(new Error('Request timed out'), null);
+        }, 30000) // 30s timeout
+      };
+    }
+
+    console.log('[NET] send:', JSON.stringify(data).substring(0, 200));
+    try {
+      socket.send(JSON.stringify(data));
+      return true;
+    } catch (e) {
+      if (callback) {
+        var reqId = data._reqId;
+        if (pendingCallbacks[reqId]) {
+          clearTimeout(pendingCallbacks[reqId].timer);
+          delete pendingCallbacks[reqId];
+        }
+        callback(e, null);
+      }
+      return false;
+    }
   }
+
+  // ── Auth (HTTP) ──
 
   function register(username_, password_, callback) {
     var xhr = new XMLHttpRequest();
@@ -176,7 +302,6 @@ window.Network = (function () {
         if (res.ok) {
           token = res.token;
           username = res.username;
-          // Store token for reconnects
           try { localStorage.setItem('de_username', username); localStorage.setItem('de_token', token); } catch(e) {}
           if (callback) callback(null, res);
           doAuth();
@@ -221,6 +346,20 @@ window.Network = (function () {
     xhr.send(JSON.stringify({ username: username_, password: password_ }));
   }
 
+  // ── Event system ──
+
+  function on(event, callback) {
+    if (!listeners[event]) listeners[event] = [];
+    listeners[event].push(callback);
+    // Return unsubscribe handle
+    return function () {
+      var idx = listeners[event].indexOf(callback);
+      if (idx >= 0) listeners[event].splice(idx, 1);
+    };
+  }
+
+  // ── Convenience sends ──
+
   function sendChat(text) {
     return send({ type: 'chat', text: text });
   }
@@ -234,49 +373,34 @@ window.Network = (function () {
     });
   }
 
-  function on(event, callback) {
-    if (!listeners[event]) listeners[event] = [];
-    listeners[event].push(callback);
-    return function () {
-      var idx = listeners[event].indexOf(callback);
-      if (idx >= 0) listeners[event].splice(idx, 1);
-    };
+  function getColony() {
+    return send({ type: 'get_colony' });
   }
 
+  function build(buildingId, callback) {
+    return send({ type: 'build', buildingId: buildingId }, callback);
+  }
+
+  function train(troopId, qty, callback) {
+    return send({ type: 'train', troopId: troopId, qty: qty || 1 }, callback);
+  }
+
+  // ── Disconnect ──
+
   function disconnect() {
-    if (reconnectTimer) clearTimeout(reconnectTimer);
+    resetReconnect();
+    clearTimers();
+    cleanupCallbacks('Disconnected by user');
     if (socket) {
       try { socket.close(); } catch (e) {}
     }
     socket = null;
     connected = false;
+    reconnectAttempt = 0;
   }
 
-  // ── Game Actions ──────────────────────────────────
-  function getColony() {
-    return send({ type: 'get_colony' });
-  }
+  // ── Auto-init ──
 
-  function build(buildingId) {
-    return send({ type: 'build', buildingId: buildingId });
-  }
-
-  function train(troopId, qty) {
-    return send({ type: 'train', troopId: troopId, qty: qty || 1 });
-  }
-
-  // State callback — called when full colony state is received
-  let onColonyState = null;
-  function setColonyStateCallback(cb) { onColonyState = cb; }
-
-  // Parse incoming messages for game state
-  var _origOnMessage = null;
-  function _setupGameHandlers() {
-    if (_origOnMessage) return; // already set up
-    // We'll use the listeners pattern from app.js instead
-  }
-
-  // Auto-connect on load if credentials exist
   function init() {
     var savedToken = null;
     var savedUser = null;
@@ -303,9 +427,9 @@ window.Network = (function () {
     getColony: getColony,
     build: build,
     train: train,
-    setColonyStateCallback: setColonyStateCallback,
     send: send,
     get isConnected() { return connected; },
     get username() { return username; },
+    get reconnectAttempt() { return reconnectAttempt; }
   };
 })();

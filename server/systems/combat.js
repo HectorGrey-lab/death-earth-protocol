@@ -154,21 +154,27 @@ function tick(colony, dt) {
   if (!colony.combat) return;
   if (!colony.combat.incomingAttacks) return;
 
-  // Maybe spawn random attack
+  // Maybe spawn random attack (check before processing so new spawns don't get processed same tick)
   const radarReduction = (colony.buildings.radarArray.level - 1) * 0.0015;
-  const randomChance = Math.max(0.002, 0.01 * dt - radarReduction);
-  if (chance(randomChance)) {
+  // Cap random chance at 1.0 even at large dt to avoid guaranteed spawns on offline catch-up
+  const rawChance = Math.min(1.0, Math.max(0.002, 0.01 * (dt > 10 ? Math.min(dt, 60) : dt) - radarReduction));
+  if (chance(rawChance)) {
     scheduleIncomingAttack(colony, rand(1, 4), false);
   }
 
-  // Process incoming attacks
+  // Process incoming attacks — collect due in separate array to avoid mutating-while-iterating
   const due = [];
-  colony.combat.incomingAttacks.forEach(a => {
+  const alive = [];
+  colony.combat.incomingAttacks.forEach(function(a) {
     a.remaining -= dt;
-    if (a.remaining <= 0) due.push(a);
+    if (a.remaining <= 0) {
+      due.push(a);
+    } else {
+      alive.push(a);
+    }
   });
-  due.forEach(a => resolveIncoming(colony, a));
-  colony.combat.incomingAttacks = colony.combat.incomingAttacks.filter(a => a.remaining > 0);
+  colony.combat.incomingAttacks = alive;
+  due.forEach(function(a) { resolveIncoming(colony, a); });
 }
 
 function resolveIncoming(colony, attack) {
@@ -193,7 +199,9 @@ function resolveIncoming(colony, attack) {
     const hits = rand(1, 3);
     for (let i = 0; i < hits; i++) {
       const k = keys[Math.floor(Math.random() * keys.length)];
-      colony.buildings[k].integrity = Math.max(20, (colony.buildings[k].integrity || 100) - rand(8, 20));
+      if (colony.buildings[k]) {
+        colony.buildings[k].integrity = Math.max(20, (colony.buildings[k].integrity || 100) - rand(8, 20));
+      }
     }
   }
 

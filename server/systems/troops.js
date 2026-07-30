@@ -10,7 +10,7 @@ function getTrainingSpeedMult(colony) {
 }
 
 function queueTrain(colony, troopKey, qty) {
-  qty = Math.max(1, parseInt(qty, 10) || 1);
+  qty = Math.max(1, Math.min(9999, parseInt(qty, 10) || 1));
   const def = GAME.troops[troopKey];
   if (!def) return { ok: false, reason: 'Unknown troop type' };
   // Calculate cost for qty
@@ -40,11 +40,17 @@ function queueTrain(colony, troopKey, qty) {
 function tick(colony, dt) {
   const queue = colony.troops.queue;
   if (!queue.length) return;
-  const item = queue[0];
-  item.remaining -= dt;
-  if (item.remaining <= 0) {
-    colony.troops.counts[item.troopKey] = (colony.troops.counts[item.troopKey] || 0) + item.qty;
-    queue.shift();
+  let remainingDt = dt;
+  while (queue.length > 0 && remainingDt > 0) {
+    const item = queue[0];
+    if (item.remaining > remainingDt) {
+      item.remaining -= remainingDt;
+      remainingDt = 0;
+    } else {
+      remainingDt -= item.remaining;
+      colony.troops.counts[item.troopKey] = (colony.troops.counts[item.troopKey] || 0) + item.qty;
+      queue.shift();
+    }
   }
 }
 

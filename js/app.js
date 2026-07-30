@@ -187,21 +187,55 @@ window.App = (function () {
     Network.on("world_tick", function () {
       if (!window._tickCounter) window._tickCounter = 0;
       window._tickCounter++;
-      if (window._tickCounter % 5 === 0) {
+      // Only fetch colony state every 15 ticks (30s) instead of 5 (10s)
+      // to reduce bandwidth. Individual action results update on their own.
+      if (window._tickCounter % 15 === 0) {
         Network.getColony();
       }
       UICore.renderTick(window.gameState);
     });
 
     Network.on("disconnect", function () {
-      var statusEl = document.getElementById("connectionStatus");
-      if (!statusEl) {
+      var el = document.getElementById("connectionStatus");
+      if (el) {
+        el.textContent = "⚠ Disconnected from server";
+        el.className = "connection-status";
+        el.style.background = "#ff4444";
+        el.classList.remove("hidden");
+      } else {
         var div = document.createElement("div");
         div.id = "connectionStatus";
-        div.style.cssText = "position:fixed;bottom:10px;right:10px;background:#ff4444;color:#fff;padding:6px 14px;border-radius:6px;font-size:13px;z-index:9999;";
+        div.className = "connection-status";
         div.textContent = "⚠ Disconnected from server";
+        div.style.background = "#ff4444";
         document.body.appendChild(div);
       }
+    });
+
+    // ── Reconnection progress ──
+    Network.on("connecting", function (info) {
+      var el = document.getElementById("connectionStatus");
+      if (!el) return;
+      if (info.attempt > 1) {
+        el.textContent = "⟳ Reconnecting… attempt " + info.attempt;
+        el.style.background = "#ff8800";
+        el.className = "connection-status";
+        el.classList.remove("hidden");
+      }
+    });
+
+    // ── Reconnected successfully ──
+    Network.on("auth_ok", function () {
+      var el = document.getElementById("connectionStatus");
+      if (el) {
+        el.textContent = "✅ Reconnected";
+        el.style.background = "#69f0ae";
+        el.classList.remove("hidden");
+        // Auto-hide after 2s
+        setTimeout(function () { el.classList.add("hidden"); }, 2000);
+      }
+      // Re-request colony state on reconnection
+      Network.getColony();
     });
 
     Network.on("research_result", function (msg) {

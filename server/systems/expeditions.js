@@ -71,12 +71,17 @@ function resolveRewards(colony, expedition) {
 
 function tick(colony, dt) {
   if (!colony.expeditions || !colony.expeditions.queue) return;
-  colony.expeditions.queue.forEach(item => { item.remaining -= dt; });
-  const completed = colony.expeditions.queue.filter(item => item.remaining <= 0);
-  completed.forEach(item => {
-    resolveRewards(colony, item);
+  // Single pass: decrement remaining, resolve completions, collect survivors
+  const survivors = [];
+  colony.expeditions.queue.forEach(function(item) {
+    item.remaining -= dt;
+    if (item.remaining <= 0) {
+      resolveRewards(colony, item);
+    } else {
+      survivors.push(item);
+    }
   });
-  colony.expeditions.queue = colony.expeditions.queue.filter(item => item.remaining > 0);
+  colony.expeditions.queue = survivors;
 }
 
 module.exports = { launch, resolveRewards, tick };

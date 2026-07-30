@@ -3,6 +3,17 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
+// ─── HTML Escaping ──────────────────────────────────────────
+function escapeHTML(str) {
+  if (typeof str !== 'string') return str || '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // ─── Game Modules ─────────────────────────────────────────────────
 const Universe = require('./universe.js');
 const DB = require('./db-pg.js');
@@ -53,19 +64,19 @@ function computeLeaderboard() {
     var c = u.colony;
 
     data.population.push({
-      name: name,
+      name: escapeHTML(name),
       score: ResourceSystem.getPopulation(c)
     });
     data.raider.push({
-      name: name,
+      name: escapeHTML(name),
       score: (c.combat && c.combat.attackWins) || 0
     });
     data.attacker.push({
-      name: name,
+      name: escapeHTML(name),
       score: CombatSystem.getTotalPower(c)
     });
     data.defence.push({
-      name: name,
+      name: escapeHTML(name),
       score: CombatSystem.getTotalDefense(c)
     });
   });
@@ -150,7 +161,7 @@ function getAlliancesList() {
   var alls = DB.db.universe.alliances || {};
   Object.keys(alls).forEach(function(id) {
     var a = alls[id];
-    result.push({ id: id, name: a.name, founder: a.founder, members: a.members || [], created: a.created });
+    result.push({ id: id, name: escapeHTML(a.name), founder: escapeHTML(a.founder), members: (a.members || []).map(function(m) { return escapeHTML(m); }), created: a.created });
   });
   return result;
 }
@@ -476,12 +487,12 @@ const server = http.createServer(function(req, res) {
     req.on('end', function() {
       try {
         const parsed = JSON.parse(body);
-        const username = parsed.username;
-        const password = parsed.password;
-        const planetName = parsed.planetName;
-        if (!username || !password || username.length < 2 || password.length < 3) {
+        var username = String(parsed.username || '').trim();
+        var password = parsed.password;
+        var planetName = parsed.planetName;
+        if (!username || !password || username.length < 2 || username.length > 32 || password.length < 3) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ ok: false, error: 'Invalid username or password (min 2/3 chars)' }));
+          res.end(JSON.stringify({ ok: false, error: 'Invalid username (2-32 chars) or password (min 3 chars)' }));
           return;
         }
         if (DB.db.users[username]) {
@@ -499,7 +510,7 @@ const server = http.createServer(function(req, res) {
           return;
         }
         const claim = Universe.claimPlanet(DB.db.universe, planetInfo, username);
-        const pName = planetName || claim.planetName;
+        const pName = escapeHTML(planetName || claim.planetName);
 
         const colony = createInitialColony(username, pName, claim.galaxyId, claim.sectorId, claim.planetId);
 
@@ -714,6 +725,28 @@ server.on('upgrade', function(req, socket, head) {
 
   let authenticated = false;
   let username = null;
+  let idleTimeout = null;
+  const IDLE_TIMEOUT_MS = 120000; // 2 minutes of inactivity = disconnect
+
+  function resetIdleTimeout() {
+    if (idleTimeout) clearTimeout(idleTimeout);
+    idleTimeout = setTimeout(function() {
+      if (username) {
+        wsClients.delete(socket);
+        broadcastAll({ type: 'system', message: escapeHTML(username) + ' has disconnected (idle timeout)' });
+      }
+      try { socket.end(); } catch(e) {}
+    }, IDLE_TIMEOUT_MS);
+  }
+
+  // Helper to attach request ID from client message to server response
+  function reply(socket, data, reqId) {
+    if (reqId) data._reqId = reqId;
+    socket.write(wsEncodeFrame(JSON.stringify(data)));
+  }
+
+  // Sequence counter for colony state responses
+  let colonySeq = 0;
 
   // Send welcome
   socket.write(wsEncodeFrame(JSON.stringify({ type: 'system', message: 'Connected to Dead Earth Protocol' })));
@@ -761,7 +794,7 @@ server.on('upgrade', function(req, socket, head) {
             })));
           }
           log(ip, 'WS auth (' + uname + ')');
-          broadcastAll({ type: 'system', message: username + ' has joined the universe' });
+          broadcastAll({ type: 'system', message: escapeHTML(username) + ' has joined the universe' });
         } else {
           socket.write(wsEncodeFrame(JSON.stringify({ type: 'auth_error', message: 'Invalid token' })));
         }
@@ -771,13 +804,14 @@ server.on('upgrade', function(req, socket, head) {
   }
 
   socket.on('data', function(chunk) {
+    resetIdleTimeout();
     buffer = Buffer.concat([buffer, chunk]);
     if (buffer.length < 2) return;
     const opcode = buffer[0] & 0x0f;
     if (opcode === 0x08) { // close
       if (username) {
         wsClients.delete(socket);
-        broadcastAll({ type: 'system', message: username + ' has left the universe' });
+        broadcastAll({ type: 'system', message: escapeHTML(username) + ' has left the universe' });
       }
       socket.end();
       return;
@@ -816,7 +850,10 @@ server.on('upgrade', function(req, socket, head) {
 
       // ── Chat ──
       if (msg.type === 'chat') {
-        var chatMsg = { type: 'chat', username: username, text: msg.text.substring(0, 500), time: Date.now() };
+        // Cap and escape chat text
+        var safeText = escapeHTML(msg.text.substring(0, 500));
+        var safeUser = escapeHTML(username);
+        var chatMsg = { type: 'chat', username: safeUser, text: safeText, time: Date.now() };
         chatHistory.push(chatMsg);
         if (chatHistory.length > 20) chatHistory.splice(0, chatHistory.length - 20);
         broadcastAll(chatMsg);
@@ -835,9 +872,10 @@ server.on('upgrade', function(req, socket, head) {
 
       // ── Get Colony State ──
       if (msg.type === 'get_colony') {
+        colonySeq++;
         var colony = JSON.parse(JSON.stringify(user.colony));
         colony.productionRates = ResourceSystem.getProductionRates(user.colony);
-        socket.write(wsEncodeFrame(JSON.stringify({ type: 'colony_state', colony: colony, universe: DB.db.universe, alliances: getAlliancesList() })));
+        reply(socket, { type: 'colony_state', seq: colonySeq, colony: colony, universe: DB.db.universe, alliances: getAlliancesList() }, msg._reqId);
       }
 
       // ── Build ──
@@ -845,12 +883,13 @@ server.on('upgrade', function(req, socket, head) {
         var result = BuildingSystem.startUpgrade(user.colony, msg.buildingId);
         if (result.ok) {
           DB.saveDB();
+          colonySeq++;
           var colony = JSON.parse(JSON.stringify(user.colony));
           colony.productionRates = ResourceSystem.getProductionRates(user.colony);
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'build_result', ok: true, colony: colony })));
+          reply(socket, { type: 'build_result', ok: true, colony: colony }, msg._reqId);
           log(ip, 'build ' + username + ' ' + msg.buildingId);
         } else {
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'build_result', ok: false, error: result.reason })));
+          reply(socket, { type: 'build_result', ok: false, error: result.reason }, msg._reqId);
         }
       }
 
@@ -859,12 +898,13 @@ server.on('upgrade', function(req, socket, head) {
         var result = BuildingSystem.startRepair(user.colony, msg.buildingId);
         if (result.ok) {
           DB.saveDB();
+          colonySeq++;
           var colony = JSON.parse(JSON.stringify(user.colony));
           colony.productionRates = ResourceSystem.getProductionRates(user.colony);
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'build_result', ok: true, colony: colony })));
+          reply(socket, { type: 'build_result', ok: true, colony: colony }, msg._reqId);
           log(ip, 'repair ' + username + ' ' + msg.buildingId);
         } else {
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'build_result', ok: false, error: result.reason })));
+          reply(socket, { type: 'build_result', ok: false, error: result.reason }, msg._reqId);
         }
       }
 
@@ -873,12 +913,13 @@ server.on('upgrade', function(req, socket, head) {
         var result = TroopSystem.queueTrain(user.colony, msg.troopId, msg.qty || 1);
         if (result.ok) {
           DB.saveDB();
+          colonySeq++;
           var colony = JSON.parse(JSON.stringify(user.colony));
           colony.productionRates = ResourceSystem.getProductionRates(user.colony);
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'train_result', ok: true, colony: colony })));
+          reply(socket, { type: 'train_result', ok: true, colony: colony }, msg._reqId);
           log(ip, 'train ' + username + ' ' + msg.troopId + ' x' + (msg.qty || 1));
         } else {
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'train_result', ok: false, error: result.reason })));
+          reply(socket, { type: 'train_result', ok: false, error: result.reason }, msg._reqId);
         }
       }
 
@@ -887,9 +928,9 @@ server.on('upgrade', function(req, socket, head) {
         var missionId = msg.missionId;
         var mission = gameData.missions ? gameData.missions.find(function(m) { return m.id === missionId; }) : null;
         if (!mission) {
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'claim_result', ok: false, error: 'Mission not found' })));
+          reply(socket, { type: 'claim_result', ok: false, error: 'Mission not found' }, msg._reqId);
         } else if (user.colony.missions && user.colony.missions[missionId] && user.colony.missions[missionId].claimed) {
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'claim_result', ok: false, error: 'Already claimed' })));
+          reply(socket, { type: 'claim_result', ok: false, error: 'Already claimed' }, msg._reqId);
         } else {
           var progress = 0;
           switch (mission.type) {
@@ -917,7 +958,7 @@ server.on('upgrade', function(req, socket, head) {
               break;
           }
           if (progress < mission.target) {
-            socket.write(wsEncodeFrame(JSON.stringify({ type: 'claim_result', ok: false, error: 'Mission not yet complete' })));
+            reply(socket, { type: 'claim_result', ok: false, error: 'Mission not yet complete' }, msg._reqId);
           } else {
             if (!user.colony.missions) user.colony.missions = {};
             user.colony.missions[missionId] = { claimed: true };
@@ -929,9 +970,10 @@ server.on('upgrade', function(req, socket, head) {
               }
             }
             DB.saveDB();
+            colonySeq++;
             var colony = JSON.parse(JSON.stringify(user.colony));
             colony.productionRates = ResourceSystem.getProductionRates(user.colony);
-            socket.write(wsEncodeFrame(JSON.stringify({ type: 'claim_result', ok: true, colony: colony })));
+            reply(socket, { type: 'claim_result', ok: true, colony: colony }, msg._reqId);
             log(ip, 'claim_mission ' + username + ' ' + missionId);
           }
         }
@@ -942,12 +984,13 @@ server.on('upgrade', function(req, socket, head) {
         var result = ResearchSystem.startResearch(user.colony, msg.category);
         if (result.ok) {
           DB.saveDB();
+          colonySeq++;
           var colony = JSON.parse(JSON.stringify(user.colony));
           colony.productionRates = ResourceSystem.getProductionRates(user.colony);
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'research_result', ok: true, colony: colony })));
+          reply(socket, { type: 'research_result', ok: true, colony: colony }, msg._reqId);
           log(ip, 'research ' + username + ' ' + msg.category);
         } else {
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'research_result', ok: false, error: result.reason })));
+          reply(socket, { type: 'research_result', ok: false, error: result.reason }, msg._reqId);
         }
       }
 
@@ -956,12 +999,13 @@ server.on('upgrade', function(req, socket, head) {
         var result = CombatSystem.scout(user.colony, msg.nodeId);
         if (result.ok) {
           DB.saveDB();
+          colonySeq++;
           var colony = JSON.parse(JSON.stringify(user.colony));
           colony.productionRates = ResourceSystem.getProductionRates(user.colony);
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'scout_result', ok: true, colony: colony, intel: result.intel })));
+          reply(socket, { type: 'scout_result', ok: true, colony: colony, intel: result.intel }, msg._reqId);
           log(ip, 'scout ' + username + ' ' + msg.nodeId);
         } else {
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'scout_result', ok: false, error: result.reason })));
+          reply(socket, { type: 'scout_result', ok: false, error: result.reason }, msg._reqId);
         }
       }
 
@@ -970,12 +1014,13 @@ server.on('upgrade', function(req, socket, head) {
         var result = CombatSystem.raid(user.colony, msg.nodeId);
         if (result.ok) {
           DB.saveDB();
+          colonySeq++;
           var colony = JSON.parse(JSON.stringify(user.colony));
           colony.productionRates = ResourceSystem.getProductionRates(user.colony);
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'raid_result', ok: true, colony: colony, success: result.success, loot: result.loot })));
+          reply(socket, { type: 'raid_result', ok: true, colony: colony, success: result.success, loot: result.loot }, msg._reqId);
           log(ip, 'raid ' + username + ' ' + msg.nodeId + ' success=' + result.success);
         } else {
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'raid_result', ok: false, error: result.reason })));
+          reply(socket, { type: 'raid_result', ok: false, error: result.reason }, msg._reqId);
         }
       }
 
@@ -984,12 +1029,13 @@ server.on('upgrade', function(req, socket, head) {
         var result = ExpeditionSystem.launch(user.colony, msg.nodeId);
         if (result.ok) {
           DB.saveDB();
+          colonySeq++;
           var colony = JSON.parse(JSON.stringify(user.colony));
           colony.productionRates = ResourceSystem.getProductionRates(user.colony);
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'expedition_result', ok: true, colony: colony })));
+          reply(socket, { type: 'expedition_result', ok: true, colony: colony }, msg._reqId);
           log(ip, 'expedition ' + username + ' ' + msg.nodeId);
         } else {
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'expedition_result', ok: false, error: result.reason })));
+          reply(socket, { type: 'expedition_result', ok: false, error: result.reason }, msg._reqId);
         }
       }
 
@@ -1000,10 +1046,10 @@ server.on('upgrade', function(req, socket, head) {
           DB.saveDB();
           var colony = JSON.parse(JSON.stringify(user.colony));
           colony.productionRates = ResourceSystem.getProductionRates(user.colony);
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'exchange_result', ok: true, colony: colony })));
+          reply(socket, { type: 'exchange_result', ok: true, colony: colony }, msg._reqId);
           log(ip, 'exchange ' + username + ' ' + msg.from + '->' + msg.to);
         } else {
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'exchange_result', ok: false, error: result.reason })));
+          reply(socket, { type: 'exchange_result', ok: false, error: result.reason }, msg._reqId);
         }
       }
 
@@ -1014,10 +1060,10 @@ server.on('upgrade', function(req, socket, head) {
           DB.saveDB();
           var colony = JSON.parse(JSON.stringify(user.colony));
           colony.productionRates = ResourceSystem.getProductionRates(user.colony);
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'buy_artifact_result', ok: true, colony: colony })));
+          reply(socket, { type: 'buy_artifact_result', ok: true, colony: colony }, msg._reqId);
           log(ip, 'buy_artifact ' + username + ' ' + msg.listingId);
         } else {
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'buy_artifact_result', ok: false, error: result.reason })));
+          reply(socket, { type: 'buy_artifact_result', ok: false, error: result.reason }, msg._reqId);
         }
       }
 
@@ -1026,18 +1072,20 @@ server.on('upgrade', function(req, socket, head) {
         var target = String(msg.target).toLowerCase();
         var targetUser = DB.db.users[target];
         if (!targetUser || !targetUser.colony) {
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'private_message_result', ok: false, error: 'Player not found' })));
+          reply(socket, { type: 'private_message_result', ok: false, error: 'Player not found' }, msg._reqId);
         } else if (target === username.toLowerCase()) {
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'private_message_result', ok: false, error: 'Cannot message yourself' })));
+          reply(socket, { type: 'private_message_result', ok: false, error: 'Cannot message yourself' }, msg._reqId);
         } else {
           var text = String(msg.text).substring(0, 1000);
+          var safeUsername = escapeHTML(username);
+          var safeText = escapeHTML(text);
           var pm = {
             id: 'pm_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
             tab: 'Inbox',
-            subject: 'From: ' + username,
-            body: text,
+            subject: 'From: ' + safeUsername,
+            body: safeText,
             time: Date.now(),
-            from: username,
+            from: escapeHTML(username),
             isNew: true
           };
           // Add to target's mailbox
@@ -1058,10 +1106,10 @@ server.on('upgrade', function(req, socket, head) {
           var sentPm = {
             id: 'pm_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
             tab: 'Inbox',
-            subject: 'To: ' + target,
-            body: text,
+            subject: 'To: ' + escapeHTML(target),
+            body: safeText,
             time: Date.now(),
-            to: target,
+            to: escapeHTML(target),
             isNew: true
           };
           user.colony.mailbox.messages.unshift(sentPm);
@@ -1069,7 +1117,7 @@ server.on('upgrade', function(req, socket, head) {
           // Send updated colony to sender so they see the sent message
           var colony = JSON.parse(JSON.stringify(user.colony));
           colony.productionRates = ResourceSystem.getProductionRates(user.colony);
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'private_message_result', ok: true, colony: colony, sent: sentPm })));
+          reply(socket, { type: 'private_message_result', ok: true, colony: colony, sent: sentPm }, msg._reqId);
           log(ip, 'pm ' + username + ' -> ' + target + ': ' + text.substring(0, 50));
         }
       }
@@ -1077,9 +1125,9 @@ server.on('upgrade', function(req, socket, head) {
       if (msg.type === 'alliance_create') {
         var aName = msg.name;
         if (!aName || typeof aName !== 'string' || aName.trim().length < 2) {
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'alliance_result', ok: false, error: 'Alliance name must be at least 2 characters' })));
+          reply(socket, { type: 'alliance_result', ok: false, error: 'Alliance name must be at least 2 characters' }, msg._reqId);
         } else if (user.colony.alliance.joinedId) {
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'alliance_result', ok: false, error: 'You are already in an alliance' })));
+          reply(socket, { type: 'alliance_result', ok: false, error: 'You are already in an alliance' }, msg._reqId);
         } else {
           var alls = DB.db.universe.alliances = DB.db.universe.alliances || {};
           var id = 'alliance_' + Date.now();
@@ -1094,36 +1142,36 @@ server.on('upgrade', function(req, socket, head) {
           DB.saveDB();
           var colony = JSON.parse(JSON.stringify(user.colony));
           colony.productionRates = ResourceSystem.getProductionRates(user.colony);
-          socket.write(wsEncodeFrame(JSON.stringify({
+          reply(socket, {
             type: 'alliance_result', ok: true, colony: colony,
             alliances: getAlliancesList()
-          })));
+          }, msg._reqId);
           log(ip, 'alliance_create ' + username + ' -> ' + aName.trim());
         }
       }
 
       if (msg.type === 'alliance_join') {
         var allianceId = msg.allianceId;
-        if (!allianceId) {
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'alliance_result', ok: false, error: 'No alliance specified' })));
+        if (!allianceId || typeof allianceId !== 'string' || allianceId.indexOf('__') >= 0) {
+          reply(socket, { type: 'alliance_result', ok: false, error: 'Invalid alliance specified' }, msg._reqId);
         } else {
           var alls = DB.db.universe.alliances || {};
           var alliance = alls[allianceId];
           if (!alliance) {
-            socket.write(wsEncodeFrame(JSON.stringify({ type: 'alliance_result', ok: false, error: 'Alliance not found' })));
+            reply(socket, { type: 'alliance_result', ok: false, error: 'Alliance not found' }, msg._reqId);
           } else {
             if (alliance.members.indexOf(username) !== -1) {
-              socket.write(wsEncodeFrame(JSON.stringify({ type: 'alliance_result', ok: false, error: 'Already in this alliance' })));
+              reply(socket, { type: 'alliance_result', ok: false, error: 'Already in this alliance' }, msg._reqId);
             } else {
               alliance.members.push(username);
               user.colony.alliance.joinedId = allianceId;
               DB.saveDB();
               var colony = JSON.parse(JSON.stringify(user.colony));
               colony.productionRates = ResourceSystem.getProductionRates(user.colony);
-              socket.write(wsEncodeFrame(JSON.stringify({
+              reply(socket, {
                 type: 'alliance_result', ok: true, colony: colony,
                 alliances: getAlliancesList()
-              })));
+              }, msg._reqId);
               log(ip, 'alliance_join ' + username + ' -> ' + allianceId);
             }
           }
@@ -1133,7 +1181,7 @@ server.on('upgrade', function(req, socket, head) {
       if (msg.type === 'alliance_leave') {
         var joinedId = user.colony.alliance.joinedId;
         if (!joinedId) {
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'alliance_result', ok: false, error: 'Not in an alliance' })));
+          reply(socket, { type: 'alliance_result', ok: false, error: 'Not in an alliance' }, msg._reqId);
         } else {
           var alls = DB.db.universe.alliances || {};
           var alliance = alls[joinedId];
@@ -1153,10 +1201,10 @@ server.on('upgrade', function(req, socket, head) {
           DB.saveDB();
           var colony = JSON.parse(JSON.stringify(user.colony));
           colony.productionRates = ResourceSystem.getProductionRates(user.colony);
-          socket.write(wsEncodeFrame(JSON.stringify({
+          reply(socket, {
             type: 'alliance_result', ok: true, colony: colony,
             alliances: getAlliancesList()
-          })));
+          }, msg._reqId);
           log(ip, 'alliance_leave ' + username);
         }
       }
@@ -1180,15 +1228,15 @@ server.on('upgrade', function(req, socket, head) {
         var targetBuilding = msg.targetBuilding || 'any';
         var fleet = user.colony.troops && user.colony.troops.fleets ? user.colony.troops.fleets[fleetId] : null;
         if (!fleet) {
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'attack_result', ok: false, error: 'Fleet not found' })));
+          reply(socket, { type: 'attack_result', ok: false, error: 'Fleet not found' }, msg._reqId);
         } else if (fleet.transit) {
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'attack_result', ok: false, error: 'Fleet is already in transit' })));
+          reply(socket, { type: 'attack_result', ok: false, error: 'Fleet is already in transit' }, msg._reqId);
         } else if (targetName === username) {
-          socket.write(wsEncodeFrame(JSON.stringify({ type: 'attack_result', ok: false, error: 'Cannot attack yourself' })));
+          reply(socket, { type: 'attack_result', ok: false, error: 'Cannot attack yourself' }, msg._reqId);
         } else {
           var targetUser = DB.db.users[targetName];
           if (!targetUser || !targetUser.colony) {
-            socket.write(wsEncodeFrame(JSON.stringify({ type: 'attack_result', ok: false, error: 'Target not found' })));
+            reply(socket, { type: 'attack_result', ok: false, error: 'Target not found' }, msg._reqId);
           } else {
             // Ensure both sides have position (handle legacy players without it)
             if (!targetUser.colony.position) {
@@ -1255,7 +1303,7 @@ server.on('upgrade', function(req, socket, head) {
             DB.saveDB();
 
             // Confirm launch to attacker
-            socket.write(wsEncodeFrame(JSON.stringify({
+            reply(socket, {
               type: 'attack_launched',
               ok: true,
               target: targetName,
@@ -1264,7 +1312,7 @@ server.on('upgrade', function(req, socket, head) {
               fleetId: fleetId,
               atkPower: atkPower,
               defPower: defPowerWithShield
-            })));
+            }, msg._reqId);
 
             // Notify defender of incoming attack (no fleet strength — preserves surprise)
             wsClients.forEach(function (info, sock) {
@@ -1302,9 +1350,10 @@ server.on('upgrade', function(req, socket, head) {
   });
 
   socket.on('close', function() {
+    if (idleTimeout) clearTimeout(idleTimeout);
     if (username) {
       wsClients.delete(socket);
-      broadcastAll({ type: 'system', message: username + ' has left the universe' });
+      broadcastAll({ type: 'system', message: escapeHTML(username) + ' has left the universe' });
     }
   });
 });

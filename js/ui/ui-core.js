@@ -13,6 +13,72 @@ window.UICore = (function () {
     leaderboard: { title: "Leaderboard", subtitle: "Top commanders across population, raids, attacks, and defence." }
   };
 
+  // ── Mobile detection ──
+  function isMobile() {
+    return window.innerWidth < 768;
+  }
+
+  // ── Collapsible panels (mobile accordion for sidebar) ──
+  function initCollapsiblePanels() {
+    if (!isMobile()) return;
+    var panels = document.querySelectorAll('.sidebar > .panel');
+    panels.forEach(function(panel) {
+      var title = panel.querySelector('.panel-title');
+      var body = panel.querySelector('.collapsible-body') || (function() {
+        // Wrap all child nodes after .panel-title into a .collapsible-body div
+        var children = Array.from(panel.childNodes);
+        var afterTitle = false;
+        var contentNodes = [];
+        children.forEach(function(node) {
+          if (afterTitle) contentNodes.push(node);
+          if (node === title || (node.classList && node.classList.contains('panel-title'))) afterTitle = true;
+        });
+        if (contentNodes.length === 0) return null;
+        var wrapper = document.createElement('div');
+        wrapper.className = 'collapsible-body';
+        contentNodes.forEach(function(n) { wrapper.appendChild(n); });
+        panel.appendChild(wrapper);
+        return wrapper;
+      })();
+
+      if (!body) return;
+      // If panel-title is already clickable, skip
+      if (title._collapsibleBound) return;
+      title._collapsibleBound = true;
+
+      title.classList.add('collapsible-header');
+      // First panel (resources) stays open; others start collapsed
+      var isFirst = panel === panels[0];
+      if (!isFirst) {
+        body.classList.add('collapsed');
+        title.classList.add('collapsed');
+      }
+
+      title.addEventListener('click', function(e) {
+        e.stopPropagation();
+        body.classList.toggle('collapsed');
+        title.classList.toggle('collapsed');
+      });
+    });
+  }
+
+  // ── Connection status ──
+  function showConnectionStatus(text, type) {
+    var el = document.getElementById('connectionStatus');
+    if (!el) return;
+    el.textContent = text;
+    el.className = 'connection-status';
+    if (type === 'error') el.style.background = '#ff4444';
+    else if (type === 'ok') el.style.background = '#69f0ae';
+    else el.style.background = '#ffd166';
+    el.classList.remove('hidden');
+  }
+
+  function hideConnectionStatus() {
+    var el = document.getElementById('connectionStatus');
+    if (el) el.classList.add('hidden');
+  }
+
   function renderHeader(state) {
     Utils.el("headerBasePower").textContent = Utils.formatNumber(BuildingSystem.getBasePower(state));
     Utils.el("headerPopulation").textContent = Utils.formatNumber(BuildingSystem.getPopulation(state));
@@ -207,6 +273,12 @@ window.UICore = (function () {
     UIResources.render(state);
     renderPageFrame(state);
     renderActivePage(state);
+    // Set up collapsible sidebar panels on mobile after content is rendered
+    setTimeout(initCollapsiblePanels, 0);
+    // Re-bind window resize for collapsible
+    window._uiCoreResize = window._uiCoreResize || function() {
+      // On resize to desktop, remove collapsible modifications (next render handles it)
+    };
   }
 
   function renderTick(state) {
@@ -239,6 +311,9 @@ window.UICore = (function () {
     renderAll,
     renderTick,
     showAttackGlow,
-    hideAttackGlow
+    hideAttackGlow,
+    showConnectionStatus,
+    hideConnectionStatus,
+    isMobile
   };
 })();

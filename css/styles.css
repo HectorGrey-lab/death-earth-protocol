@@ -1132,6 +1132,8 @@ hr.sep {
   border: 1px solid rgba(255,255,255,0.08);
   background: rgba(255,255,255,0.03);
   margin-bottom: 10px;
+}
+
 /* ── Auth Overlay ── */
 #authOverlay {
   position: fixed; inset: 0; z-index: 99999;
@@ -1284,408 +1286,8 @@ hr.sep {
 }
 
 /* ════════════════════════════
-   MOBILE RESPONSIVE — < 768px
+   MOBILE RESPONSIVE — END OF FILE CONSOLIDATED BLOCKS
    ════════════════════════════ */
-@media (max-width: 768px) {
-  .app-shell {
-    padding: 8px;
-  }
-
-  .top-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-    margin-bottom: 8px;
-  }
-
-  #gameTitle {
-    font-size: 18px;
-  }
-
-  .subtitle {
-    font-size: 12px;
-  }
-
-  .header-stats {
-    gap: 6px;
-  }
-
-  .stat-chip {
-    min-width: auto;
-    padding: 6px 10px;
-    font-size: 11px;
-  }
-
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .sidebar {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-
-  .sidebar > .panel {
-    padding: 10px;
-  }
-
-  .page-panel {
-    min-height: auto;
-  }
-
-  .command-nav {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    gap: 6px;
-    padding-bottom: 6px;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
-  }
-
-  .command-nav::-webkit-scrollbar {
-    height: 3px;
-  }
-
-  .nav-btn {
-    flex-shrink: 0;
-    padding: 8px 10px;
-    font-size: 10px;
-    letter-spacing: 0.5px;
-  }
-
-  .card-grid.cols-2,
-  .card-grid.cols-3,
-  .card-grid.cols-4 {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .two-col,
-  .three-col,
-  .four-col,
-  .intel-stat-grid {
-    grid-template-columns: 1fr;
-    gap: 8px;
-  }
-
-  .mail-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .mail-list {
-    max-height: 280px;
-  }
-
-  .tactical-map-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .map-stage-viewport {
-    min-height: 360px;
-  }
-
-  .map-stage {
-    min-width: 100%;
-    min-height: 360px;
-  }
-
-  .galaxy-viewport {
-    min-height: 360px;
-  }
-
-  .galaxy-stage {
-    min-height: 360px;
-  }
-
-  .galaxy-node.universe {
-    width: 100px;
-  }
-
-  .galaxy-node.sector {
-    width: 90px;
-  }
-
-  .galaxy-node.planet {
-    width: 64px;
-  }
-
-  .galaxy-core {
-    width: 52px;
-    height: 52px;
-  }
-
-  .galaxy-core-inner {
-    width: 28px;
-    height: 28px;
-  }
-
-  .sector-core {
-    width: 28px;
-    height: 28px;
-  }
-
-  .planet-core {
-    width: 12px;
-    height: 12px;
-  }
-
-  .shield-ring {
-    width: 100px;
-    height: 100px;
-  }
-
-  .shield-ring-inner {
-    width: 60px;
-    height: 60px;
-  }
-
-  .shield-ring-inner strong {
-    font-size: 14px;
-  }
-
-  .map-camera-controls {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    gap: 6px;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .galaxy-camera-controls {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    gap: 6px;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .map-node {
-    width: 64px;
-  }
-
-  .map-node-core {
-    width: 20px;
-    height: 20px;
-  }
-
-  .map-node.player .map-node-core {
-    width: 24px;
-    height: 24px;
-  }
-
-  .fleet-marker {
-    width: 22px;
-    height: 22px;
-    font-size: 11px;
-  }
-
-  .fleet-queue-item {
-    padding: 8px;
-  }
-
-  .panel {
-    padding: 10px;
-  }
-
-  .modal {
-    width: calc(100vw - 16px);
-    max-height: calc(100vh - 16px);
-    padding: 12px;
-  }
-
-  .auth-box {
-    padding: 24px;
-    width: 300px;
-  }
-
-  .chat-panel {
-    width: calc(100vw - 32px);
-    right: 8px;
-    bottom: 60px;
-  }
-
-  .chat-toggle-btn {
-    bottom: 8px;
-    right: 8px;
-  }
-
-  .btn {
-    padding: 8px 10px;
-    font-size: 13px;
-  }
-
-  .resource-row,
-  .log-item,
-  .queue-item,
-  .mail-item,
-  .mission-item,
-  .alert-item {
-    padding: 8px;
-  }
-
-  .card {
-    padding: 8px;
-  }
-
-  .region-control-grid {
-    gap: 6px;
-  }
-
-  .region-control-card {
-    padding: 8px;
-  }
-
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .page-header h2 {
-    font-size: 16px;
-  }
-
-  .region-overlay {
-    display: none;
-  }
-
-  .map-scan-sweep,
-  .galaxy-scan-sweep {
-    display: none;
-  }
-}
-
-/* ════════════════════════════
-   SMALL PHONE — < 480px
-   ════════════════════════════ */
-@media (max-width: 480px) {
-  .sidebar {
-    grid-template-columns: 1fr;
-  }
-
-  .card-grid.cols-2,
-  .card-grid.cols-3,
-  .card-grid.cols-4 {
-    grid-template-columns: 1fr;
-  }
-
-  .map-stage-viewport {
-    min-height: 280px;
-  }
-
-  .map-stage {
-    min-height: 280px;
-  }
-
-  .galaxy-viewport {
-    min-height: 280px;
-  }
-
-  .galaxy-stage {
-    min-height: 280px;
-  }
-
-  .galaxy-node.universe {
-    width: 72px;
-  }
-
-  .galaxy-node.sector {
-    width: 64px;
-  }
-
-  .galaxy-node.planet {
-    width: 52px;
-  }
-
-  .galaxy-core {
-    width: 40px;
-    height: 40px;
-  }
-
-  .galaxy-core-inner {
-    width: 22px;
-    height: 22px;
-  }
-
-  .sector-core {
-    width: 22px;
-    height: 22px;
-  }
-
-  .planet-core {
-    width: 10px;
-    height: 10px;
-  }
-
-  .galaxy-node .galaxy-name {
-    font-size: 10px;
-  }
-
-  .galaxy-node .galaxy-meta {
-    font-size: 8px;
-  }
-
-  .shield-ring {
-    width: 80px;
-    height: 80px;
-  }
-
-  .shield-ring-inner {
-    width: 48px;
-    height: 48px;
-  }
-
-  .shield-ring-inner strong {
-    font-size: 12px;
-  }
-
-  .stat-chip {
-    padding: 4px 8px;
-    font-size: 10px;
-  }
-
-  .stat-chip .label {
-    font-size: 9px;
-  }
-
-  .page-panel {
-    padding: 6px;
-  }
-
-  .panel-title {
-    font-size: 11px;
-    margin-bottom: 8px;
-  }
-
-  .nav-btn {
-    padding: 6px 8px;
-    font-size: 9px;
-  }
-
-  .map-node {
-    width: 48px;
-  }
-
-  .map-node-core {
-    width: 16px;
-    height: 16px;
-  }
-
-  .map-node.player .map-node-core {
-    width: 20px;
-    height: 20px;
-  }
-
-  .map-node-name {
-    font-size: 9px;
-  }
-
-  .map-node-meta {
-    font-size: 8px;
-  }
-
-  * {
-    -webkit-tap-highlight-color: transparent;
-  }
-}
 
 /* ─── Home planet pulse highlight ─── */
 @keyframes home-pulse {
@@ -1723,8 +1325,33 @@ hr.sep {
 .player-profile-card { margin-top: 10px; border: 1px solid rgba(88,214,255,0.15); }
 
 /* ─── End ─── */
-@media (max-width: 768px) { .chat-container { height: calc(100vh - 280px); min-height: 200px; } .chat-msg { max-width: 95%; } }
 
+/* ── Connection status indicator ── */
+.connection-status {
+  position: fixed; bottom: 10px; right: 10px; z-index: 9999;
+  padding: 8px 16px; border-radius: 8px; font-size: 13px;
+  background: #ff4444; color: #fff;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+  pointer-events: none;
+}
+.connection-status.hidden { display: none; }
+
+/* ── Collapsible panel (mobile accordion) ── */
+.collapsible-header {
+  cursor: pointer; user-select: none;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.collapsible-header::after {
+  content: "▾"; font-size: 10px; color: var(--muted);
+  transition: transform 0.2s;
+}
+.collapsible-header.collapsed::after { transform: rotate(-90deg); }
+.collapsible-body { overflow: hidden; transition: max-height 0.25s ease; }
+.collapsible-body.collapsed { max-height: 0 !important; }
+
+@media (max-width: 768px) {
+  .collapsible-header { padding: 4px 0; }
+}
 
 /* === Fleet System === */
 .fleet-card {
@@ -1769,76 +1396,145 @@ hr.sep {
 }
 
 /* =========================
-   RESPONSIVE — Phone / Tablet
+   MOBILE — Tablet (max 768px) — consolidated
    ========================= */
-
 @media (max-width: 768px) {
+  /* ── Layout ── */
   .app-shell { padding: 6px; }
+  .dashboard-grid { grid-template-columns: 1fr; gap: 8px; }
+  .sidebar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .page-panel { min-height: auto; padding: 6px; }
+
+  /* ── Header ── */
   .top-header { flex-direction: column; align-items: stretch; gap: 6px; padding: 8px; }
   #gameTitle { font-size: 15px; }
   .subtitle { font-size: 10px; }
   .header-stats { overflow-x: auto; flex-wrap: nowrap; gap: 4px; padding-bottom: 2px; }
   .stat-chip { min-width: auto; white-space: nowrap; padding: 4px 8px; font-size: 10px; }
 
-  .command-nav { flex-wrap: nowrap; overflow-x: auto; gap: 4px; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
+  /* ── Nav (horizontal scroll, sticky) ── */
+  .command-nav {
+    flex-wrap: nowrap; overflow-x: auto; gap: 4px; padding-bottom: 2px;
+    -webkit-overflow-scrolling: touch; position: sticky; top: 0; z-index: 10;
+    background: var(--bg);
+  }
   .command-nav::-webkit-scrollbar { height: 2px; }
   .command-nav::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-  .nav-btn { flex-shrink: 0; font-size: 9px; padding: 6px 8px; }
+  .nav-btn { flex-shrink: 0; font-size: 9px; padding: 6px 8px; min-height: 44px; }
 
-  .dashboard-grid { grid-template-columns: 1fr; gap: 8px; }
-  .sidebar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .page-panel { min-height: auto; }
+  /* ── Page header ── */
   .page-header { flex-direction: column; align-items: flex-start; gap: 4px; margin-bottom: 8px; padding-bottom: 8px; }
   #pageTitle { font-size: 14px; }
   #pageSubtitle { font-size: 11px; }
+  .page-header .small { font-size: 10px; }
+  .page-header h2 { font-size: 16px; }
 
-  .mail-layout { grid-template-columns: 1fr; }
-  .mail-list { max-height: 280px; }
-
-  .tactical-map-layout, .galaxy-map-layout { grid-template-columns: 1fr; }
-  .map-stage-viewport { min-height: 350px; }
-  .galaxy-viewport { min-height: 350px; }
-
+  /* ── Grids & cards ── */
   .card-grid { gap: 6px; }
   .card-grid.cols-4 { grid-template-columns: repeat(2, 1fr); }
   .card-grid.cols-3 { grid-template-columns: repeat(2, 1fr); }
-
   .three-col { grid-template-columns: 1fr; }
   .four-col { grid-template-columns: 1fr 1fr; gap: 8px; }
   .two-col { grid-template-columns: 1fr; }
-
   .intel-stat-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .card { padding: 8px; }
 
-  .shield-ring { width: 90px; height: 90px; }
-  .shield-ring-inner { width: 54px; height: 54px; }
+  /* ── Mail ── */
+  .mail-layout { grid-template-columns: 1fr; }
+  .mail-list { max-height: 280px; }
 
-  .modal { width: calc(100vw - 12px); }
+  /* ── Map / Galaxy ── */
+  .tactical-map-layout, .galaxy-map-layout { grid-template-columns: 1fr; }
+  .map-stage-viewport { min-height: 350px; }
+  .map-stage { min-width: 100%; min-height: 350px; }
+  .galaxy-viewport { min-height: 350px; }
+  .galaxy-stage { min-height: 350px; }
+
+  .map-camera-controls { flex-wrap: nowrap; overflow-x: auto; gap: 6px; -webkit-overflow-scrolling: touch; }
+  .galaxy-camera-controls { flex-wrap: nowrap; overflow-x: auto; gap: 6px; -webkit-overflow-scrolling: touch; }
+
+  .galaxy-node.universe { width: 100px; }
+  .galaxy-node.sector { width: 90px; }
+  .galaxy-node.planet { width: 64px; }
+  .galaxy-core { width: 52px; height: 52px; }
+  .galaxy-core-inner { width: 28px; height: 28px; }
+  .sector-core { width: 28px; height: 28px; }
+  .planet-core { width: 12px; height: 12px; }
+
+  .map-node { width: 64px; }
+  .map-node-core { width: 20px; height: 20px; }
+  .map-node.player .map-node-core { width: 24px; height: 24px; }
+  .fleet-marker { width: 22px; height: 22px; font-size: 11px; }
+  .fleet-queue-item { padding: 8px; }
+
+  .region-control-grid { gap: 6px; }
+  .region-control-card { padding: 8px; }
+
+  .region-overlay { display: none; }
+  .map-scan-sweep, .galaxy-scan-sweep { display: none; }
+
+  /* ── Touch improvements for map ── */
+  .map-surface { touch-action: none; }
+
+  /* ── Panels ── */
   .panel { padding: 8px; border-radius: 12px; }
   .panel-title { font-size: 11px; margin-bottom: 8px; }
-  .card { padding: 8px; }
+  .sidebar > .panel { padding: 10px; }
+  .fleet-card { padding: 8px 10px; }
+
+  /* ── Shield ── */
+  .shield-ring { width: 90px; height: 90px; }
+  .shield-ring-inner { width: 54px; height: 54px; }
+  .shield-ring-inner strong { font-size: 14px; }
+
+  /* ── Buttons / inputs ── */
+  .btn { padding: 8px 10px; font-size: 13px; min-height: 44px; }
+  .btn.small { padding: 4px 6px; font-size: 10px; min-height: 32px; }
+  .input, .select { padding: 6px 8px; }
+
+  /* ── Resource rows, logs, queues ── */
   .resource-row, .log-item, .queue-item, .mail-item, .mission-item, .alert-item { padding: 6px; }
   .stack { gap: 6px; }
   .row { gap: 6px; }
   .space-between { gap: 6px; }
 
-  .btn { padding: 6px 8px; font-size: 11px; }
-  .btn.small { padding: 4px 6px; font-size: 10px; }
-  .input, .select { padding: 6px 8px; }
+  /* ── Building images ── */
+  .building-visual { max-width: 60px; height: auto; margin-bottom: 6px; }
 
-  .building-visual { display: none; }
-  .page-header .small { font-size: 10px; }
+  /* ── Modal ── */
+  .modal { width: calc(100vw - 12px); max-height: calc(100vh - 16px); padding: 12px; }
+  .modal-overlay { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+
+  /* ── Auth ── */
+  .auth-box { padding: 24px; width: 300px; }
+
+  /* ── Chat ── */
+  .chat-panel { width: calc(100vw - 32px); right: 8px; bottom: 60px; }
+  .chat-toggle-btn { bottom: 8px; right: 8px; }
+  .chat-container { height: calc(100vh - 280px); min-height: 200px; }
+  .chat-msg { max-width: 95%; }
+
+  /* ── Badges ── */
   .badge { font-size: 9px; padding: 2px 6px; }
 }
 
+/* =========================
+   MOBILE — Small phone (max 480px) — consolidated
+   ========================= */
 @media (max-width: 480px) {
   .app-shell { padding: 4px; }
   .panel { padding: 6px; border-radius: 10px; }
   .top-header { padding: 6px; gap: 4px; }
   #gameTitle { font-size: 13px; }
   .subtitle { display: none; }
+  #pageSubtitle { display: none; }
   .header-stats { gap: 3px; }
   .stat-chip { padding: 3px 6px; font-size: 9px; }
-  .nav-btn { font-size: 8px; padding: 5px 6px; }
+  .stat-chip .label { font-size: 9px; }
+
+  .nav-btn { font-size: 8px; padding: 5px 6px; min-height: 44px; min-width: 44px; }
+  .btn { padding: 6px 8px; font-size: 11px; min-height: 44px; }
+  .btn.small { min-height: 36px; }
 
   .sidebar { grid-template-columns: 1fr; gap: 6px; }
 
@@ -1851,12 +1547,35 @@ hr.sep {
   .three-col { grid-template-columns: 1fr; gap: 6px; }
 
   .map-stage-viewport { min-height: 240px; }
+  .map-stage { min-height: 240px; }
   .galaxy-viewport { min-height: 240px; }
+  .galaxy-stage { min-height: 240px; }
+
+  .galaxy-node.universe { width: 72px; }
+  .galaxy-node.sector { width: 64px; }
+  .galaxy-node.planet { width: 52px; }
+  .galaxy-core { width: 40px; height: 40px; }
+  .galaxy-core-inner { width: 22px; height: 22px; }
+  .sector-core { width: 22px; height: 22px; }
+  .planet-core { width: 10px; height: 10px; }
+  .galaxy-node .galaxy-name { font-size: 10px; }
+  .galaxy-node .galaxy-meta { font-size: 8px; }
+
+  .map-node { width: 48px; }
+  .map-node-core { width: 16px; height: 16px; }
+  .map-node.player .map-node-core { width: 20px; height: 20px; }
+  .map-node-name { font-size: 9px; }
+  .map-node-meta { font-size: 8px; }
+
+  .shield-ring { width: 80px; height: 80px; }
+  .shield-ring-inner { width: 48px; height: 48px; }
+  .shield-ring-inner strong { font-size: 12px; }
 
   .mail-list { max-height: 200px; }
 
   .dashboard-grid { gap: 6px; }
   .panel-title { font-size: 10px; margin-bottom: 6px; }
+  .page-panel { padding: 6px; }
   .card { padding: 6px; }
   .card .row { margin-top: 4px !important; }
   .card .small[style*="margin-top"] { margin-top: 4px !important; }
@@ -1865,5 +1584,9 @@ hr.sep {
   .row { gap: 4px; }
   .space-between { gap: 4px; }
   #pageTitle { font-size: 13px; }
-  #pageSubtitle { display: none; }
+  .page-header h2 { font-size: 14px; }
+
+  .building-visual { max-width: 48px; height: auto; }
+
+  * { -webkit-tap-highlight-color: transparent; }
 }

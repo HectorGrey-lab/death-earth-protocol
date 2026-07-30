@@ -75,7 +75,8 @@ window.UIMailbox = (function () {
         var preview = document.getElementById('mailPreview');
         if (preview) {
           if (selected) {
-            preview.innerHTML = '<h3>' + selected.subject + '</h3><div class="small">' + new Date(selected.time).toLocaleString() + '</div><hr class="sep"><pre style="white-space:pre-wrap;font-family:inherit;">' + selected.body + '</pre>';
+            function esc(m) { return String(m).replace(/[&<>"']/g, function(c) { return '&#' + c.charCodeAt(0) + ';'; }); }
+            preview.innerHTML = '<h3>' + esc(selected.subject) + '</h3><div class="small">' + new Date(selected.time).toLocaleString() + '</div><hr class="sep"><pre style="white-space:pre-wrap;font-family:inherit;">' + esc(selected.body) + '</pre>';
           } else {
             preview.innerHTML = '<div class="small">Select a message.</div>';
           }

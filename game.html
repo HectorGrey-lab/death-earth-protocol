@@ -49,18 +49,18 @@
       </div>
     </header>
 
-    <nav class="panel command-nav">
-      <button class="nav-btn" data-page="home">Command Center</button>
-      <button class="nav-btn" data-page="map">World Map</button>
-      <button class="nav-btn" data-page="buildings">Buildings</button>
-      <button class="nav-btn" data-page="forces">Forces</button>
-      <button class="nav-btn" data-page="research">Research</button>
-      <button class="nav-btn" data-page="missions">Missions</button>
-      <button class="nav-btn" data-page="alliance">Alliance</button>
-      <button class="nav-btn" data-page="market">Market</button>
-      <button class="nav-btn" data-page="mailbox">Mailbox <span id="mailCount" class="mail-badge" style="display:none;"></span></button>
-      <button class="nav-btn" data-page="chat">Global Chat</button>
-      <button class="nav-btn" data-page="leaderboard">Leaderboard</button>
+    <nav class="panel command-nav" role="navigation" aria-label="Command Navigation">
+      <button class="nav-btn" data-page="home" aria-label="Command Center">Command Center</button>
+      <button class="nav-btn" data-page="map" aria-label="World Map">World Map</button>
+      <button class="nav-btn" data-page="buildings" aria-label="Buildings">Buildings</button>
+      <button class="nav-btn" data-page="forces" aria-label="Forces">Forces</button>
+      <button class="nav-btn" data-page="research" aria-label="Research">Research</button>
+      <button class="nav-btn" data-page="missions" aria-label="Missions">Missions</button>
+      <button class="nav-btn" data-page="alliance" aria-label="Alliance">Alliance</button>
+      <button class="nav-btn" data-page="market" aria-label="Market">Market</button>
+      <button class="nav-btn" data-page="mailbox" aria-label="Mailbox">Mailbox <span id="mailCount" class="mail-badge" style="display:none;"></span></button>
+      <button class="nav-btn" data-page="chat" aria-label="Global Chat">Global Chat</button>
+      <button class="nav-btn" data-page="leaderboard" aria-label="Leaderboard">Leaderboard</button>
     </nav>
 
     <div class="dashboard-grid">
@@ -95,10 +95,13 @@
             </div>
             <div id="pageSubtitle" class="small">Strategic overview of colony operations.</div>
           </div>
-          <div id="pageContent"></div>
+          <div id="pageContent" role="region" aria-live="polite" aria-label="Page content"></div>
         </section>
       </main>
     </div>
+
+    <!-- Connection status indicator — hidden by default, shown by app.js on disconnect -->
+    <div id="connectionStatus" class="connection-status hidden"></div>
   </div>
 
   <div id="modalOverlay" class="modal-overlay hidden">
