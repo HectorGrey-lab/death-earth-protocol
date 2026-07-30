@@ -322,6 +322,15 @@ window.App = (function () {
 
     Network.on("incoming_attack", function (msg) {
       var s = window.gameState;
+      if (!s.combat) s.combat = { scoutsCompleted: 0, attackWins: 0, defenseWins: 0, incomingAttacks: [], raidHistory: [] };
+      if (!s.combat.incomingAttacks) s.combat.incomingAttacks = [];
+      s.combat.incomingAttacks.push({
+        threatLevel: '?',
+        remaining: msg.eta,
+        retaliation: false,
+        attacker: msg.attacker,
+        origin: msg.origin
+      });
       if (!s._incomingAttacks) s._incomingAttacks = [];
       s._incomingAttacks.push({
         attacker: msg.attacker,
@@ -329,6 +338,7 @@ window.App = (function () {
         arrivalTime: msg.arrivalTime,
         origin: msg.origin
       });
+      UICore.showAttackGlow();
       render();
     });
 
@@ -377,6 +387,10 @@ window.App = (function () {
       }
       if (s._incomingAttacks && msg.attackedBy) {
         s._incomingAttacks = s._incomingAttacks.filter(function(a) { return a.attacker !== msg.attackedBy; });
+        if (s.combat && s.combat.incomingAttacks) {
+          s.combat.incomingAttacks = s.combat.incomingAttacks.filter(function(a) { return a.attacker !== msg.attackedBy; });
+        }
+        if (!s._incomingAttacks.length) UICore.hideAttackGlow();
       }
       s._selectedFleetId = null;
       var logMsg = '⚔ ' + (msg.victory ? 'Victory' : 'Defeat') + ' against ' + (msg.target || msg.attackedBy || 'unknown');

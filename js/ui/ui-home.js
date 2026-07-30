@@ -7,7 +7,9 @@ window.UIHome = (function () {
     }
 
     state.combat.incomingAttacks.slice(0, 2).forEach(a => {
-      alerts.push(`<div class="alert-item"><strong>${a.retaliation ? "Retaliation Force" : "Incoming Attack"}</strong><div class="small">Threat ${a.threatLevel} • ETA ${Utils.formatTime(a.remaining)}</div></div>`);
+      const from = a.attacker ? `From ${a.attacker}` : '';
+      const eta = a.remaining ? `ETA ${Utils.formatTime(a.remaining)}` : '';
+      alerts.push(`<div class="alert-item"><strong>⚠ Incoming Attack</strong><div class="small">${[from, eta].filter(Boolean).join(' • ')}</div></div>`);
     });
 
     if (state.research.active) {

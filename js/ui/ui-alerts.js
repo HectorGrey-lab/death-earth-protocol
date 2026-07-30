@@ -12,9 +12,13 @@ window.UIAlerts = (function () {
     }
 
     state.combat.incomingAttacks.forEach(a => {
+      const label = a.retaliation ? "Retaliation Force" : "Incoming Hostile Attack";
+      const eta = a.remaining ? `ETA ${Utils.formatTime(a.remaining)}` : '';
+      const from = a.attacker ? `From ${a.attacker}` : '';
+      const threat = a.threatLevel && a.threatLevel !== '?' ? `Threat ${a.threatLevel}` : '';
       alerts.push({
-        title: a.retaliation ? "Retaliation Force" : "Incoming Hostile Attack",
-        body: `Threat ${a.threatLevel} • ETA ${Utils.formatTime(a.remaining)}`,
+        title: label,
+        body: [from, threat, eta].filter(Boolean).join(' • '),
         tone: "red"
       });
     });

@@ -222,8 +222,27 @@ window.UICore = (function () {
     UIResources.render(state);
   }
 
+  function showAttackGlow() {
+    var overlay = document.getElementById('attack-glow-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'attack-glow-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9999;border:4px solid rgba(255,0,0,0.7);box-shadow:inset 0 0 60px rgba(255,0,0,0.3),inset 0 0 120px rgba(255,0,0,0.1);transition:opacity 0.5s;opacity:1;';
+      document.body.appendChild(overlay);
+    } else {
+      overlay.style.opacity = '1';
+    }
+  }
+
+  function hideAttackGlow() {
+    var overlay = document.getElementById('attack-glow-overlay');
+    if (overlay) overlay.style.opacity = '0';
+  }
+
   return {
     renderAll,
-    renderTick
+    renderTick,
+    showAttackGlow,
+    hideAttackGlow
   };
 })();
