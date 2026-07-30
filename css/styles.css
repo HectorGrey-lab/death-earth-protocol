@@ -1773,123 +1773,97 @@ hr.sep {
    ========================= */
 
 @media (max-width: 768px) {
-  .app-shell {
-    padding: 8px;
-  }
+  .app-shell { padding: 6px; }
+  .top-header { flex-direction: column; align-items: stretch; gap: 6px; padding: 8px; }
+  #gameTitle { font-size: 15px; }
+  .subtitle { font-size: 10px; }
+  .header-stats { overflow-x: auto; flex-wrap: nowrap; gap: 4px; padding-bottom: 2px; }
+  .stat-chip { min-width: auto; white-space: nowrap; padding: 4px 8px; font-size: 10px; }
 
-  .top-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-    padding: 10px;
-  }
-  #gameTitle { font-size: 16px; }
-  .subtitle { font-size: 11px; }
-  .header-stats {
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    gap: 6px;
-    padding-bottom: 2px;
-  }
-  .stat-chip {
-    min-width: auto;
-    white-space: nowrap;
-    padding: 6px 10px;
-    font-size: 11px;
-  }
-
-  .command-nav {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    gap: 6px;
-    padding-bottom: 4px;
-    -webkit-overflow-scrolling: touch;
-  }
-  .command-nav::-webkit-scrollbar { height: 3px; }
+  .command-nav { flex-wrap: nowrap; overflow-x: auto; gap: 4px; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
+  .command-nav::-webkit-scrollbar { height: 2px; }
   .command-nav::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-  .nav-btn {
-    flex-shrink: 0;
-    font-size: 10px;
-    padding: 8px 10px;
-  }
+  .nav-btn { flex-shrink: 0; font-size: 9px; padding: 6px 8px; }
 
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-  .sidebar {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-  }
-  .page-panel {
-    min-height: auto;
-  }
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-  }
-  #pageTitle { font-size: 16px; }
+  .dashboard-grid { grid-template-columns: 1fr; gap: 8px; }
+  .sidebar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .page-panel { min-height: auto; }
+  .page-header { flex-direction: column; align-items: flex-start; gap: 4px; margin-bottom: 8px; padding-bottom: 8px; }
+  #pageTitle { font-size: 14px; }
+  #pageSubtitle { font-size: 11px; }
 
-  .mail-layout {
-    grid-template-columns: 1fr;
-  }
-  .mail-list {
-    max-height: 300px;
-  }
+  .mail-layout { grid-template-columns: 1fr; }
+  .mail-list { max-height: 280px; }
 
-  .tactical-map-layout,
-  .galaxy-map-layout {
-    grid-template-columns: 1fr;
-  }
-  .map-stage-viewport {
-    min-height: 400px;
-  }
-  .galaxy-viewport {
-    min-height: 400px;
-  }
+  .tactical-map-layout, .galaxy-map-layout { grid-template-columns: 1fr; }
+  .map-stage-viewport { min-height: 350px; }
+  .galaxy-viewport { min-height: 350px; }
 
+  .card-grid { gap: 6px; }
   .card-grid.cols-4 { grid-template-columns: repeat(2, 1fr); }
   .card-grid.cols-3 { grid-template-columns: repeat(2, 1fr); }
 
   .three-col { grid-template-columns: 1fr; }
-  .four-col { grid-template-columns: 1fr 1fr; }
+  .four-col { grid-template-columns: 1fr 1fr; gap: 8px; }
   .two-col { grid-template-columns: 1fr; }
 
-  .intel-stat-grid { grid-template-columns: 1fr 1fr; }
+  .intel-stat-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
 
-  .shield-ring {
-    width: 100px;
-    height: 100px;
-  }
-  .shield-ring-inner {
-    width: 60px;
-    height: 60px;
-  }
+  .shield-ring { width: 90px; height: 90px; }
+  .shield-ring-inner { width: 54px; height: 54px; }
 
   .modal { width: calc(100vw - 12px); }
+  .panel { padding: 8px; border-radius: 12px; }
+  .panel-title { font-size: 11px; margin-bottom: 8px; }
+  .card { padding: 8px; }
+  .resource-row, .log-item, .queue-item, .mail-item, .mission-item, .alert-item { padding: 6px; }
+  .stack { gap: 6px; }
+  .row { gap: 6px; }
+  .space-between { gap: 6px; }
 
-  .panel { padding: 10px; }
+  .btn { padding: 6px 8px; font-size: 11px; }
+  .btn.small { padding: 4px 6px; font-size: 10px; }
+  .input, .select { padding: 6px 8px; }
+
+  .building-visual { display: none; }
+  .page-header .small { font-size: 10px; }
+  .badge { font-size: 9px; padding: 2px 6px; }
 }
 
 @media (max-width: 480px) {
   .app-shell { padding: 4px; }
-  .panel { padding: 8px; border-radius: 12px; }
-  .top-header { padding: 8px; gap: 6px; }
-  #gameTitle { font-size: 14px; }
-  .stat-chip { padding: 4px 8px; font-size: 10px; }
-  .nav-btn { font-size: 9px; padding: 6px 8px; }
+  .panel { padding: 6px; border-radius: 10px; }
+  .top-header { padding: 6px; gap: 4px; }
+  #gameTitle { font-size: 13px; }
+  .subtitle { display: none; }
+  .header-stats { gap: 3px; }
+  .stat-chip { padding: 3px 6px; font-size: 9px; }
+  .nav-btn { font-size: 8px; padding: 5px 6px; }
 
-  .sidebar { grid-template-columns: 1fr; gap: 8px; }
+  .sidebar { grid-template-columns: 1fr; gap: 6px; }
 
   .card-grid.cols-2 { grid-template-columns: 1fr; }
+  .card-grid.cols-3 { grid-template-columns: 1fr; }
   .card-grid.cols-4 { grid-template-columns: 1fr; }
+  .card-grid { gap: 4px; }
   .intel-stat-grid { grid-template-columns: 1fr; }
-  .four-col { grid-template-columns: 1fr; }
+  .four-col { grid-template-columns: 1fr; gap: 6px; }
+  .three-col { grid-template-columns: 1fr; gap: 6px; }
 
-  .map-stage-viewport { min-height: 280px; }
-  .galaxy-viewport { min-height: 280px; }
+  .map-stage-viewport { min-height: 240px; }
+  .galaxy-viewport { min-height: 240px; }
 
-  .mail-list { max-height: 240px; }
+  .mail-list { max-height: 200px; }
+
+  .dashboard-grid { gap: 6px; }
+  .panel-title { font-size: 10px; margin-bottom: 6px; }
+  .card { padding: 6px; }
+  .card .row { margin-top: 4px !important; }
+  .card .small[style*="margin-top"] { margin-top: 4px !important; }
+  .resource-row, .log-item, .queue-item, .mail-item, .mission-item, .alert-item { padding: 4px 6px; }
+  .stack { gap: 4px; }
+  .row { gap: 4px; }
+  .space-between { gap: 4px; }
+  #pageTitle { font-size: 13px; }
+  #pageSubtitle { display: none; }
 }
