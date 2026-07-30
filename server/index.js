@@ -332,8 +332,8 @@ function resolvePendingAttack(pa) {
   function makeMailMsg(tab, subject, body) {
     return { id: 'cmbt_' + Date.now() + '_' + Math.random().toString(36).substr(2,4), tab: tab, subject: subject, body: body, time: Date.now() };
   }
-  if (!att.colony.mailbox) att.colony.mailbox = { messages: [], selectedTab: 'System', selectedMessageId: null };
-  if (!def.colony.mailbox) def.colony.mailbox = { messages: [], selectedTab: 'System', selectedMessageId: null };
+  if (!att.colony.mailbox) att.colony.mailbox = { messages: [], selectedTab: 'Inbox', selectedMessageId: null };
+  if (!def.colony.mailbox) def.colony.mailbox = { messages: [], selectedTab: 'Inbox', selectedMessageId: null };
   var atkBody = '⚔ Attack against ' + pa.defender + '\n' +
     (attackerWins ? '✅ VICTORY' : '❌ DEFEAT') + '\n' +
     'Fleet power: ' + (pa.atkPower || 0) + '\n' +
@@ -417,7 +417,7 @@ function createInitialColony(username, planetName, galaxyId, sectorId, planetId)
     combat: { scoutsCompleted: 0, attackWins: 0, defenseWins: 0, incomingAttacks: [], raidHistory: [], scoutingIntel: {} },
     expeditions: { active: null, completed: [], queue: [] },
     inventory: { artifacts: [] },
-    mailbox: { messages: [], selectedTab: 'System', selectedMessageId: null },
+    mailbox: { messages: [], selectedTab: 'Inbox', selectedMessageId: null },
     alliance: { joinedId: null },
     events: { active: null, history: [] },
     market: { transactions: [], listings: [] },

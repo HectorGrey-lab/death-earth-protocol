@@ -185,7 +185,7 @@ window.App = (function () {
         window.gameState._productionRates = msg.colony.productionRates || null;
       } else if (msg.error) {
         var s = window.gameState;
-        if (!s.mailbox) s.mailbox = { messages: [], selectedTab: "System", selectedMessageId: null };
+        if (!s.mailbox) s.mailbox = { messages: [], selectedTab: "Inbox", selectedMessageId: null };
         MailboxSystem.addSystemMail(s, '⚠ Research failed: ' + msg.error);
       }
       render();
@@ -248,7 +248,7 @@ window.App = (function () {
         window.gameState._productionRates = msg.colony.productionRates || null;
       } else if (msg.error) {
         var state = window.gameState;
-        if (!state.mailbox) state.mailbox = { messages: [], selectedTab: 'System', selectedMessageId: null };
+        if (!state.mailbox) state.mailbox = { messages: [], selectedTab: 'Inbox', selectedMessageId: null };
         MailboxSystem.addSystemMail(state, '⚠ Mission claim failed: ' + msg.error);
       }
       window.App.render();
@@ -269,13 +269,13 @@ window.App = (function () {
     Network.on("private_message_result", function (msg) {
       if (!msg.ok) {
         var s = window.gameState;
-        if (!s.mailbox) s.mailbox = { messages: [], selectedTab: "System", selectedMessageId: null };
+        if (!s.mailbox) s.mailbox = { messages: [], selectedTab: "Inbox", selectedMessageId: null };
         MailboxSystem.addSystemMail(s, '⚠ PM failed: ' + (msg.error || 'Unknown error'));
       } else if (msg.colony) {
         window.gameState.mailbox = msg.colony.mailbox || window.gameState.mailbox;
         window.gameState._productionRates = msg.colony.productionRates || null;
         var s = window.gameState;
-        if (!s.mailbox) s.mailbox = { messages: [], selectedTab: "System", selectedMessageId: null };
+        if (!s.mailbox) s.mailbox = { messages: [], selectedTab: "Inbox", selectedMessageId: null };
         MailboxSystem.addSystemMail(s, '✅ Private message sent');
       }
       render();
@@ -292,7 +292,7 @@ window.App = (function () {
         GameData.alliances = msg.alliances;
       }
       if (!msg.ok) {
-        if (!s.mailbox) s.mailbox = { messages: [], selectedTab: "System", selectedMessageId: null };
+        if (!s.mailbox) s.mailbox = { messages: [], selectedTab: "Inbox", selectedMessageId: null };
         MailboxSystem.addSystemMail(s, '⚠ Alliance update failed: ' + (msg.error || 'Unknown error'));
       }
       render();
@@ -420,7 +420,7 @@ window.App = (function () {
       combat: { scoutsCompleted: 0, attackWins: 0, defenseWins: 0, incomingAttacks: [], lastScouted: 0, raidHistory: [] },
       expeditions: { active: null, completed: [], queue: [] },
       inventory: { artifacts: [] },
-      mailbox: { messages: [] },
+      mailbox: { messages: [], selectedTab: 'Inbox' },
       chat: { messages: [] },
       map: { nodes: [], scanProgress: 0, selectedNodeId: null, discoveredNodes: {}, scanPulses: [], camera: { zoom: 1, offsetX: 0, offsetY: 0 } },
       alliance: { joinedId: null },
