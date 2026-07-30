@@ -1,4 +1,21 @@
 window.App = (function () {
+  // Preserve client-side read state when server replaces the mailbox object
+  function _mergeMailboxReadState(oldBox, newBox) {
+    if (!newBox) return newBox;
+    var readIds = {};
+    if (oldBox && oldBox.messages) {
+      for (var i = 0; i < oldBox.messages.length; i++) {
+        if (!oldBox.messages[i].isNew) readIds[oldBox.messages[i].id] = true;
+      }
+    }
+    if (newBox.messages) {
+      for (var j = 0; j < newBox.messages.length; j++) {
+        if (readIds[newBox.messages[j].id]) newBox.messages[j].isNew = false;
+      }
+    }
+    return newBox;
+  }
+
   function render() {
     // Skip full re-render on chat ONLY if already rendered (preserves input)
     if (window.gameState && window.gameState.ui && 
@@ -79,23 +96,7 @@ window.App = (function () {
           window.gameState.combat = c.combat;
         }
         if (c.mailbox) {
-          // Preserve client-side read state across server sync
-          var readIds = {};
-          var oldMailbox = window.gameState.mailbox;
-          if (oldMailbox && oldMailbox.messages) {
-            for (var ri = 0; ri < oldMailbox.messages.length; ri++) {
-              if (!oldMailbox.messages[ri].isNew) readIds[oldMailbox.messages[ri].id] = true;
-            }
-          }
-          window.gameState.mailbox = c.mailbox;
-          // Restore read state so badge doesn't reappear
-          if (window.gameState.mailbox && window.gameState.mailbox.messages) {
-            for (var rj = 0; rj < window.gameState.mailbox.messages.length; rj++) {
-              if (readIds[window.gameState.mailbox.messages[rj].id]) {
-                window.gameState.mailbox.messages[rj].isNew = false;
-              }
-            }
-          }
+          window.gameState.mailbox = _mergeMailboxReadState(window.gameState.mailbox, c.mailbox);
         }
         // Default to Inbox tab so PMs are visible
         if (window.gameState.mailbox) {
@@ -292,22 +293,7 @@ window.App = (function () {
         if (!s.mailbox) s.mailbox = { messages: [], selectedTab: "Inbox", selectedMessageId: null };
         MailboxSystem.addSystemMail(s, '⚠ PM failed: ' + (msg.error || 'Unknown error'));
       } else if (msg.colony) {
-        // Preserve read state across mailbox replacement
-        var pmReadIds = {};
-        var pmOldMailbox = window.gameState.mailbox;
-        if (pmOldMailbox && pmOldMailbox.messages) {
-          for (var pmri = 0; pmri < pmOldMailbox.messages.length; pmri++) {
-            if (!pmOldMailbox.messages[pmri].isNew) pmReadIds[pmOldMailbox.messages[pmri].id] = true;
-          }
-        }
-        window.gameState.mailbox = msg.colony.mailbox || window.gameState.mailbox;
-        if (window.gameState.mailbox && window.gameState.mailbox.messages) {
-          for (var pmrj = 0; pmrj < window.gameState.mailbox.messages.length; pmrj++) {
-            if (pmReadIds[window.gameState.mailbox.messages[pmrj].id]) {
-              window.gameState.mailbox.messages[pmrj].isNew = false;
-            }
-          }
-        }
+        window.gameState.mailbox = _mergeMailboxReadState(window.gameState.mailbox, msg.colony.mailbox) || window.gameState.mailbox;
         window.gameState._productionRates = msg.colony.productionRates || null;
         var s = window.gameState;
         if (!s.mailbox) s.mailbox = { messages: [], selectedTab: "Inbox", selectedMessageId: null };
@@ -320,22 +306,7 @@ window.App = (function () {
       var s = window.gameState;
       if (msg.colony) {
         s.alliance = msg.colony.alliance || s.alliance;
-        // Preserve read state across mailbox replacement
-        var alReadIds = {};
-        var alOldMailbox = s.mailbox;
-        if (alOldMailbox && alOldMailbox.messages) {
-          for (var alri = 0; alri < alOldMailbox.messages.length; alri++) {
-            if (!alOldMailbox.messages[alri].isNew) alReadIds[alOldMailbox.messages[alri].id] = true;
-          }
-        }
-        s.mailbox = msg.colony.mailbox || s.mailbox;
-        if (s.mailbox && s.mailbox.messages) {
-          for (var alrj = 0; alrj < s.mailbox.messages.length; alrj++) {
-            if (alReadIds[s.mailbox.messages[alrj].id]) {
-              s.mailbox.messages[alrj].isNew = false;
-            }
-          }
-        }
+        s.mailbox = _mergeMailboxReadState(s.mailbox, msg.colony.mailbox) || s.mailbox;
         s._productionRates = msg.colony.productionRates || null;
       }
       if (msg.alliances) {
