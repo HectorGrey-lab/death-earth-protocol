@@ -107,6 +107,25 @@ function broadcastLeaderboard() {
   });
 }
 
+// ─── Online player presence (positions for map markers) ─────────
+function broadcastPresence() {
+  var players = [];
+  wsClients.forEach(function(info) {
+    if (!info || !info.username) return;
+    var c = info.colony;
+    players.push({
+      username: info.username,
+      galaxyId: c && c.homeGalaxy ? c.homeGalaxy : null,
+      sectorId: c && c.homeSector ? c.homeSector : null,
+      planetId: c && c.homePlanet ? c.homePlanet : null
+    });
+  });
+  var msg = JSON.stringify({ type: 'presence', players: players });
+  wsClients.forEach(function(info, socket) {
+    try { socket.write(wsEncodeFrame(msg)); } catch(e) {}
+  });
+}
+
 // ─── Admin Console ──────────────────────────────────────────
 const adminAuth = Admin.init(DB, gameData, process.env.ADMIN_PASSWORD);
 
@@ -747,6 +766,7 @@ server.on('upgrade', function(req, socket, head) {
       if (username) {
         wsClients.delete(socket);
         broadcastAll({ type: 'system', message: escapeHTML(username) + ' has disconnected (idle timeout)' });
+        broadcastPresence();
       }
       try { socket.end(); } catch(e) {}
     }, IDLE_TIMEOUT_MS);
@@ -808,6 +828,7 @@ server.on('upgrade', function(req, socket, head) {
           }
           log(ip, 'WS auth (' + uname + ')');
           broadcastAll({ type: 'system', message: escapeHTML(username) + ' has joined the universe' });
+          broadcastPresence();
         } else {
           socket.write(wsEncodeFrame(JSON.stringify({ type: 'auth_error', message: 'Invalid token' })));
         }
@@ -825,6 +846,7 @@ server.on('upgrade', function(req, socket, head) {
       if (username) {
         wsClients.delete(socket);
         broadcastAll({ type: 'system', message: escapeHTML(username) + ' has left the universe' });
+        broadcastPresence();
       }
       socket.end();
       return;
@@ -1374,6 +1396,7 @@ server.on('upgrade', function(req, socket, head) {
     if (username) {
       wsClients.delete(socket);
       broadcastAll({ type: 'system', message: escapeHTML(username) + ' has left the universe' });
+      broadcastPresence();
     }
   });
 });
@@ -1381,6 +1404,9 @@ server.on('upgrade', function(req, socket, head) {
 // ─── Start Server (async) ─────────────────────────────────────────
 (async function start() {
   await DB.loadDB();
+
+  // Ensure all galaxies carry universe coordinates (backfill for pre-existing DBs)
+  Universe.backfillGalaxyCoords(DB.db.universe);
 
   // Load persistent chat history from database
   try {

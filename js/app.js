@@ -42,7 +42,8 @@ window.App = (function () {
 
   function setupNetwork() {
     Network.on("chat", function (msg) { UIChat.addMessage(msg); });
-    Network.on("presence", function (players) {
+    Network.on("presence", function (msg) {
+      var players = (msg && msg.players) || [];
       UIChat.setOnlineCount(players.length);
       window._onlinePlayers = players;
     });

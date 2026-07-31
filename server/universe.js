@@ -128,12 +128,22 @@ function generateSector(galaxyIndex, sectorIndex, rng) {
 }
 
 // ─── Galaxy generation ──────────────────────────────────────────
+const GALAXY_SPACING = 1000; // universe units between galaxy centers
+const GALAXY_GRID_W = 5;     // supports up to 25 galaxies; extend later if needed
+
 function generateGalaxy(index, rng) {
+  const gridW = GALAXY_GRID_W;
+  const center = Math.floor(gridW / 2);
+  const row = Math.floor(index / gridW);
+  const col = index % gridW;
+
   return {
     id: 'galaxy-' + index,
     name: GALAXY_NAMES[index],
     color: GALAXY_COLORS[index],
     index: index,
+    universeX: (col - center) * GALAXY_SPACING,
+    universeY: (row - center) * GALAXY_SPACING,
     full: false,
     sectors: []
   };
@@ -253,9 +263,25 @@ function getPlayerPlanet(universe, username) {
   return null;
 }
 
+// ─── Backfill: ensure existing galaxies have universeX/universeY ──
+function backfillGalaxyCoords(universe) {
+  if (!universe || !universe.galaxies) return;
+  const gridW = GALAXY_GRID_W;
+  const center = Math.floor(gridW / 2);
+  universe.galaxies.forEach(function (gal) {
+    if (typeof gal.universeX !== 'number' || typeof gal.universeY !== 'number') {
+      const row = Math.floor(gal.index / gridW);
+      const col = gal.index % gridW;
+      gal.universeX = (col - center) * GALAXY_SPACING;
+      gal.universeY = (row - center) * GALAXY_SPACING;
+    }
+  });
+}
+
 module.exports = {
   ensurePlanetAvailable,
   claimPlanet,
   getClaimedCount,
-  getPlayerPlanet
+  getPlayerPlanet,
+  backfillGalaxyCoords
 };

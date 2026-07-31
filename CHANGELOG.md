@@ -1,5 +1,26 @@
 # Dead Earth Protocol — Changelog & Fix History
 
+## 2026-07-31 — Map Improvements Phase 2 (Universe Coords, Player Markers, Occupied Bases, Nebula, Route Preview, Impact Rings, Sound)
+
+### Milestone
+Seven-phase map overhaul: server-authoritative galaxy coordinates, live player markers at every zoom level, colonized planets rendering as occupied bases, drifting nebula layers, route preview with ETA, PvP arrival shock rings, and an opt-in WebAudio sound toggle.
+
+### What Changed
+
+**Universe coordinates (server)** — `generateGalaxy()` now stamps `universeX`/`universeY` grid positions and an `index` on every galaxy; `backfillGalaxyCoords()` assigns coords+index to pre-existing galaxies at server startup (no universe regen needed). `getUniverseCoords()` in `travel.js` gained NaN guards and defensive defaults so missing coords can never poison fleet travel.
+
+**Live player markers** — the server previously never sent a presence broadcast the client could render; added `broadcastPresence()` emitting `{type:'presence', players:[{username, galaxyId, sectorId, planetId}]}` on connect, disconnect, idle-close and close. Client `renderPlayerMarkers()` now places markers at every zoom level (universe → galaxy grid, galaxy → sector, sector → planet) with a deterministic per-username `stableOffset()` so markers never stack; `app.js` presence handler reads the `players` payload.
+
+**Occupied bases** — colonized planets render as occupied bases: double-accent border, rotating dashed orbit ring, ⚑ glyph, and an occupant label (undiscovered name shown as "Signal" if you haven't discovered the owner).
+
+**Nebula drift** — nested nebula layers (both viewports already consume both pseudo-elements) drift on 60–90s CSS loops, with `prefers-reduced-motion` support.
+
+**Route preview + ETA** — selecting a planet renders a dashed animated route line from your colony (z-index below markers); the planet panel shows travel time and a clock ETA computed from the server travel system.
+
+**PvP arrival impact rings** — the PvP RAF loop now detects fleet arrival (`pvpProgress >= 1`) and spawns an expanding shock ring once per fleet per direction (red outbound attack, amber return), with cleanup and a sound hook.
+
+**Opt-in sound** — `SoundSystem` WebAudio module with localStorage-persisted opt-in (`de_sound`), 🔊 toggle in the camera controls, tick on planet select and impact on arrival; audio context resumes on first user interaction.
+
 ## 2026-07-31 — Map Improvements (Camera Persistence, UI Polish, PvP Fleet Transit)
 
 ### Milestone

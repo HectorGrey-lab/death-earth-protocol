@@ -541,6 +541,7 @@ window.UIMap = (function () {
           </div>
 
           <div class="map-stage-viewport" id="mapViewport">
+            <div class="map-nebula"></div>
             <div
               class="map-stage focus-mode"
               id="mapStage"
@@ -648,11 +649,11 @@ window.UIMap = (function () {
       const isActive = state.universe.activePlanetId === p.id;
       const discovered = GalaxySystem.isDiscovered(state, p.id);
       const isPlayer = p.isPlayerBase;
-      const isColonized = p.colonizedBy && !isPlayer;
+      const occupied = !!p.isColonized && !!p.colonizedBy && !isPlayer;
       const color = planetTypeColor(p.type);
 
       return `
-        <div class="galaxy-node planet ${isActive ? 'selected' : ''} ${!discovered ? 'fogged' : ''} ${isPlayer ? 'player' : ''}"
+        <div class="galaxy-node planet ${isActive ? 'selected' : ''} ${!discovered ? 'fogged' : ''} ${isPlayer ? 'player' : ''} ${occupied ? 'occupied' : ''}"
              data-galaxy-id="${p.galaxyId}"
              data-sector-id="${p.sectorId}"
              data-planet-id="${p.id}"
@@ -662,8 +663,9 @@ window.UIMap = (function () {
             border-color: ${color}aa;
             box-shadow: 0 0 ${isPlayer ? '18' : '8'}px ${color}44;
           ">
-            ${isPlayer ? '⌂' : ''}
+            ${isPlayer ? '⌂' : (occupied ? '⚑' : '')}
           </div>
+          ${occupied ? `<div class="planet-occupant">${discovered ? esc(p.colonizedBy) : 'Signal'}</div>` : ''}
           <div class="galaxy-name">${discovered ? p.name : '???'}</div>
           <div class="galaxy-meta">${discovered ? p.typeName : 'Unknown'}</div>
         </div>
@@ -671,24 +673,125 @@ window.UIMap = (function () {
     }).join('') + renderPlayerMarkers(state, 'sector');
   }
 
+  // ── Sound: opt-in WebAudio ticks (localStorage-persisted) ──
+  const SoundSystem = {
+    ctx: null,
+    enabled: false,
+
+    init() {
+      try {
+        this.enabled = localStorage.getItem('de_sound_enabled') === '1';
+      } catch (e) { this.enabled = false; }
+    },
+
+    ensureCtx() {
+      if (!this.ctx) {
+        try {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if (!AC) return null;
+          this.ctx = new AC();
+        } catch (e) { return null; }
+      }
+      if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
+      return this.ctx;
+    },
+
+    toggle() {
+      this.enabled = !this.enabled;
+      try { localStorage.setItem('de_sound_enabled', this.enabled ? '1' : '0'); } catch (e) {}
+      const btn = document.getElementById('uvSoundBtn');
+      if (btn) btn.classList.toggle('active-sound', this.enabled);
+      if (this.enabled) {
+        // Unlock audio on first enable (user gesture)
+        this.ensureCtx();
+        this.tick(880, 0.08);
+      }
+      return this.enabled;
+    },
+
+    // Simple blip: freq (Hz), dur (s), type
+    tick(freq, dur, type) {
+      if (!this.enabled) return;
+      const ctx = this.ensureCtx();
+      if (!ctx) return;
+      try {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = type || 'sine';
+        o.frequency.value = freq;
+        g.gain.setValueAtTime(0.0001, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + (dur || 0.12));
+        o.connect(g);
+        g.connect(ctx.destination);
+        o.start();
+        o.stop(ctx.currentTime + (dur || 0.12) + 0.05);
+      } catch (e) { /* audio is best-effort */ }
+    },
+
+    select() { this.tick(660, 0.09, 'triangle'); },      // planet select
+    arrival() { this.tick(180, 0.35, 'sawtooth'); },     // impact ring
+    return() { this.tick(520, 0.25, 'triangle'); }       // fleet return
+  };
+  SoundSystem.init();
+
   // ── Player markers on universe view ──
+  // Deterministic per-user offset so markers don't stack on the same point
+  function stableOffset(username, amp) {
+    var h = 0;
+    var s = String(username || '');
+    for (var i = 0; i < s.length; i++) {
+      h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    }
+    var angle = (h % 360) * Math.PI / 180;
+    var dist = amp * (0.4 + ((h >>> 8) % 60) / 100);
+    return { dx: Math.cos(angle) * dist, dy: Math.sin(angle) * dist };
+  }
+
   function renderPlayerMarkers(state, zoom) {
     var players = window._onlinePlayers || [];
     if (!players.length) return '';
     var galId = state.universe.activeGalaxyId;
     var secId = state.universe.activeSectorId;
     var html = '';
+    var myName = window.Network ? Network.username : '';
     for (var i = 0; i < players.length; i++) {
       var p = players[i];
-      if (p.username === (window.Network ? Network.username : '')) continue;
+      if (!p || !p.username || p.username === myName) continue;
       if (!p.galaxyId) continue;
-      if (zoom === 'galaxy' && p.galaxyId === galId) {
-        html += '<div class="player-marker other" title="' + p.username + '" style="left:50%; top:10%;"></div>';
-      } else if (zoom === 'sector' && p.galaxyId === galId && p.sectorId === secId) {
-        html += '<div class="player-marker other" title="' + p.username + '" style="left:50%; top:10%;"></div>';
+      var left = 50, top = 50, found = false;
+
+      if (zoom === 'sector' && p.galaxyId === galId && p.sectorId === secId && p.planetId) {
+        var pl = Universe.getPlanet(p.galaxyId, p.sectorId, p.planetId);
+        if (pl) {
+          var off = stableOffset(p.username, 1.6);
+          left = pl.x + off.dx;
+          top = pl.y + off.dy;
+          found = true;
+        }
+      } else if (zoom === 'galaxy' && p.galaxyId === galId && p.sectorId) {
+        var sec = Universe.getSector(p.galaxyId, p.sectorId);
+        if (sec) {
+          var off2 = stableOffset(p.username, 1.2);
+          left = sec.x + off2.dx;
+          top = sec.y + off2.dy;
+          found = true;
+        }
       } else if (zoom === 'universe') {
-        html += '<div class="player-marker other" title="' + p.username + '" style="left:50%; top:10%;"></div>';
+        var gal = Universe.getGalaxy(p.galaxyId);
+        if (gal) {
+          // Same grid layout as renderUniverseView()
+          var col = (gal.index % 3);
+          var row = Math.floor(gal.index / 3);
+          var off3 = stableOffset(p.username, 2.2);
+          left = 5 + col * 33 + off3.dx;
+          top = 5 + row * 30 + off3.dy;
+          found = true;
+        }
       }
+
+      if (!found) continue;
+      html += '<div class="player-marker other" title="' + esc(p.username) + '" style="left:' + left + '%; top:' + top + '%;"></div>';
     }
     return html;
   }
@@ -896,13 +999,41 @@ window.UIMap = (function () {
   }
 
   // Lightweight RAF loop — moves existing PvP markers without re-rendering
+  let _pvpArrivalFx = {}; // fleetId -> true (ring already spawned)
+  let _pvpRingSeq = 0;
+
+  function spawnImpactRingAtPlanet(galaxyId, sectorId, planetId, isReturn) {
+    // Only when the destination sector is on screen
+    const state = window.gameState;
+    if (!state || !state.universe || !state.universe.showUniverseView) return;
+    if (state.universe.zoomLevel !== 'sector') return;
+    if (state.universe.activeGalaxyId !== galaxyId || state.universe.activeSectorId !== sectorId) return;
+    const p = Universe.getPlanet(galaxyId, sectorId, planetId);
+    if (!p) return;
+    const stage = document.getElementById('galaxyStage');
+    if (!stage) return;
+
+    const id = 'pvp-ring-' + (_pvpRingSeq++);
+    const el = document.createElement('div');
+    el.className = 'impact-ring' + (isReturn ? ' returning' : '');
+    el.style.left = p.x + '%';
+    el.style.top = p.y + '%';
+    stage.appendChild(el);
+    if (isReturn) SoundSystem.return(); else SoundSystem.arrival();
+    // Remove after animation (700ms + margin)
+    setTimeout(function () {
+      if (el.parentNode) el.parentNode.removeChild(el);
+    }, 900);
+  }
+
   function startPvPAnimLoop() {
     if (_pvpRaf) return;
     function frame() {
       const markers = document.querySelectorAll('.fleet-marker.pvp');
-      if (!markers.length) { _pvpRaf = null; return; }
       const state = window.gameState;
-      if (!state || !state.universe || !state.universe.showUniverseView) { _pvpRaf = null; return; }
+      const inUniverse = !!(state && state.universe && state.universe.showUniverseView);
+      if (!markers.length && !inUniverse) { _pvpRaf = null; return; }
+      if (!inUniverse) { _pvpRaf = null; return; }
       const zoom = state.universe.zoomLevel;
       const gal = GalaxySystem.getCurrentGalaxy(state);
       const byId = {};
@@ -915,6 +1046,16 @@ window.UIMap = (function () {
         el.style.display = '';
         el.style.left = vp.x + '%';
         el.style.top = vp.y + '%';
+
+        // Arrival impact ring — fire once per fleet per direction
+        const p = pvpProgress(f);
+        if (p >= 1) {
+          const key = f.id + (f.returning ? ':return' : '');
+          if (!_pvpArrivalFx[key]) {
+            _pvpArrivalFx[key] = true;
+            spawnImpactRingAtPlanet(f.destGalaxyId, f.destSectorId, f.destPlanetId, f.returning);
+          }
+        }
       });
       _pvpRaf = requestAnimationFrame(frame);
     }
@@ -1003,6 +1144,7 @@ window.UIMap = (function () {
           <hr class="sep">
           <div class="small">Distance from home: ${dist.toFixed(0)} units</div>
           <div class="small">Travel time: ${TravelSystem.formatTravelTime(travelTime)}</div>
+          <div class="small" style="margin-top:4px;">${renderRouteEta(state)}</div>
           <div class="row" style="margin-top:8px;">
             <button class="btn small" id="sendScoutBtn"
               ${alreadyFleet ? 'disabled' : ''}
@@ -1016,6 +1158,54 @@ window.UIMap = (function () {
       </div>
       ${isOtherPlayer ? renderPlayerProfile(state, p.colonizedBy) : ''}
     `;
+  }
+
+  // ── Route preview: projected travel line from home to selected planet ──
+  function renderRoutePreview(state) {
+    const zoom = state.universe.zoomLevel;
+    if (zoom !== 'sector' || !state.universe.activePlanetId) return '';
+    const home = GalaxySystem.getHomePlanet(state);
+    if (!home || !home.x) return '';
+    const target = Universe.getPlanet(state.universe.activeGalaxyId, state.universe.activeSectorId, state.universe.activePlanetId);
+    if (!target || target.id === home.id) return '';
+
+    const hx = home.x, hy = home.y;
+    const tx = target.x, ty = target.y;
+    const dx = tx - hx, dy = ty - hy;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len < 0.5) return '';
+    const ang = Math.atan2(dy, dx) * 180 / Math.PI;
+
+    return `
+      <div class="route-preview" style="left:${hx}%; top:${hy}%; width:${len}%; transform: rotate(${ang}deg);">
+        <div class="route-preview-flow"></div>
+      </div>
+    `;
+  }
+
+  // ── Projected ETA for selected planet (panel text) ──
+  function renderRouteEta(state) {
+    const zoom = state.universe.zoomLevel;
+    if (zoom !== 'sector' || !state.universe.activePlanetId) return '';
+    const home = GalaxySystem.getHomePlanet(state);
+    if (!home) return '';
+    const target = Universe.getPlanet(state.universe.activeGalaxyId, state.universe.activeSectorId, state.universe.activePlanetId);
+    if (!target || target.id === home.id) return '';
+
+    const origin = { galaxyId: home.galaxyId, sectorId: home.sectorId, planetId: home.id };
+    const dest = { galaxyId: target.galaxyId, sectorId: target.sectorId, planetId: target.id };
+    let secs;
+    try {
+      secs = TravelSystem.getTravelTime(origin, dest, !!state.universe.hasWarpGate);
+    } catch (e) {
+      // Fallback: rough Euclidean estimate (clamped 15..120s)
+      const dx = target.x - home.x, dy = target.y - home.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      secs = Math.max(15, Math.min(120, Math.round(dist * 2)));
+    }
+    const arrive = new Date(Date.now() + secs * 1000);
+    const etaClock = arrive.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return `Projected ETA: <strong>${TravelSystem.formatTravelTime(secs)}</strong> <span class="small">(~${etaClock})</span>`;
   }
 
   // Universe mode sidebar
@@ -1138,7 +1328,7 @@ window.UIMap = (function () {
 
     let layerHtml = '';
     if (zoom === 'universe') {
-      layerHtml = renderUniverseView(state) + renderUniverseFleetMarkers(state) + renderPvPFleetMarkers(state);
+      layerHtml = renderUniverseView(state) + renderPlayerMarkers(state, 'universe') + renderUniverseFleetMarkers(state) + renderPvPFleetMarkers(state);
     } else if (zoom === 'galaxy') {
       const gal = Universe.getGalaxy(state.universe.activeGalaxyId);
       if (gal) {
@@ -1148,6 +1338,7 @@ window.UIMap = (function () {
             background: radial-gradient(circle at 50% 50%, ${gal.color}11, transparent 70%);
           "></div>
           ${renderGalaxyView(state)}
+          ${renderPlayerMarkers(state, 'galaxy')}
           ${renderUniverseFleetTrails(state)}
           ${renderUniverseFleetMarkers(state)}
           ${renderPvPFleetMarkers(state)}
@@ -1157,7 +1348,7 @@ window.UIMap = (function () {
         layerHtml = renderUniverseView(state);
       }
     } else if (zoom === 'sector') {
-      layerHtml = renderSectorView2(state) + renderUniverseFleetMarkers(state) + renderPvPFleetMarkers(state);
+      layerHtml = renderSectorView2(state) + renderRoutePreview(state) + renderUniverseFleetMarkers(state) + renderPvPFleetMarkers(state);
     }
 
     const canGalZoomIn = (zoom === 'universe' && !!state.universe.activeGalaxyId) ||
@@ -1172,10 +1363,12 @@ window.UIMap = (function () {
             <button class="btn small" id="uvZoomOutBtn" ${canGalZoomOut ? '' : 'disabled'}>◀ Back</button>
             <button class="btn small" id="uvGoHomeBtn">⌂ Home</button>
             <button class="btn small" id="uvResetBtn">Reset</button>
+            <button class="btn small ${SoundSystem.enabled ? 'active-sound' : ''}" id="uvSoundBtn" title="Toggle map sounds">🔊 ${SoundSystem.enabled ? 'On' : 'Off'}</button>
             <span class="small" style="margin-left:10px;font-weight:bold;">${getViewLabel(state)}</span>
           </div>
 
           <div class="galaxy-viewport" id="galaxyViewport">
+            <div class="galaxy-nebula"></div>
             <div class="galaxy-stage" id="galaxyStage">
               <div class="galaxy-surface" id="galaxySurface">
                 <div class="galaxy-scan-sweep"></div>
@@ -1280,6 +1473,16 @@ window.UIMap = (function () {
       };
     });
 
+    // Sound toggle
+    const soundBtn = document.getElementById('uvSoundBtn');
+    if (soundBtn) {
+      soundBtn.onclick = function (e) {
+        e.stopPropagation();
+        const on = SoundSystem.toggle();
+        this.textContent = '🔊 ' + (on ? 'On' : 'Off');
+      };
+    }
+
     // Planet node clicks (sector level → select planet)
     document.querySelectorAll('.galaxy-node.planet').forEach(el => {
       el.onclick = function (e) {
@@ -1289,6 +1492,7 @@ window.UIMap = (function () {
           GalaxySystem.discoverPlanet(state, planetId);
         }
         state.universe.activePlanetId = planetId;
+        SoundSystem.select();
         window.App.render();
       };
     });

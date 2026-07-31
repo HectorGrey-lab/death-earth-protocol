@@ -39,6 +39,10 @@ window.TravelSystem = (function () {
     const gal = Universe.getGalaxy(galaxyId);
     if (!gal) return { x: 0, y: 0 };
 
+    // Defensive: never propagate NaN even if server universe JSON lacks coords
+    const gx = (typeof gal.universeX === 'number') ? gal.universeX : 0;
+    const gy = (typeof gal.universeY === 'number') ? gal.universeY : 0;
+
     let sx = 50, sy = 50; // center of galaxy if no sector
     let px = 50, py = 50; // center of sector if no planet
 
@@ -60,8 +64,8 @@ window.TravelSystem = (function () {
 
     // Convert percentage positions to universe coordinates
     return {
-      x: gal.universeX + (sx / 100) * SECTOR_SPAN + (px / 100) * PLANET_SPAN - PLANET_SPAN / 2,
-      y: gal.universeY + (sy / 100) * SECTOR_SPAN + (py / 100) * PLANET_SPAN - PLANET_SPAN / 2
+      x: gx + (sx / 100) * SECTOR_SPAN + (px / 100) * PLANET_SPAN - PLANET_SPAN / 2,
+      y: gy + (sy / 100) * SECTOR_SPAN + (py / 100) * PLANET_SPAN - PLANET_SPAN / 2
     };
   }
 

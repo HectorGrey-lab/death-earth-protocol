@@ -490,6 +490,25 @@ hr.sep {
   to { transform: translateY(8%); }
 }
 
+/* Nebula drift layer — slow-moving color blobs behind the stage */
+.map-nebula {
+  position: absolute;
+  inset: -30%;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(120,220,255,0.08), transparent 55%),
+    radial-gradient(circle at 70% 60%, rgba(255,120,200,0.06), transparent 60%),
+    radial-gradient(circle at 50% 80%, rgba(255,255,255,0.04), transparent 50%);
+  filter: blur(2px);
+  animation: nebulaDrift 180s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes nebulaDrift {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(4%, 3%) scale(1.06); }
+}
+
 .map-scan-sweep {
   position: absolute;
   inset: -25%;
@@ -1665,6 +1684,7 @@ hr.sep {
 /* ── Reduced motion ── */
 @media (prefers-reduced-motion: reduce) {
   .map-stage-viewport::after,
+  .map-nebula,
   .map-scan-sweep,
   .map-node.fogged .map-node-core::after,
   .map-node.selected .map-node-core::before,
