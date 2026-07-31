@@ -425,6 +425,15 @@ hr.sep {
   transition: transform 0.15s ease;
 }
 
+/* Disable transition while dragging so pan feels 1:1 */
+.map-stage.dragging {
+  transition: none !important;
+}
+
+.map-stage-viewport {
+  touch-action: none;
+}
+
 .map-surface {
   position: absolute;
   inset: 0;
@@ -441,17 +450,7 @@ hr.sep {
   inset: 0;
   background-image:
     linear-gradient(rgba(88,214,255,0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(88,214,255,0.05) 1px, transparent 1px);
-  background-size: 46px 46px;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.map-stage-viewport::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
+    linear-gradient(90deg, rgba(88,214,255,0.05) 1px, transparent 1px),
     repeating-linear-gradient(
       180deg,
       rgba(88,214,255,0.025) 0px,
@@ -459,9 +458,36 @@ hr.sep {
       transparent 2px,
       transparent 10px
     );
-  opacity: 0.25;
+  background-size: 46px 46px, 46px 46px, 100% 100%;
   pointer-events: none;
   z-index: 0;
+  opacity: 0.9;
+}
+
+/* Drifting starfield */
+.map-stage-viewport::after {
+  content: "";
+  position: absolute;
+  inset: -30%;
+  background-image:
+    radial-gradient(1px 1px at 12% 22%, rgba(255,255,255,0.7), transparent 100%),
+    radial-gradient(1px 1px at 28% 68%, rgba(255,255,255,0.5), transparent 100%),
+    radial-gradient(1.5px 1.5px at 44% 12%, rgba(200,230,255,0.6), transparent 100%),
+    radial-gradient(1px 1px at 58% 82%, rgba(255,255,255,0.5), transparent 100%),
+    radial-gradient(1px 1px at 72% 38%, rgba(200,230,255,0.6), transparent 100%),
+    radial-gradient(1.5px 1.5px at 86% 58%, rgba(255,255,255,0.7), transparent 100%),
+    radial-gradient(1px 1px at 94% 16%, rgba(255,255,255,0.4), transparent 100%),
+    radial-gradient(1px 1px at 8% 86%, rgba(255,255,255,0.45), transparent 100%),
+    radial-gradient(1px 1px at 36% 42%, rgba(255,255,255,0.35), transparent 100%),
+    radial-gradient(1px 1px at 66% 92%, rgba(255,255,255,0.55), transparent 100%);
+  animation: mapStarsDrift 90s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes mapStarsDrift {
+  from { transform: translateY(0); }
+  to { transform: translateY(8%); }
 }
 
 .map-scan-sweep {
@@ -795,6 +821,51 @@ hr.sep {
 .map-node.fogged .map-node-name,
 .map-node.fogged .map-node-meta {
   color: #aab5c3;
+}
+
+/* Fog shimmer — soft moving highlight on unexplored nodes */
+.map-node.fogged .map-node-core::after {
+  content: "";
+  position: absolute;
+  inset: -14px;
+  border-radius: 50%;
+  background: linear-gradient(
+    115deg,
+    transparent 20%,
+    rgba(255,255,255,0.09) 40%,
+    rgba(88,214,255,0.06) 50%,
+    transparent 65%
+  );
+  background-size: 250% 250%;
+  animation: fogShimmer 5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes fogShimmer {
+  0%, 100% { background-position: 0% 0%; opacity: 0.5; }
+  50% { background-position: 100% 100%; opacity: 0.9; }
+}
+
+/* Click feedback — nodes press down on interaction */
+.map-node:active {
+  transform: translate(-50%, -50%) scale(0.92);
+  filter: brightness(1.2);
+}
+
+/* Selection ping ring (expanding ripple) */
+.map-node.selected .map-node-core::before {
+  content: "";
+  position: absolute;
+  inset: -12px;
+  border-radius: 50%;
+  border: 1px solid var(--accent);
+  animation: selectionPing 1.6s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes selectionPing {
+  0% { transform: scale(0.6); opacity: 0.8; }
+  100% { transform: scale(1.6); opacity: 0; }
 }
 
 .map-node.selected .map-node-core {
@@ -1589,4 +1660,18 @@ hr.sep {
   .building-visual { max-width: 48px; height: auto; }
 
   * { -webkit-tap-highlight-color: transparent; }
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .map-stage-viewport::after,
+  .map-scan-sweep,
+  .map-node.fogged .map-node-core::after,
+  .map-node.selected .map-node-core::before,
+  .map-node.selected .map-node-core::after {
+    animation: none !important;
+  }
+  .map-node {
+    transition: none !important;
+  }
 }

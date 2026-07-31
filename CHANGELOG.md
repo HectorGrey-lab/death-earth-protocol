@@ -1,5 +1,22 @@
 # Dead Earth Protocol — Changelog & Fix History
 
+## 2026-07-31 — Map Improvements (Camera Persistence, UI Polish, PvP Fleet Transit)
+
+### Milestone
+Map UX overhaul: persistent universe camera with cursor-anchored zoom, one-time document listeners (no more handler stacking/clobbering), drifting starfields, fog shimmer, click feedback, selection ping rings, and live PvP fleet markers traveling between planets.
+
+### What Changed
+
+**Persistent universe camera** — `state.universe.camera = { zoom, panX, panY }` survives re-renders and view switches. Wheel zoom anchors on the cursor position, drag pan is 1:1, Reset and ⌂ Home buttons write through to the camera state and re-apply the transform.
+
+**No listener stacking** — universe view mousemove/mouseup/touchmove/touchend are bound **once** on `document` (live refs via `_uvRefs`); tactical map pan handlers are bound **once** on `window` (live refs via `_tacRefs`). Removed `window.onmousemove`/`window.onmouseup` clobbering and per-render `addEventListener` stacking in both views. `.map-stage.dragging` disables the CSS transition so panning feels 1:1.
+
+**UI polish (CSS)** — drifting starfield behind both map viewports (tactical + galaxy), shimmer animation on fogged/undiscovered nodes, press-down scale feedback on node clicks, expanding ping ring on selected galaxy/sector/planet, `touch-action: none` on viewports, `prefers-reduced-motion` support.
+
+**PvP fleet transit visuals** — server now stamps `fleet.transit` with `mode: 'pvp_attack'`, `startTime`, `attacker`, `defender`, `origin`/`targetPos` (galaxyId/sectorId/planetId/planetName) on launch **and** return trips. Client renders ⚔️/↩ markers that animate along the origin→target path via a lightweight RAF loop (no re-render), red for outgoing, amber/yellow for return. `attack_launched` carries the full transit so the marker appears instantly.
+
+**Restart resilience** — `sync_fleets` restore now reads `transit.attacker`/`transit.defender` with fallbacks (was misusing `origin.planetName` as the attacker name).
+
 ## 2026-07-30 — Security Hardening (Input Validation & XSS Prevention)
 
 ### Milestone

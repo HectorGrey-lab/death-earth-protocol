@@ -326,7 +326,20 @@ function resolvePendingAttack(pa) {
   // Fleet return — survivors head home
   if (Object.keys(fleetTroops).length > 0) {
     var returnTravelMs = Math.max(5000, (pa.travelTime || 30) * 1000);
-    fleet.transit = { returning: true, arrivalTime: Date.now() + returnTravelMs, origin: pa.origin };
+    var defPos = def.colony.position || { galaxy: def.homeGalaxy, sector: def.homeSector, planet: def.homePlanet };
+    var attPos = pa.origin || { galaxy: att.homeGalaxy, sector: att.homeSector, planet: att.homePlanet };
+    fleet.transit = {
+      mode: 'pvp_attack',
+      returning: true,
+      startTime: Date.now(),
+      attacker: pa.attacker,
+      defender: pa.defender,
+      target: pa.attacker, // heading home
+      arrivalTime: Date.now() + returnTravelMs,
+      travelTime: Math.round(returnTravelMs / 1000),
+      origin: { galaxyId: defPos.galaxy, sectorId: defPos.sector, planetId: defPos.planet, planetName: def.colony.planetName || (pa.defender + "'s Planet") },
+      targetPos: { galaxyId: attPos.galaxy, sectorId: attPos.sector, planetId: attPos.planet, planetName: att.colony.planetName || (pa.attacker + "'s Planet") }
+    };
     pendingAttacks.push({
       type: 'return',
       attacker: pa.attacker,
@@ -1276,14 +1289,20 @@ server.on('upgrade', function(req, socket, head) {
 
             // Mark fleet as in transit (store full combat snapshot for restart resilience)
             fleet.transit = {
-              target: targetName,
+              mode: 'pvp_attack',
+              returning: false,
+              startTime: Date.now(),
+              attacker: username,
+              defender: targetName,
+              target: targetName, // username string (legacy display compat)
               arrivalTime: arrivalTime,
               targetBuilding: targetBuilding,
               fleetComposition: JSON.parse(JSON.stringify(fleetTroops)),
               atkPower: atkPower,
               defPowerWithShield: defPowerWithShield,
               travelTime: travelTime,
-              origin: { galaxy: origin.galaxy, sector: origin.sector, planet: origin.planet, planetName: username }
+              origin: { galaxyId: origin.galaxy, sectorId: origin.sector, planetId: origin.planet, planetName: user.colony.planetName || (username + "'s Planet") },
+              targetPos: { galaxyId: target.galaxy, sectorId: target.sector, planetId: target.planet, planetName: targetUser.colony.planetName || (targetName + "'s Planet") }
             };
 
             // Push to pending queue
@@ -1311,7 +1330,8 @@ server.on('upgrade', function(req, socket, head) {
               arrivalTime: arrivalTime,
               fleetId: fleetId,
               atkPower: atkPower,
-              defPower: defPowerWithShield
+              defPower: defPowerWithShield,
+              transit: fleet.transit
             }, msg._reqId);
 
             // Notify defender of incoming attack (no fleet strength — preserves surprise)
@@ -1386,8 +1406,8 @@ server.on('upgrade', function(req, socket, head) {
       // resolve it immediately (push with arrived timestamp)
       var arrived = !f.transit.arrivalTime || isNaN(f.transit.arrivalTime) || f.transit.arrivalTime < Date.now();
       pendingAttacks.push({
-        attacker: f.transit.origin ? f.transit.origin.planetName : uname,
-        defender: f.transit.target,
+        attacker: f.transit.attacker || (f.transit.origin && f.transit.origin.planetName) || uname,
+        defender: f.transit.defender || f.transit.target,
         fleetId: fid,
         targetBuilding: f.transit.targetBuilding || 'any',
         fleetComposition: f.transit.fleetComposition || f.troops || {},

@@ -39,6 +39,131 @@ window.UIMap = (function () {
     originY: 0
   };
 
+  // ── Module-scope refs for once-bound document handlers ──
+  // (Universe view)
+  let _uvDocBound = false;
+  let _uvRefs = { state: null, viewport: null, stage: null };
+  let _uvDrag = { active: false, startX: 0, startY: 0 };
+  // (Tactical view)
+  let _tacBound = false;
+  let _tacRefs = { state: null, surface: null };
+
+  // ── Universe camera helpers ──
+  function ensureUniverseCamera(state) {
+    if (!state.universe) state.universe = {};
+    if (!state.universe.camera) state.universe.camera = { zoom: 1, panX: 0, panY: 0 };
+    const cam = state.universe.camera;
+    if (typeof cam.zoom !== 'number' || isNaN(cam.zoom)) cam.zoom = 1;
+    if (typeof cam.panX !== 'number' || isNaN(cam.panX)) cam.panX = 0;
+    if (typeof cam.panY !== 'number' || isNaN(cam.panY)) cam.panY = 0;
+    return cam;
+  }
+
+  function applyUniverseTransform(state) {
+    const stage = _uvRefs.stage;
+    if (!stage) return;
+    const cam = ensureUniverseCamera(state);
+    stage.style.transformOrigin = '0 0';
+    stage.style.transform = 'translate(' + cam.panX + 'px,' + cam.panY + 'px) scale(' + cam.zoom + ')';
+  }
+
+  function bindUniverseDocHandlersOnce() {
+    if (_uvDocBound) return;
+    _uvDocBound = true;
+
+    document.addEventListener('mousemove', function (e) {
+      const state = _uvRefs.state;
+      if (!state || !state.universe || !state.universe.showUniverseView) return;
+      if (!_uvDrag.active) return;
+      const cam = ensureUniverseCamera(state);
+      cam.panX = e.clientX - _uvDrag.startX;
+      cam.panY = e.clientY - _uvDrag.startY;
+      applyUniverseTransform(state);
+    });
+
+    document.addEventListener('mouseup', function () {
+      const state = _uvRefs.state;
+      if (!state || !state.universe || !state.universe.showUniverseView) return;
+      if (_uvDrag.active) {
+        _uvDrag.active = false;
+        if (_uvRefs.viewport) _uvRefs.viewport.style.cursor = 'grab';
+      }
+    });
+
+    document.addEventListener('touchmove', function (e) {
+      const state = _uvRefs.state;
+      if (!state || !state.universe || !state.universe.showUniverseView) return;
+      if (!_uvDrag.active) return;
+      if (!e.touches || e.touches.length !== 1) return;
+      const cam = ensureUniverseCamera(state);
+      cam.panX = e.touches[0].clientX - _uvDrag.startX;
+      cam.panY = e.touches[0].clientY - _uvDrag.startY;
+      applyUniverseTransform(state);
+    }, { passive: false });
+
+    document.addEventListener('touchend', function () {
+      const state = _uvRefs.state;
+      if (!state || !state.universe || !state.universe.showUniverseView) return;
+      _uvDrag.active = false;
+    });
+  }
+
+  // ── Tactical camera helpers ──
+  function applyTacticalTransform(state) {
+    const stage = document.getElementById('mapStage');
+    if (!stage) return;
+    stage.style.transform = 'translate(' + state.map.camera.offsetX + 'px, ' + state.map.camera.offsetY + 'px) scale(' + state.map.camera.zoom + ')';
+  }
+
+  function bindTacticalDocHandlersOnce() {
+    if (_tacBound) return;
+    _tacBound = true;
+
+    window.addEventListener('mousemove', function (e) {
+      const state = _tacRefs.state;
+      if (!state) return;
+      if (!dragState.active) return;
+      // Only pan in tactical mode
+      if (state.universe && state.universe.showUniverseView) return;
+
+      state.map.camera.offsetX = dragState.originX + (e.clientX - dragState.startX);
+      state.map.camera.offsetY = dragState.originY + (e.clientY - dragState.startY);
+      applyTacticalTransform(state);
+    });
+
+    window.addEventListener('mouseup', function () {
+      const state = _tacRefs.state;
+      if (!state) return;
+      if (!dragState.active) return;
+      dragState.active = false;
+      if (_tacRefs.surface) _tacRefs.surface.classList.remove('dragging');
+      const stage = document.getElementById('mapStage');
+      if (stage) stage.classList.remove('dragging');
+    });
+
+    window.addEventListener('touchmove', function (e) {
+      const state = _tacRefs.state;
+      if (!state) return;
+      if (!dragState.active) return;
+      if (state.universe && state.universe.showUniverseView) return;
+      if (!e.touches || e.touches.length !== 1) return;
+
+      state.map.camera.offsetX = dragState.originX + (e.touches[0].clientX - dragState.startX);
+      state.map.camera.offsetY = dragState.originY + (e.touches[0].clientY - dragState.startY);
+      applyTacticalTransform(state);
+    }, { passive: false });
+
+    window.addEventListener('touchend', function () {
+      const state = _tacRefs.state;
+      if (!state) return;
+      if (!dragState.active) return;
+      dragState.active = false;
+      if (_tacRefs.surface) _tacRefs.surface.classList.remove('dragging');
+      const stage = document.getElementById('mapStage');
+      if (stage) stage.classList.remove('dragging');
+    });
+  }
+
   function threatBadge(level) {
     if (level === "?") return `<span class="badge">Unknown</span>`;
     if (level <= 1) return `<span class="badge green">Low</span>`;
@@ -701,6 +826,101 @@ window.UIMap = (function () {
     }).join('');
   }
 
+  // ── PvP attack fleet markers (colony fleets in transit) ──
+  let _pvpRaf = null;
+
+  // Collect PvP transits from colony fleet sync (state.fleets = colony.troops.fleets)
+  function getPvPTransitFleetsFromColony(state) {
+    const out = [];
+    const fleets = state.fleets || {};
+    Object.keys(fleets).forEach(function (fid) {
+      const f = fleets[fid];
+      if (!f || !f.transit || f.transit.mode !== 'pvp_attack') return;
+      const t = f.transit;
+      const o = t.origin || {};
+      const d = t.targetPos || {};
+      if (!o.galaxyId || !d.galaxyId) return;
+      out.push({
+        id: 'pvp_' + fid,
+        type: 'pvp',
+        name: f.name || 'Fleet',
+        startTime: t.startTime || Date.now(),
+        arrivalTime: t.arrivalTime || Date.now(),
+        returning: !!t.returning,
+        originGalaxyId: o.galaxyId,
+        originSectorId: o.sectorId,
+        originPlanetId: o.planetId,
+        destGalaxyId: d.galaxyId,
+        destSectorId: d.sectorId,
+        destPlanetId: d.planetId,
+        attacker: t.attacker || '',
+        defender: t.defender || ''
+      });
+    });
+    return out;
+  }
+
+  function pvpProgress(f) {
+    const total = Math.max(1000, f.arrivalTime - f.startTime);
+    const t = (Date.now() - f.startTime) / total;
+    return Math.max(0, Math.min(1, t));
+  }
+
+  function pvpFleetPosition(f) {
+    const o = TravelSystem.getUniverseCoords(f.originGalaxyId, f.originSectorId, f.originPlanetId);
+    const d = TravelSystem.getUniverseCoords(f.destGalaxyId, f.destSectorId, f.destPlanetId);
+    const p = pvpProgress(f);
+    return { x: o.x + (d.x - o.x) * p, y: o.y + (d.y - o.y) * p };
+  }
+
+  function renderPvPFleetMarkers(state) {
+    const fleets = getPvPTransitFleetsFromColony(state);
+    if (!fleets.length) return '';
+    const zoom = state.universe.zoomLevel;
+    const gal = GalaxySystem.getCurrentGalaxy(state);
+
+    // Keep RAF loop alive while markers are on screen
+    startPvPAnimLoop();
+
+    return fleets.map(f => {
+      const pos = pvpFleetPosition(f);
+      const vp = universeToViewport(pos.x, pos.y, zoom, gal);
+      const title = (f.returning ? '↩ Returning: ' : '⚔ Attacking: ') + (f.returning ? f.attacker + "'s base" : f.defender + "'s base");
+      return `
+        <div class="fleet-marker pvp" data-pvp-id="${f.id}" style="left:${vp.x}%; top:${vp.y}%;">
+          <div class="fleet-marker-dot pvp ${f.returning ? 'returning' : ''}" title="${title}"></div>
+          <div class="fleet-marker-label">${f.returning ? '↩' : '⚔️'}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // Lightweight RAF loop — moves existing PvP markers without re-rendering
+  function startPvPAnimLoop() {
+    if (_pvpRaf) return;
+    function frame() {
+      const markers = document.querySelectorAll('.fleet-marker.pvp');
+      if (!markers.length) { _pvpRaf = null; return; }
+      const state = window.gameState;
+      if (!state || !state.universe || !state.universe.showUniverseView) { _pvpRaf = null; return; }
+      const zoom = state.universe.zoomLevel;
+      const gal = GalaxySystem.getCurrentGalaxy(state);
+      const byId = {};
+      getPvPTransitFleetsFromColony(state).forEach(f => { byId[f.id] = f; });
+      markers.forEach(function (el) {
+        const f = byId[el.dataset.pvpId];
+        if (!f) { el.style.display = 'none'; return; }
+        const pos = pvpFleetPosition(f);
+        const vp = universeToViewport(pos.x, pos.y, zoom, gal);
+        el.style.display = '';
+        el.style.left = vp.x + '%';
+        el.style.top = vp.y + '%';
+      });
+      _pvpRaf = requestAnimationFrame(frame);
+    }
+    _pvpRaf = requestAnimationFrame(frame);
+  }
+
   // Convert universe coordinates to viewport percentage for rendering
   function universeToViewport(ux, uy, zoom, centerGal) {
     const galSpacing = 1000;
@@ -918,7 +1138,7 @@ window.UIMap = (function () {
 
     let layerHtml = '';
     if (zoom === 'universe') {
-      layerHtml = renderUniverseView(state) + renderUniverseFleetMarkers(state);
+      layerHtml = renderUniverseView(state) + renderUniverseFleetMarkers(state) + renderPvPFleetMarkers(state);
     } else if (zoom === 'galaxy') {
       const gal = Universe.getGalaxy(state.universe.activeGalaxyId);
       if (gal) {
@@ -930,13 +1150,14 @@ window.UIMap = (function () {
           ${renderGalaxyView(state)}
           ${renderUniverseFleetTrails(state)}
           ${renderUniverseFleetMarkers(state)}
+          ${renderPvPFleetMarkers(state)}
         `;
       } else {
         state.universe.zoomLevel = 'universe';
         layerHtml = renderUniverseView(state);
       }
     } else if (zoom === 'sector') {
-      layerHtml = renderSectorView2(state) + renderUniverseFleetMarkers(state);
+      layerHtml = renderSectorView2(state) + renderUniverseFleetMarkers(state) + renderPvPFleetMarkers(state);
     }
 
     const canGalZoomIn = (zoom === 'universe' && !!state.universe.activeGalaxyId) ||
@@ -1027,6 +1248,14 @@ window.UIMap = (function () {
 
   // ── Bind universe view ──
   function bindUniverseView(state) {
+    // Camera refs — bind doc handlers once, apply persisted transform
+    _uvRefs.state = state;
+    _uvRefs.viewport = document.getElementById('galaxyViewport');
+    _uvRefs.stage = document.getElementById('galaxyStage');
+    _uvDrag.active = false;
+    bindUniverseDocHandlersOnce();
+    applyUniverseTransform(state);
+
     // Galaxy node clicks (universe level → zoom to galaxy)
     document.querySelectorAll('.galaxy-node.universe').forEach(el => {
       el.onclick = function (e) {
@@ -1130,10 +1359,10 @@ window.UIMap = (function () {
         state.universe.activeGalaxyId = null;
         state.universe.activeSectorId = null;
         state.universe.activePlanetId = null;
-        // Reset zoom/pan
-        const stage = document.getElementById('galaxyStage');
-        if (stage) { stage.style.transform = 'scale(1) translate(0,0)'; }
-        uvZoom = 1; uvPanX = 0; uvPanY = 0;
+        // Reset zoom/pan via persisted camera
+        const cam = ensureUniverseCamera(state);
+        cam.zoom = 1; cam.panX = 0; cam.panY = 0;
+        applyUniverseTransform(state);
         window.App.render();
       };
     }
@@ -1162,12 +1391,12 @@ window.UIMap = (function () {
             // Planet logical pixel position (at scale=1, translate=0)
             var px = (home.x / 100) * vpW;
             var py = (home.y / 100) * vpH;
-            // Pan so the planet is centered in viewport
-            uvZoom = targetZoom;
-            uvPanX = (vpW / 2) - px * targetZoom;
-            uvPanY = (vpH / 2) - py * targetZoom;
-            stage.style.transform = 'scale(' + uvZoom + ') translate(' + uvPanX + 'px, ' + uvPanY + 'px)';
-            stage.style.transformOrigin = '0 0';
+            // Pan so the planet is centered in viewport (persisted camera)
+            var cam = ensureUniverseCamera(state);
+            cam.zoom = targetZoom;
+            cam.panX = (vpW / 2) - px * targetZoom;
+            cam.panY = (vpH / 2) - py * targetZoom;
+            applyUniverseTransform(state);
           }
           // Flash highlight on the home planet
           var homeEl = document.querySelector('.galaxy-node.planet.selected');
@@ -1179,69 +1408,54 @@ window.UIMap = (function () {
       };
     }
 
-    // ── Mouse wheel zoom for universe viewport ──
-    const viewport = document.getElementById('galaxyViewport');
-    const stage = document.getElementById('galaxyStage');
-    let uvZoom = 1, uvPanX = 0, uvPanY = 0;
-    let isDragging = false, dragStartX = 0, dragStartY = 0;
+    // ── Universe viewport: wheel zoom (around cursor) + drag pan ──
+    const viewport = _uvRefs.viewport;
+    const stage = _uvRefs.stage;
 
     if (viewport && stage) {
-      // Wheel zoom
+      // Wheel zoom — zoom around cursor point
       viewport.addEventListener('wheel', function (e) {
         e.preventDefault();
+        const cam = ensureUniverseCamera(state);
+        const rect = viewport.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+
+        const oldZoom = cam.zoom;
         const delta = e.deltaY > 0 ? -0.1 : 0.1;
-        uvZoom = Math.max(0.3, Math.min(5, uvZoom + delta));
-        stage.style.transform = 'scale(' + uvZoom + ') translate(' + uvPanX + 'px, ' + uvPanY + 'px)';
-        stage.style.transformOrigin = '0 0';
+        const newZoom = Math.max(0.3, Math.min(5, oldZoom + delta));
+
+        // Keep the point under the mouse stable:
+        const worldX = (mx - cam.panX) / oldZoom;
+        const worldY = (my - cam.panY) / oldZoom;
+
+        cam.zoom = newZoom;
+        cam.panX = mx - worldX * newZoom;
+        cam.panY = my - worldY * newZoom;
+
+        applyUniverseTransform(state);
       }, { passive: false });
 
-      // Click-drag pan
+      // Click-drag pan (don't start drag if clicking a node)
       viewport.addEventListener('mousedown', function (e) {
-        isDragging = true;
-        dragStartX = e.clientX - uvPanX;
-        dragStartY = e.clientY - uvPanY;
+        if (e.button !== 0) return;
+        if (e.target.closest('.galaxy-node')) return;
+        const cam = ensureUniverseCamera(state);
+        _uvDrag.active = true;
+        _uvDrag.startX = e.clientX - cam.panX;
+        _uvDrag.startY = e.clientY - cam.panY;
         viewport.style.cursor = 'grabbing';
       });
 
-      document.addEventListener('mousemove', function (e) {
-        if (!isDragging) return;
-        uvPanX = e.clientX - dragStartX;
-        uvPanY = e.clientY - dragStartY;
-        stage.style.transform = 'scale(' + uvZoom + ') translate(' + uvPanX + 'px, ' + uvPanY + 'px)';
-        stage.style.transformOrigin = '0 0';
-      });
-
-      document.addEventListener('mouseup', function () {
-        if (isDragging) {
-          isDragging = false;
-          viewport.style.cursor = 'grab';
-        }
-      });
-
-      // Touch support for mobile pan (universe view)
+      // Touch drag pan
       viewport.addEventListener('touchstart', function (e) {
-        if (e.touches.length === 1) {
-          isDragging = true;
-          dragStartX = e.touches[0].clientX - uvPanX;
-          dragStartY = e.touches[0].clientY - uvPanY;
-        }
+        if (e.target.closest('.galaxy-node')) return;
+        if (!e.touches || e.touches.length !== 1) return;
+        const cam = ensureUniverseCamera(state);
+        _uvDrag.active = true;
+        _uvDrag.startX = e.touches[0].clientX - cam.panX;
+        _uvDrag.startY = e.touches[0].clientY - cam.panY;
       }, { passive: false });
-
-      document.addEventListener('touchmove', function (e) {
-        if (!isDragging) return;
-        if (e.touches.length === 1) {
-          uvPanX = e.touches[0].clientX - dragStartX;
-          uvPanY = e.touches[0].clientY - dragStartY;
-          stage.style.transform = 'scale(' + uvZoom + ') translate(' + uvPanX + 'px, ' + uvPanY + 'px)';
-          stage.style.transformOrigin = '0 0';
-        }
-      }, { passive: false });
-
-      document.addEventListener('touchend', function () {
-        if (isDragging) {
-          isDragging = false;
-        }
-      });
 
       viewport.style.cursor = 'grab';
     }
@@ -1260,6 +1474,10 @@ window.UIMap = (function () {
 
   // ── Bind tactical map (original) ──
   function bindTacticalMap(state) {
+    _tacRefs.state = state;
+    _tacRefs.surface = document.getElementById('mapSurface');
+    bindTacticalDocHandlersOnce();
+
     document.querySelectorAll(".map-tooltip").forEach(el => {
       el.style.display = "none";
     });
@@ -1332,6 +1550,8 @@ window.UIMap = (function () {
     }
 
     if (surface) {
+      const stage = document.getElementById("mapStage");
+
       surface.onmousedown = function (e) {
         if (e.target.closest("[data-node-id]")) return;
         dragState.active = true;
@@ -1340,24 +1560,11 @@ window.UIMap = (function () {
         dragState.originX = state.map.camera.offsetX;
         dragState.originY = state.map.camera.offsetY;
         surface.classList.add("dragging");
+        if (stage) stage.classList.add("dragging");
       };
 
-      window.onmousemove = function (e) {
-        if (!dragState.active) return;
-        state.map.camera.offsetX = dragState.originX + (e.clientX - dragState.startX);
-        state.map.camera.offsetY = dragState.originY + (e.clientY - dragState.startY);
-        const stage = document.getElementById("mapStage");
-        if (stage) {
-          stage.style.transform = `translate(${state.map.camera.offsetX}px, ${state.map.camera.offsetY}px) scale(${state.map.camera.zoom})`;
-        }
-      };
-
-      window.onmouseup = function () {
-        dragState.active = false;
-        if (surface) surface.classList.remove("dragging");
-      };
-
-      // Touch support for tactical map pan
+      // mousemove/mouseup/touchmove/touchend are bound ONCE on window
+      // (see bindTacticalDocHandlersOnce) — never stack duplicates here.
       surface.addEventListener('touchstart', function (e) {
         if (e.target.closest("[data-node-id]")) return;
         if (e.touches.length === 1) {
@@ -1367,25 +1574,9 @@ window.UIMap = (function () {
           dragState.originX = state.map.camera.offsetX;
           dragState.originY = state.map.camera.offsetY;
           surface.classList.add("dragging");
+          if (stage) stage.classList.add("dragging");
         }
       }, { passive: false });
-
-      window.addEventListener('touchmove', function (e) {
-        if (!dragState.active) return;
-        if (e.touches.length === 1) {
-          state.map.camera.offsetX = dragState.originX + (e.touches[0].clientX - dragState.startX);
-          state.map.camera.offsetY = dragState.originY + (e.touches[0].clientY - dragState.startY);
-          const stage = document.getElementById("mapStage");
-          if (stage) {
-            stage.style.transform = `translate(${state.map.camera.offsetX}px, ${state.map.camera.offsetY}px) scale(${state.map.camera.zoom})`;
-          }
-        }
-      }, { passive: false });
-
-      window.addEventListener('touchend', function () {
-        dragState.active = false;
-        if (surface) surface.classList.remove("dragging");
-      });
     }
   }
 

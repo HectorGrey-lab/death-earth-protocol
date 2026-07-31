@@ -363,10 +363,14 @@ window.App = (function () {
       var s = window.gameState;
       if (!msg.ok) { console.log('[ATTACK] attack_launched ok=false'); return; }
       if (msg.fleetId && s.fleets[msg.fleetId]) {
-        s.fleets[msg.fleetId].transit = {
+        s.fleets[msg.fleetId].transit = msg.transit || {
+          mode: 'pvp_attack',
+          returning: false,
+          startTime: Date.now(),
+          attacker: Network.username,
+          defender: msg.target,
           target: msg.target,
-          arrivalTime: msg.arrivalTime,
-          origin: null
+          arrivalTime: msg.arrivalTime
         };
         FleetSystem._sync(s);
       }
@@ -475,7 +479,7 @@ window.App = (function () {
       fleets: {},
       research: { levels: { economy: 0, military: 0, defense: 0 }, active: null, completedTotal: 0 },
       commander: { name: loggedUser ? "Commander " + loggedUser : "Commander Unknown", factionTitle: "No Faction", emblem: "\u25B3", theme: "cyan", planetName: "Unknown Planet" },
-      universe: { galaxies: [], zoomLevel: "universe", activeGalaxyId: null, activeSectorId: null, activePlanetId: null, showUniverseView: false, fleets: [], discoveredPlanets: {}, hasWarpGate: false },
+      universe: { galaxies: [], zoomLevel: "universe", activeGalaxyId: null, activeSectorId: null, activePlanetId: null, showUniverseView: false, fleets: [], discoveredPlanets: {}, hasWarpGate: false, camera: { zoom: 1, panX: 0, panY: 0 } },
       events: { active: null, history: [] },
       combat: { scoutsCompleted: 0, attackWins: 0, defenseWins: 0, incomingAttacks: [], lastScouted: 0, raidHistory: [] },
       expeditions: { active: null, completed: [], queue: [] },
