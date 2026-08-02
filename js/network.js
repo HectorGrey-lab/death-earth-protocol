@@ -84,8 +84,12 @@ window.Network = (function () {
         // Socket already gone — heartbeat will be restarted on reconnect
         return;
       }
-      // Check if pong was missed
-      if (Date.now() - lastPongTime > HEARTBEAT_TIMEOUT * 1000) {
+      // Check if pong was missed. Allow one full interval + grace: with
+      // INTERVAL=15s and TIMEOUT=10s, comparing against TIMEOUT alone would
+      // kill the socket at every tick even when pongs are flowing (the first
+      // tick fires 15s after connect, already > 10s). Dead threshold is
+      // INTERVAL + TIMEOUT so a healthy connection never trips it.
+      if (Date.now() - lastPongTime > (HEARTBEAT_INTERVAL + HEARTBEAT_TIMEOUT) * 1000) {
         console.warn('[NET] Heartbeat timeout — closing socket');
         cleanupCallbacks('Server unreachable (heartbeat timeout)');
         trigger('system', { message: 'Connection lost (heartbeat timeout)' });
