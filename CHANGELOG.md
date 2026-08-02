@@ -1,6 +1,33 @@
 # Dead Earth Protocol — Changelog & Fix History
 
-## 2026-08-02 — Expanded Alliances (roles, ranks, chat, broadcasts)
+## 2026-08-02 — Alliance Extras + Forces UI v2
+
+### Milestone
+Alliance management matured (MOTD, audit log, granular permissions, member kicks, officer broadcasts) and the Forces tab got a real fleet builder: custom training quantities, numeric fleet composition with live stats, and transit safety.
+
+### Part A — Alliance extras (server + client)
+- **MOTD** — `alliance_set_motd`; founder or officer with `canEditMotd` (240-char cap, sanitized)
+- **Audit log** — `alliance_get_audit`; founder or officer with `canViewAudit`; entries for create/join/leave/set_role/motd_update/set_perms/broadcast/kick; capped 200 newest
+- **Granular permissions** — `alliance_set_perms` (founder only); per-rank toggles via `DEFAULT_PERMS` + merge: officer (canUseOfficerChat, canEditMotd, canBroadcastOfficers, canKickRecruits, canViewAudit) and commander (+ canKickMembers, canPromoteToOfficer); perms preserved through `normalizeAlliance` so broadcasts don't reset them; new `alliance_update` broadcast carries perms/MOTD/members so all clients stay in sync
+- **Kick** — `alliance_kick`; founder kicks anyone, commander with `canKickMembers` kicks members, officer/commander with `canKickRecruits` kicks recruits; founder protected; kicked user gets Alliance-tab mail + joinedId cleared; audit entry records the target
+- **Officer broadcasts** — `alliance_broadcast` accepts `audience: 'officers'` for officers with `canBroadcastOfficers`; still founder-only for `all`
+- **UI** — `js/ui/ui-alliance.js` rewritten with Settings (perms checkboxes, MOTD edit, kick buttons) + Audit tabs; `js/systems/alliance.js` wrappers (setMotd/getAudit/setPerms/kick/broadcast/can/isOfficerPlus); `js/app.js` `alliance_update`/`alliance_audit` handlers
+
+### Part B — Forces UI v2
+- **Custom train quantity** — training cards accept a number (clamped 0–99999) + quick-add buttons; `train` message sends the chosen qty
+- **Fleet builder v2** — Create/Edit Fleet modals with numeric per-troop inputs, quick-add (+1/+5/+10/Max), live Power/Defense/Carry/Speed/Count summary; Edit sends only changed counts (diff-based)
+- **Transit safety** — fleets in transit: Edit/Delete disabled in UI **and** guarded server-side in `js/systems/fleets.js`; CSS for `.fleet-qty-input` / `.fleet-quick-btn` / `.fleet-summary`
+
+### Bug fix — WebSocket heartbeat reconnect loop (pre-existing)
+- Client sent **raw WS ping frames** (masked binary) — browsers can't emit control frames, server never responded, socket died every 15s. Fixed with JSON `{type:'ping'}` ↔ `{type:'pong'}` heartbeat.
+- Dead-check threshold was `HEARTBEAT_TIMEOUT` (10s) < `HEARTBEAT_INTERVAL` (15s), so every tick tripped it. Now `interval + timeout` (25s).
+- **Live-verified:** stable connection, no reconnects over 40s+ watch; alliance chat round-trip confirmed in-browser.
+
+### Tests
+- New `alliance-extra-smoke-test.js` — 32 assertions: MOTD gates, audit entries/limits, perms gating + persistence, kick gating (founder/commander/officer), kick mail + colony clear, officer broadcast (32/32 green)
+- All suites green: alliance-extra 32/32, alliance 24/24, progression 30/30, audit 26/26, economy (print-only) exit 0
+
+
 
 ### Milestone
 Alliances are now real organizations: role-based hierarchy (founder/commander/officer/member/recruit), founder-controlled ranks, two private chat channels, and founder broadcast mail — with server-side security fixes.

@@ -401,6 +401,40 @@ window.App = (function () {
       render();
     });
 
+    // Live alliance object updates (motd / perms / membership changes / broadcasts)
+    Network.on("alliance_update", function (msg) {
+      var s = window.gameState;
+      if (!msg.alliancePublic) return;
+      var list = GameData.alliances || [];
+      var idx = -1;
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].id === msg.alliancePublic.id) { idx = i; break; }
+      }
+      if (idx >= 0) list[idx] = msg.alliancePublic;
+      else list.push(msg.alliancePublic);
+      GameData.alliances = list;
+      // If the current user was kicked, clear the local join state immediately
+      if (s && s.alliance && s.alliance.joinedId === msg.alliancePublic.id) {
+        var stillIn = (msg.alliancePublic.members || []).some(function (m) {
+          return m.username === (window.Network ? Network.username : '');
+        });
+        if (!stillIn) {
+          s.alliance = { joinedId: null };
+          if (!s.mailbox) s.mailbox = { messages: [], selectedTab: "Inbox", selectedMessageId: null };
+          MailboxSystem.addSystemMail(s, '⚠ You have been removed from the alliance.');
+        }
+      }
+      render();
+    });
+
+    // Alliance audit log fetch result
+    Network.on("alliance_audit", function (msg) {
+      var s = window.gameState;
+      if (!s.alliance) s.alliance = { joinedId: s.alliance ? s.alliance.joinedId : null };
+      s.alliance.auditEntries = (msg && msg.entries) || [];
+      render();
+    });
+
     Network.on("attack_launched", function (msg) {
       console.log('[ATTACK] attack_launched received:', JSON.stringify(msg).substring(0, 200));
       var s = window.gameState;

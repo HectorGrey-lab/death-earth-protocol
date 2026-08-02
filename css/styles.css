@@ -1566,6 +1566,36 @@ hr.sep {
   font-weight: bold;
   font-size: 13px;
 }
+.fleet-troop-controls .fleet-qty-input {
+  width: 56px;
+  text-align: center;
+  padding: 2px 4px;
+}
+.fleet-quick-btn {
+  font-size: 11px;
+  padding: 2px 6px;
+}
+.fleet-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border, #333);
+  border-radius: 6px;
+  background: var(--bg2, rgba(255,255,255,0.04));
+  font-size: 12px;
+  color: #ddd;
+}
+.fleet-summary span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.fleet-card .disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 
 /* =========================
    MOBILE — Tablet (max 768px) — consolidated

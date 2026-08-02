@@ -175,6 +175,39 @@ function log(ip, msg) {
 }
 
 // ─── Alliance helpers ──────────────────────────────────────────
+const DEFAULT_PERMS = {
+  officer: {
+    canUseOfficerChat: true, canEditMotd: false, canBroadcastOfficers: false,
+    canKickRecruits: false, canViewAudit: true
+  },
+  commander: {
+    canUseOfficerChat: true, canEditMotd: false, canBroadcastOfficers: false,
+    canKickRecruits: false, canViewAudit: true,
+    canKickMembers: false, canPromoteToOfficer: false
+  }
+};
+
+function normalizePerms(p) {
+  const out = JSON.parse(JSON.stringify(DEFAULT_PERMS));
+  if (p && typeof p === 'object') {
+    ['officer', 'commander'].forEach(function (rank) {
+      if (p[rank] && typeof p[rank] === 'object') {
+        Object.keys(out[rank]).forEach(function (key) {
+          if (typeof p[rank][key] === 'boolean') out[rank][key] = p[rank][key];
+        });
+      }
+    });
+  }
+  return out;
+}
+
+// Audit entry: { time, actor, action, target, meta } — newest first, cap 200
+function pushAudit(alliance, entry) {
+  if (!Array.isArray(alliance.audit)) alliance.audit = [];
+  alliance.audit.unshift(entry);
+  if (alliance.audit.length > 200) alliance.audit = alliance.audit.slice(0, 200);
+}
+
 function roleLevel(role) {
   const levels = { recruit: 0, member: 1, officer: 2, commander: 3, founder: 4 };
   return levels[role] !== undefined ? levels[role] : 0;
@@ -191,6 +224,10 @@ function getRole(alliance, username) {
     return (username === alliance.founder) ? 'founder' : 'member';
   }
   return null;
+}
+
+function getMemberRole(alliance, username) {
+  return getRole(alliance, username);
 }
 
 function normalizeAlliance(a, id) {
@@ -210,6 +247,8 @@ function normalizeAlliance(a, id) {
   if (!Array.isArray(a.chat.alliance)) a.chat.alliance = [];
   if (!Array.isArray(a.chat.officers)) a.chat.officers = [];
   if (typeof a.motd !== 'string') a.motd = '';
+  if (!Array.isArray(a.audit)) a.audit = [];
+  a.perms = normalizePerms(a.perms);
   if (!a.created) a.created = Date.now();
   return a;
 }
@@ -241,6 +280,7 @@ function getAlliancesListV2() {
       members: members,
       memberCount: members.length,
       motd: escapeHTML(a.motd || ''),
+      perms: normalizePerms(a.perms),
       created: a.created
     });
   });
@@ -249,6 +289,12 @@ function getAlliancesListV2() {
 
 function getAlliancesList() {
   return getAlliancesListV2();
+}
+
+// Single-alliance public view for alliance_update broadcasts
+function getAlliancePublic(id) {
+  var entry = getAlliancesListV2().filter(function (e) { return e.id === id; })[0];
+  return entry || null;
 }
 
 // Public universe view — excludes alliances/chat so colony_state never leaks private chat
@@ -1497,6 +1543,7 @@ server.on('upgrade', function(req, socket, head) {
               chat: { alliance: [], officers: [] }
             }, id);
             user.colony.alliance.joinedId = id;
+            pushAudit(alls[id], { time: Date.now(), actor: username, action: 'create' });
             DB.saveDB();
             reply(socket, {
               type: 'alliance_result', ok: true, colony: cloneColonyWithRates(user.colony),
@@ -1525,6 +1572,7 @@ server.on('upgrade', function(req, socket, head) {
             alliance = normalizeAlliance(alliance, allianceId);
             alliance.members[username] = { role: 'recruit', joinedAt: Date.now() };
             user.colony.alliance.joinedId = allianceId;
+            pushAudit(alliance, { time: Date.now(), actor: username, action: 'join', target: username });
             DB.saveDB();
             reply(socket, {
               type: 'alliance_result', ok: true, colony: cloneColonyWithRates(user.colony),
@@ -1562,6 +1610,7 @@ server.on('upgrade', function(req, socket, head) {
             } else if (Object.keys(alliance.members).length === 0) {
               delete alls[joinedId];
             }
+            pushAudit(alliance, { time: Date.now(), actor: username, action: 'leave', target: username });
           }
           user.colony.alliance.joinedId = null;
           DB.saveDB();
@@ -1595,7 +1644,9 @@ server.on('upgrade', function(req, socket, head) {
           } else if (!alliance.members[msg.targetUsername]) {
             reply(socket, { type: 'alliance_result', ok: false, error: 'Target is not in this alliance' }, msg._reqId);
           } else {
+            var fromRole = alliance.members[msg.targetUsername].role;
             alliance.members[msg.targetUsername].role = targetRole;
+            pushAudit(alliance, { time: Date.now(), actor: username, action: 'set_role', target: msg.targetUsername, meta: { from: fromRole, to: targetRole } });
             DB.saveDB();
             reply(socket, {
               type: 'alliance_result', ok: true, colony: cloneColonyWithRates(user.colony),
@@ -1645,7 +1696,7 @@ server.on('upgrade', function(req, socket, head) {
         }
       }
 
-      // ── Founder broadcast mail ──
+      // ── Founder/officer broadcast mail ──
       if (msg.type === 'alliance_broadcast') {
         var joinedId = user.colony.alliance.joinedId;
         if (!joinedId) {
@@ -1655,35 +1706,184 @@ server.on('upgrade', function(req, socket, head) {
           var alliance = alls[joinedId];
           if (!alliance) {
             reply(socket, { type: 'alliance_result', ok: false, error: 'Alliance not found' }, msg._reqId);
-          } else if (alliance.founder !== username) {
-            reply(socket, { type: 'alliance_result', ok: false, error: 'Only the founder can broadcast' }, msg._reqId);
           } else {
+            var myRole = getMemberRole(alliance, username);
+            var isFounder = alliance.founder === username;
+            var officerBroadcastAllowed = roleLevel(myRole) >= 2 && alliance.perms.officer.canBroadcastOfficers;
             var audience = msg.audience === 'officers' ? 'officers' : 'all';
-            var subject = String(msg.subject || '').substring(0, 80);
-            var body = String(msg.body || '').substring(0, 1500);
-            if (!subject.trim()) {
-              reply(socket, { type: 'alliance_result', ok: false, error: 'Subject required' }, msg._reqId);
+            if (!isFounder && !officerBroadcastAllowed) {
+              reply(socket, { type: 'alliance_result', ok: false, error: 'Only the founder can broadcast (officers need the canBroadcastOfficers permission)' }, msg._reqId);
+            } else if (!isFounder && audience === 'all') {
+              reply(socket, { type: 'alliance_result', ok: false, error: 'Officers can only broadcast to officers' }, msg._reqId);
             } else {
-              var recipients = Object.keys(alliance.members).filter(function(uname) {
-                if (audience === 'all') return true;
-                return roleLevel(alliance.members[uname].role) >= 2;
-              });
-              var mailBody = '📢 Alliance Broadcast\nFrom: ' + username + '\nTo: ' + (audience === 'officers' ? 'Officers' : 'All Members') + '\nTime: ' + new Date().toUTCString() + '\n\n' + body;
-              recipients.forEach(function(recName) {
-                var rec = DB.db.users[recName];
-                if (rec && rec.colony) {
-                  pushMail(rec.colony, 'Alliance', '[Alliance] ' + subject, mailBody, 'alliance_broadcast');
-                }
-              });
-              DB.saveDB();
-              // Optional UX: post a system line into alliance chat
-              var sysLine = 'Founder sent a broadcast: ' + subject;
+              var subject = String(msg.subject || '').substring(0, 80);
+              var body = String(msg.body || '').substring(0, 1500);
+              if (!subject.trim()) {
+                reply(socket, { type: 'alliance_result', ok: false, error: 'Subject required' }, msg._reqId);
+              } else {
+                var recipients = Object.keys(alliance.members).filter(function(uname) {
+                  if (audience === 'all') return true;
+                  return roleLevel(alliance.members[uname].role) >= 2;
+                });
+                var mailBody = '📢 Alliance Broadcast\nFrom: ' + username + '\nTo: ' + (audience === 'officers' ? 'Officers' : 'All Members') + '\nTime: ' + new Date().toUTCString() + '\n\n' + body;
+                recipients.forEach(function(recName) {
+                  var rec = DB.db.users[recName];
+                  if (rec && rec.colony) {
+                    pushMail(rec.colony, 'Alliance', '[Alliance] ' + subject, mailBody, 'alliance_broadcast');
+                  }
+                });
+                pushAudit(alliance, { time: Date.now(), actor: username, action: 'broadcast', meta: { audience: audience, subject: subject } });
+                DB.saveDB();
+                // Optional UX: post a system line into alliance chat
+                var sysLine = (isFounder ? 'Founder' : username) + ' sent a broadcast: ' + subject;
+                alliance = normalizeAlliance(alliance, joinedId);
+                alliance.chat.alliance.push({ username: 'System', text: escapeHTML(sysLine), time: Date.now() });
+                if (alliance.chat.alliance.length > 50) alliance.chat.alliance = alliance.chat.alliance.slice(-50);
+                broadcastToAlliance(joinedId, { type: 'alliance_chat', channel: 'alliance', username: 'System', text: escapeHTML(sysLine), time: Date.now() });
+                broadcastToAlliance(joinedId, { type: 'alliance_update', alliancePublic: getAlliancePublic(joinedId) });
+                reply(socket, { type: 'alliance_result', ok: true, message: 'Broadcast sent to ' + recipients.length + ' recipient(s)' }, msg._reqId);
+                log(ip, 'alliance_broadcast ' + username + ' to ' + audience + ' (' + recipients.length + ')');
+              }
+            }
+          }
+        }
+      }
+
+      // ── MOTD (founder or officer with canEditMotd) ──
+      if (msg.type === 'alliance_set_motd') {
+        var joinedId = user.colony.alliance.joinedId;
+        if (!joinedId) {
+          reply(socket, { type: 'alliance_result', ok: false, error: 'Not in an alliance' }, msg._reqId);
+        } else {
+          var alls = DB.db.universe.alliances || {};
+          var alliance = alls[joinedId];
+          if (!alliance) {
+            reply(socket, { type: 'alliance_result', ok: false, error: 'Alliance not found' }, msg._reqId);
+          } else {
+            var myRole = getMemberRole(alliance, username);
+            var canEdit = alliance.founder === username ||
+              (roleLevel(myRole) >= 2 && alliance.perms.officer.canEditMotd);
+            if (!canEdit) {
+              reply(socket, { type: 'alliance_result', ok: false, error: 'You do not have permission to edit the MOTD' }, msg._reqId);
+            } else {
+              var motd = String(msg.motd || '').replace(/[\r\n]+/g, ' ').trim().substring(0, 240);
               alliance = normalizeAlliance(alliance, joinedId);
-              alliance.chat.alliance.push({ username: 'System', text: escapeHTML(sysLine), time: Date.now() });
-              if (alliance.chat.alliance.length > 50) alliance.chat.alliance = alliance.chat.alliance.slice(-50);
-              broadcastToAlliance(joinedId, { type: 'alliance_chat', channel: 'alliance', username: 'System', text: escapeHTML(sysLine), time: Date.now() });
-              reply(socket, { type: 'alliance_result', ok: true, message: 'Broadcast sent to ' + recipients.length + ' recipient(s)' }, msg._reqId);
-              log(ip, 'alliance_broadcast ' + username + ' to ' + audience + ' (' + recipients.length + ')');
+              alliance.motd = escapeHTML(motd);
+              pushAudit(alliance, { time: Date.now(), actor: username, action: 'motd_update' });
+              DB.saveDB();
+              broadcastToAlliance(joinedId, { type: 'alliance_update', alliancePublic: getAlliancePublic(joinedId) });
+              reply(socket, { type: 'alliance_result', ok: true, message: 'MOTD updated' }, msg._reqId);
+              log(ip, 'alliance_set_motd ' + username);
+            }
+          }
+        }
+      }
+
+      // ── Audit log (founder or officer with canViewAudit) ──
+      if (msg.type === 'alliance_get_audit') {
+        var joinedId = user.colony.alliance.joinedId;
+        if (!joinedId) {
+          reply(socket, { type: 'alliance_result', ok: false, error: 'Not in an alliance' }, msg._reqId);
+        } else {
+          var alls = DB.db.universe.alliances || {};
+          var alliance = alls[joinedId];
+          if (!alliance) {
+            reply(socket, { type: 'alliance_result', ok: false, error: 'Alliance not found' }, msg._reqId);
+          } else {
+            var myRole = getMemberRole(alliance, username);
+            var canView = alliance.founder === username ||
+              (roleLevel(myRole) >= 2 && alliance.perms.officer.canViewAudit);
+            if (!canView) {
+              reply(socket, { type: 'alliance_result', ok: false, error: 'You do not have permission to view the audit log' }, msg._reqId);
+            } else {
+              var limit = Math.max(1, Math.min(200, parseInt(msg.limit, 10) || 100));
+              reply(socket, { type: 'alliance_audit', ok: true, entries: (alliance.audit || []).slice(0, limit) }, msg._reqId);
+              log(ip, 'alliance_get_audit ' + username + ' (' + (alliance.audit || []).length + ' entries)');
+            }
+          }
+        }
+      }
+
+      // ── Permissions (founder only) ──
+      if (msg.type === 'alliance_set_perms') {
+        var joinedId = user.colony.alliance.joinedId;
+        if (!joinedId) {
+          reply(socket, { type: 'alliance_result', ok: false, error: 'Not in an alliance' }, msg._reqId);
+        } else {
+          var alls = DB.db.universe.alliances || {};
+          var alliance = alls[joinedId];
+          if (!alliance) {
+            reply(socket, { type: 'alliance_result', ok: false, error: 'Alliance not found' }, msg._reqId);
+          } else if (alliance.founder !== username) {
+            reply(socket, { type: 'alliance_result', ok: false, error: 'Only the founder can change permissions' }, msg._reqId);
+          } else {
+            alliance = normalizeAlliance(alliance, joinedId);
+            var incoming = msg.perms || {};
+            var merged = JSON.parse(JSON.stringify(DEFAULT_PERMS));
+            ['officer', 'commander'].forEach(function (rank) {
+              var src = incoming[rank];
+              if (src && typeof src === 'object') {
+                Object.keys(merged[rank]).forEach(function (key) {
+                  if (typeof src[key] === 'boolean') merged[rank][key] = src[key];
+                });
+              }
+            });
+            alliance.perms = merged;
+            pushAudit(alliance, { time: Date.now(), actor: username, action: 'set_perms', meta: { perms: JSON.stringify(alliance.perms) } });
+            DB.saveDB();
+            broadcastToAlliance(joinedId, { type: 'alliance_update', alliancePublic: getAlliancePublic(joinedId) });
+            reply(socket, { type: 'alliance_result', ok: true, message: 'Permissions updated' }, msg._reqId);
+            log(ip, 'alliance_set_perms ' + username);
+          }
+        }
+      }
+
+      // ── Kick member ──
+      if (msg.type === 'alliance_kick') {
+        var joinedId = user.colony.alliance.joinedId;
+        if (!joinedId) {
+          reply(socket, { type: 'alliance_result', ok: false, error: 'Not in an alliance' }, msg._reqId);
+        } else {
+          var alls = DB.db.universe.alliances || {};
+          var alliance = alls[joinedId];
+          if (!alliance) {
+            reply(socket, { type: 'alliance_result', ok: false, error: 'Alliance not found' }, msg._reqId);
+          } else {
+            var targetName = String(msg.targetUsername || '');
+            var myRole = getMemberRole(alliance, username);
+            var targetRole = getMemberRole(alliance, targetName);
+            var myLvl = roleLevel(myRole);
+            var tgtLvl = roleLevel(targetRole);
+            var allowed = false;
+            if (alliance.founder === username) {
+              allowed = targetName !== username && targetName !== '';
+            } else if (myLvl >= 3) {
+              // commanders: can kick recruits/members if perms allow
+              if (tgtLvl <= 0 && alliance.perms.commander.canKickRecruits) allowed = true;
+              else if (tgtLvl === 1 && alliance.perms.commander.canKickMembers) allowed = true;
+            } else if (myLvl >= 2) {
+              // officers: can kick recruits if perms allow
+              if (tgtLvl <= 0 && alliance.perms.officer.canKickRecruits) allowed = true;
+            }
+            if (!targetName || !targetRole) {
+              reply(socket, { type: 'alliance_result', ok: false, error: 'Target is not in this alliance' }, msg._reqId);
+            } else if (targetName === username) {
+              reply(socket, { type: 'alliance_result', ok: false, error: 'You cannot kick yourself' }, msg._reqId);
+            } else if (!allowed) {
+              reply(socket, { type: 'alliance_result', ok: false, error: 'You do not have permission to kick that member' }, msg._reqId);
+            } else {
+              delete alliance.members[targetName];
+              var kickedUser = DB.db.users[targetName];
+              if (kickedUser && kickedUser.colony) {
+                kickedUser.colony.alliance.joinedId = null;
+                pushMail(kickedUser.colony, 'Alliance', 'You were removed from ' + alliance.name,
+                  'You have been removed from the alliance "' + alliance.name + '".', 'alliance_kick');
+              }
+              pushAudit(alliance, { time: Date.now(), actor: username, action: 'kick', target: targetName });
+              DB.saveDB();
+              broadcastToAlliance(joinedId, { type: 'alliance_update', alliancePublic: getAlliancePublic(joinedId) });
+              reply(socket, { type: 'alliance_result', ok: true, message: targetName + ' was kicked from the alliance' }, msg._reqId);
+              log(ip, 'alliance_kick ' + username + ' -> ' + targetName);
             }
           }
         }
