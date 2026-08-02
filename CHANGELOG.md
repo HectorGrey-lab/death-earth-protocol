@@ -1,5 +1,43 @@
 # Dead Earth Protocol — Changelog & Fix History
 
+## 2026-08-02 — Expanded Alliances (roles, ranks, chat, broadcasts)
+
+### Milestone
+Alliances are now real organizations: role-based hierarchy (founder/commander/officer/member/recruit), founder-controlled ranks, two private chat channels, and founder broadcast mail — with server-side security fixes.
+
+### Phase 1 — Role data model (server)
+- `normalizeAlliance()` migrates legacy array-based members to a role map (`{ username: { role, joinedAt } }`); runs at startup for existing DBs
+- `getRole()` / `roleLevel()` helpers (recruit=0 → founder=4)
+
+### Phase 2 — Create / join / leave
+- Handlers rewritten onto the role map; case-insensitive duplicate-name rejection; joiners enter as **recruit**
+- Founder leaving transfers founder-ship to the highest-ranked remaining member; empty alliances are deleted
+- Updated `alliances` list broadcast to all connected users after every mutation
+
+### Phase 3 — Ranks
+- `alliance_set_role` — promote/demote (recruit/member/officer/commander), **founder only**
+
+### Phase 4 — Alliance chat (2 channels)
+- `alliance_chat_send` — `alliance` channel (open to members) + `officers` channel (gated to rank ≥2)
+- Recruits are read-only; text escaped + capped at 500 chars; history (last 30) delivered on `auth_ok`
+- **Security fix:** `colony_state` now ships `getPublicUniverse()` — raw `DB.db.universe` (alliances + chat) no longer leaks to clients
+
+### Phase 5 — Founder broadcast mail
+- `alliance_broadcast` — founder-only mail to all members or officers; subject/body capped, message cap 3/day not enforced server-side (UI hint only)
+
+### Phase 6–8 — Client
+- `js/systems/alliance.js` — new actions (setRole/sendChat/broadcast) + `joined()`/role helpers; stale `getJoinedAlliance(state)` call sites updated (research, troops, commander, home)
+- `js/ui/ui-alliance.js` — rewritten as tabbed panel: Overview (members + role badges + promote/demote), Chat (alliance + officers tabs), Officers, Broadcast (founder form)
+- `js/app.js` — `alliance_chat` / `alliance_chat_history` handlers
+- CSS — role badge colors, tab bar, chat log, broadcast form
+
+### Bug fix — WS frame drain
+- Server WS `data` handler parsed **one frame per TCP chunk**; pipelined messages (e.g. auth + first action) were silently dropped. Now drains all complete frames per chunk. This is a pre-existing live-site bug, caught by the alliance test.
+
+### Phase 9 — Tests
+- New `alliance-smoke-test.js` — 24 assertions: create/dup-name/join/leave, founder transfer, role gates (set_role + officer channel + recruit posting), 2-channel chat, broadcast mail, chat history on re-auth, and the universe-leak security check (24/24 green)
+- All prior suites still green: progression 30/30, audit 26/26, economy 5/5
+
 ## 2026-08-02 — Progression Pacing & Tech Tree
 
 ### Milestone

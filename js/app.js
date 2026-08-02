@@ -381,7 +381,23 @@ window.App = (function () {
       if (!msg.ok) {
         if (!s.mailbox) s.mailbox = { messages: [], selectedTab: "Inbox", selectedMessageId: null };
         MailboxSystem.addSystemMail(s, '⚠ Alliance update failed: ' + (msg.error || 'Unknown error'));
+      } else if (msg.message) {
+        if (!s.mailbox) s.mailbox = { messages: [], selectedTab: "Inbox", selectedMessageId: null };
+        MailboxSystem.addSystemMail(s, '✅ ' + msg.message);
       }
+      render();
+    });
+
+    // Alliance chat: history replay on connect, then live entries
+    Network.on("alliance_chat_history", function (msg) {
+      AllianceSystem.resetChat();
+      (msg.alliance || []).forEach(function (e) { AllianceSystem.pushChat({ channel: 'alliance', username: e.username, text: e.text, time: e.time }); });
+      (msg.officers || []).forEach(function (e) { AllianceSystem.pushChat({ channel: 'officers', username: e.username, text: e.text, time: e.time }); });
+      render();
+    });
+
+    Network.on("alliance_chat", function (msg) {
+      AllianceSystem.pushChat(msg);
       render();
     });
 

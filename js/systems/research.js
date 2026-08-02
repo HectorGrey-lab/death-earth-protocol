@@ -1,7 +1,7 @@
 window.ResearchSystem = (function () {
   function getTimeReduction(state) {
     let reduction = Math.max(0, (state.buildings.researchLab.level - 1) * 0.08);
-    const alliance = AllianceSystem.getJoinedAlliance(state);
+    const alliance = AllianceSystem.joined();
     if (alliance && alliance.perkType === "research") reduction += alliance.perkValue;
     const activeEvent = state.events.active ? state.events.active.effect || {} : {};
     reduction += activeEvent.researchTimeReduction || 0;

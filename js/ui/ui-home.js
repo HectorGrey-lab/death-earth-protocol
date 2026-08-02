@@ -62,7 +62,7 @@ window.UIHome = (function () {
   }
 
   function renderBaseSummary(state) {
-    const joined = AllianceSystem.getJoinedAlliance(state);
+    const joined = AllianceSystem.joined();
     return `
       <div class="card-grid cols-2">
         <div class="card">

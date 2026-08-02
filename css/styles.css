@@ -270,6 +270,36 @@ button, input, select { font: inherit; }
 .badge.red { color: var(--red); border-color: rgba(255,107,107,0.3); background: rgba(255,107,107,0.12); }
 .badge.purple { color: var(--purple); border-color: rgba(191,123,255,0.3); background: rgba(191,123,255,0.12); }
 
+/* ── Alliance UI (roles, tabs, chat) ── */
+.badge.role-founder { color: var(--gold, #ffd166); border-color: rgba(255,209,102,0.4); background: rgba(255,209,102,0.14); }
+.badge.role-commander { color: var(--purple); border-color: rgba(191,123,255,0.4); background: rgba(191,123,255,0.14); }
+.badge.role-officer { color: var(--cyan, #58d6ff); border-color: rgba(88,214,255,0.4); background: rgba(88,214,255,0.14); }
+.badge.role-member { color: var(--green); border-color: rgba(105,240,174,0.35); background: rgba(105,240,174,0.12); }
+.badge.role-recruit { color: var(--text-dim, #8a93a6); border-color: rgba(138,147,166,0.3); background: rgba(138,147,166,0.1); }
+
+.alliance-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.alliance-tabs .btn.active {
+  background: linear-gradient(180deg, rgba(88,214,255,0.35), rgba(88,214,255,0.15));
+  border-color: rgba(88,214,255,0.6);
+  color: #fff;
+  box-shadow: 0 0 10px rgba(88,214,255,0.25);
+}
+
+.alliance-chat-log {
+  max-height: 220px;
+  overflow-y: auto;
+  display: grid;
+  gap: 3px;
+  padding: 6px;
+  background: rgba(0,0,0,0.25);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+.alliance-chat-line { font-size: 12px; line-height: 1.45; word-break: break-word; }
+.chat-time { color: var(--text-dim, #8a93a6); font-size: 10px; font-family: var(--mono, monospace); }
+.faint { color: var(--text-dim, #8a93a6); }
+
 .small { font-size: 12px; color: var(--muted); }
 .muted { color: var(--muted); }
 

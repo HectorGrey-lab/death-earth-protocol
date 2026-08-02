@@ -8,21 +8,22 @@ window.UICommander = (function () {
   }
 
   function renderAllianceControls(state) {
-    const joined = AllianceSystem.getJoinedAlliance(state);
+    const joined = AllianceSystem.joined();
     if (joined) {
+      const memberNames = (joined.members || []).map(m => m.username).join(", ");
       return `
         <div class="card">
           <div class="space-between">
             <strong>${joined.name}</strong>
-            <button class="btn small danger" onclick="AllianceSystem.leaveAlliance(window.gameState); window.App.render();">Leave</button>
+            <button class="btn small danger" onclick="AllianceSystem.leave(); window.App.render();">Leave</button>
           </div>
           <div class="small">Founder: ${joined.founder}</div>
-          <div class="small">Members: ${joined.members.join(", ")}</div>
+          <div class="small">Members: ${memberNames}</div>
         </div>
       `;
     }
 
-    var alls = AllianceSystem.getAlliancesList(state);
+    var alls = AllianceSystem.all();
     if (alls.length === 0) {
       return `<div class="small">No alliances available.</div>`;
     }
@@ -30,9 +31,9 @@ window.UICommander = (function () {
       <div class="card">
         <div class="space-between">
           <strong>${a.name}</strong>
-          <button class="btn small" onclick="AllianceSystem.joinAlliance(window.gameState, '${a.id}'); window.App.render();">Join</button>
+          <button class="btn small" onclick="AllianceSystem.join('${a.id}'); window.App.render();">Join</button>
         </div>
-        <div class="small">Founder: ${a.founder} — ${a.members.length} members</div>
+        <div class="small">Founder: ${a.founder} — ${a.memberCount || a.members.length} members</div>
       </div>
     `).join("");
   }

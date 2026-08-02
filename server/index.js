@@ -175,14 +175,119 @@ function log(ip, msg) {
 }
 
 // ─── Alliance helpers ──────────────────────────────────────────
-function getAlliancesList() {
+function roleLevel(role) {
+  const levels = { recruit: 0, member: 1, officer: 2, commander: 3, founder: 4 };
+  return levels[role] !== undefined ? levels[role] : 0;
+}
+
+function getRole(alliance, username) {
+  if (!alliance) return null;
+  if (alliance.members && typeof alliance.members === 'object' && !Array.isArray(alliance.members)) {
+    const m = alliance.members[username];
+    return m ? (m.role || 'member') : null;
+  }
+  // Legacy array-of-strings form
+  if (Array.isArray(alliance.members) && alliance.members.indexOf(username) !== -1) {
+    return (username === alliance.founder) ? 'founder' : 'member';
+  }
+  return null;
+}
+
+function normalizeAlliance(a, id) {
+  if (!a) a = {};
+  a.id = a.id || id;
+  // Convert legacy members array -> map with roles
+  if (Array.isArray(a.members)) {
+    const map = {};
+    a.members.forEach(function(u) {
+      if (u) map[u] = { role: (u === a.founder ? 'founder' : 'member'), joinedAt: a.created || Date.now() };
+    });
+    if (a.founder && !map[a.founder]) map[a.founder] = { role: 'founder', joinedAt: a.created || Date.now() };
+    a.members = map;
+  }
+  if (!a.members || typeof a.members !== 'object') a.members = {};
+  if (!a.chat) a.chat = {};
+  if (!Array.isArray(a.chat.alliance)) a.chat.alliance = [];
+  if (!Array.isArray(a.chat.officers)) a.chat.officers = [];
+  if (typeof a.motd !== 'string') a.motd = '';
+  if (!a.created) a.created = Date.now();
+  return a;
+}
+
+function normalizeAlliances() {
+  DB.db.universe.alliances = DB.db.universe.alliances || {};
+  Object.keys(DB.db.universe.alliances).forEach(function(id) {
+    DB.db.universe.alliances[id] = normalizeAlliance(DB.db.universe.alliances[id], id);
+  });
+}
+
+function getAlliancesListV2() {
   var result = [];
   var alls = DB.db.universe.alliances || {};
   Object.keys(alls).forEach(function(id) {
     var a = alls[id];
-    result.push({ id: id, name: escapeHTML(a.name), founder: escapeHTML(a.founder), members: (a.members || []).map(function(m) { return escapeHTML(m); }), created: a.created });
+    var members = [];
+    Object.keys(a.members || {}).forEach(function(uname) {
+      members.push({
+        username: escapeHTML(uname),
+        role: a.members[uname].role || 'member',
+        joinedAt: a.members[uname].joinedAt
+      });
+    });
+    result.push({
+      id: id,
+      name: escapeHTML(a.name),
+      founder: escapeHTML(a.founder),
+      members: members,
+      memberCount: members.length,
+      motd: escapeHTML(a.motd || ''),
+      created: a.created
+    });
   });
   return result;
+}
+
+function getAlliancesList() {
+  return getAlliancesListV2();
+}
+
+// Public universe view — excludes alliances/chat so colony_state never leaks private chat
+function getPublicUniverse() {
+  const u = DB.db.universe;
+  return { galaxies: u.galaxies || {}, claimedPlanets: u.claimedPlanets || {}, nextId: u.nextId || 0 };
+}
+
+// Broadcast to members of one alliance; optional predicateFn(info, socket) filters recipients
+function broadcastToAlliance(allianceId, msg, predicateFn) {
+  const data = JSON.stringify(msg);
+  wsClients.forEach(function(info, socket) {
+    try {
+      if (!info || !info.username) return;
+      const userRec = DB.db.users[info.username];
+      if (!userRec || !userRec.colony || !userRec.colony.alliance) return;
+      if (userRec.colony.alliance.joinedId !== allianceId) return;
+      if (predicateFn && !predicateFn(info, socket)) return;
+      socket.write(wsEncodeFrame(data));
+    } catch (e) {}
+  });
+}
+
+// Push a mail message into a colony mailbox (cap 120)
+function pushMail(colony, tab, subject, body, type, data) {
+  if (!colony.mailbox) colony.mailbox = { messages: [], selectedTab: 'Inbox', selectedMessageId: null };
+  if (!Array.isArray(colony.mailbox.messages)) colony.mailbox.messages = [];
+  colony.mailbox.messages.unshift({
+    id: 'mail_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+    tab: tab, subject: subject, body: body, time: Date.now(), isNew: true,
+    type: type || 'standard', data: data || null
+  });
+  colony.mailbox.messages = colony.mailbox.messages.slice(0, 120);
+}
+
+function cloneColonyWithRates(colony) {
+  const copy = JSON.parse(JSON.stringify(colony));
+  copy.productionRates = ResourceSystem.getProductionRates(colony);
+  return copy;
 }
 
 // ─── Client gameData (balance/definitions only — sent with colony_state so UI matches server truth) ──
@@ -1006,10 +1111,27 @@ server.on('upgrade', function(req, socket, head) {
             socket.write(wsEncodeFrame(JSON.stringify({
               type: 'colony_state',
               colony: colony,
-              universe: DB.db.universe,
+              universe: getPublicUniverse(),
               alliances: getAlliancesList(),
               gameData: getClientGameData()
             })));
+          }
+
+          // Send alliance chat history for the user's alliance (if any)
+          if (user && user.colony && user.colony.alliance && user.colony.alliance.joinedId) {
+            var myAid = user.colony.alliance.joinedId;
+            var myAlliance = (DB.db.universe.alliances || {})[myAid];
+            if (myAlliance) {
+              myAlliance = normalizeAlliance(myAlliance, myAid);
+              var myRoleLvl = roleLevel(getRole(myAlliance, username));
+              var hist = {
+                type: 'alliance_chat_history',
+                allianceId: myAid,
+                alliance: (myAlliance.chat.alliance || []).slice(-30)
+              };
+              if (myRoleLvl >= 2) hist.officers = (myAlliance.chat.officers || []).slice(-30);
+              socket.write(wsEncodeFrame(JSON.stringify(hist)));
+            }
           }
           log(ip, 'WS auth (' + uname + ')');
           broadcastAll({ type: 'system', message: escapeHTML(username) + ' has joined the universe' });
@@ -1025,49 +1147,52 @@ server.on('upgrade', function(req, socket, head) {
   socket.on('data', function(chunk) {
     resetIdleTimeout();
     buffer = Buffer.concat([buffer, chunk]);
-    if (buffer.length < 2) return;
-    const opcode = buffer[0] & 0x0f;
-    if (opcode === 0x08) { // close
-      if (username) {
-        wsClients.delete(socket);
-        broadcastAll({ type: 'system', message: escapeHTML(username) + ' has left the universe' });
-        broadcastPresence();
+    // Drain ALL complete frames in the buffer (client may pipeline multiple
+    // messages in one TCP segment — auth + first action, chat bursts, etc.)
+    while (true) {
+      if (buffer.length < 2) break;
+      const opcode = buffer[0] & 0x0f;
+      if (opcode === 0x08) { // close
+        if (username) {
+          wsClients.delete(socket);
+          broadcastAll({ type: 'system', message: escapeHTML(username) + ' has left the universe' });
+          broadcastPresence();
+        }
+        socket.end();
+        return;
       }
-      socket.end();
-      return;
-    }
-    if (opcode === 0x09) { // ping
-      socket.write(Buffer.from([0x8a, 0x00]));
-      return;
-    }
-    if (opcode !== 0x01 && opcode !== 0x02) return;
+      if (opcode === 0x09) { // ping
+        socket.write(Buffer.from([0x8a, 0x00]));
+        buffer = buffer.slice(2);
+        continue;
+      }
+      if (opcode !== 0x01 && opcode !== 0x02) { buffer = buffer.slice(1); continue; }
 
-    const masked = buffer[1] & 0x80;
-    let payloadLen = buffer[1] & 0x7f;
-    let offset = 2;
-    if (payloadLen === 126) { offset += 2; payloadLen = buffer.readUInt16BE(2); }
-    else if (payloadLen === 127) { offset += 8; payloadLen = Number(buffer.readBigUInt64BE(2)); }
+      const masked = buffer[1] & 0x80;
+      let payloadLen = buffer[1] & 0x7f;
+      let offset = 2;
+      if (payloadLen === 126) { if (buffer.length < 4) break; offset += 2; payloadLen = buffer.readUInt16BE(2); }
+      else if (payloadLen === 127) { if (buffer.length < 10) break; offset += 8; payloadLen = Number(buffer.readBigUInt64BE(2)); }
 
-    const maskKey = masked ? buffer.slice(offset, offset + 4) : null;
-    offset += masked ? 4 : 0;
+      const maskKey = masked ? buffer.slice(offset, offset + 4) : null;
+      offset += masked ? 4 : 0;
 
-    if (buffer.length < offset + payloadLen) return;
-    var payload = buffer.slice(offset, offset + payloadLen);
-    if (masked) {
-      for (var i = 0; i < payload.length; i++) payload[i] ^= maskKey[i % 4];
-    }
+      if (buffer.length < offset + payloadLen) break;
+      var payload = buffer.slice(offset, offset + payloadLen);
+      if (masked) {
+        for (var i = 0; i < payload.length; i++) payload[i] ^= maskKey[i % 4];
+      }
 
-    buffer = buffer.slice(offset + payloadLen);
-    var text = payload.toString('utf8');
+      buffer = buffer.slice(offset + payloadLen);
+      var text = payload.toString('utf8');
 
-    if (!authChecked) { tryAuth(text); return; }
-    if (!authenticated) return;
+      if (!authChecked) { tryAuth(text); continue; }
+      if (!authenticated) continue;
 
-    try {
+      try {
       var msg = JSON.parse(text);
       var user = DB.db.users[username];
       if (!user || !user.colony) return;
-
       // ── Chat ──
       if (msg.type === 'chat') {
         // Cap and escape chat text
@@ -1095,7 +1220,7 @@ server.on('upgrade', function(req, socket, head) {
         colonySeq++;
         var colony = JSON.parse(JSON.stringify(user.colony));
         colony.productionRates = ResourceSystem.getProductionRates(user.colony);
-        reply(socket, { type: 'colony_state', seq: colonySeq, colony: colony, universe: DB.db.universe, alliances: getAlliancesList(), gameData: getClientGameData() }, msg._reqId);
+        reply(socket, { type: 'colony_state', seq: colonySeq, colony: colony, universe: getPublicUniverse(), alliances: getAlliancesList(), gameData: getClientGameData() }, msg._reqId);
       }
 
       // ── Build ──
@@ -1346,27 +1471,36 @@ server.on('upgrade', function(req, socket, head) {
         var aName = msg.name;
         if (!aName || typeof aName !== 'string' || aName.trim().length < 2) {
           reply(socket, { type: 'alliance_result', ok: false, error: 'Alliance name must be at least 2 characters' }, msg._reqId);
+        } else if (!/^[A-Za-z0-9 _\-]+$/.test(aName.trim()) || aName.trim().length > 32) {
+          reply(socket, { type: 'alliance_result', ok: false, error: 'Name: letters/numbers/spaces/_- only, max 32 chars' }, msg._reqId);
         } else if (user.colony.alliance.joinedId) {
           reply(socket, { type: 'alliance_result', ok: false, error: 'You are already in an alliance' }, msg._reqId);
         } else {
           var alls = DB.db.universe.alliances = DB.db.universe.alliances || {};
-          var id = 'alliance_' + Date.now();
-          alls[id] = {
-            id: id,
-            name: aName.trim(),
-            founder: username,
-            members: [username],
-            created: Date.now()
-          };
-          user.colony.alliance.joinedId = id;
-          DB.saveDB();
-          var colony = JSON.parse(JSON.stringify(user.colony));
-          colony.productionRates = ResourceSystem.getProductionRates(user.colony);
-          reply(socket, {
-            type: 'alliance_result', ok: true, colony: colony,
-            alliances: getAlliancesList()
-          }, msg._reqId);
-          log(ip, 'alliance_create ' + username + ' -> ' + aName.trim());
+          var id = 'a_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 4);
+          // Unique check (case-insensitive)
+          var nameTaken = Object.keys(alls).some(function(k) { return alls[k].name.toLowerCase() === aName.trim().toLowerCase(); });
+          if (nameTaken) {
+            reply(socket, { type: 'alliance_result', ok: false, error: 'An alliance with that name already exists' }, msg._reqId);
+          } else {
+            alls[id] = normalizeAlliance({
+              id: id,
+              name: aName.trim(),
+              founder: username,
+              created: Date.now(),
+              members: { [username]: { role: 'founder', joinedAt: Date.now() } },
+              motd: '',
+              chat: { alliance: [], officers: [] }
+            }, id);
+            user.colony.alliance.joinedId = id;
+            DB.saveDB();
+            reply(socket, {
+              type: 'alliance_result', ok: true, colony: cloneColonyWithRates(user.colony),
+              alliances: getAlliancesList()
+            }, msg._reqId);
+            broadcastAll({ type: 'alliance_result', ok: true, alliances: getAlliancesList() });
+            log(ip, 'alliance_create ' + username + ' -> ' + aName.trim());
+          }
         }
       }
 
@@ -1379,21 +1513,21 @@ server.on('upgrade', function(req, socket, head) {
           var alliance = alls[allianceId];
           if (!alliance) {
             reply(socket, { type: 'alliance_result', ok: false, error: 'Alliance not found' }, msg._reqId);
+          } else if (user.colony.alliance.joinedId) {
+            reply(socket, { type: 'alliance_result', ok: false, error: 'You are already in an alliance' }, msg._reqId);
+          } else if (getRole(alliance, username)) {
+            reply(socket, { type: 'alliance_result', ok: false, error: 'Already in this alliance' }, msg._reqId);
           } else {
-            if (alliance.members.indexOf(username) !== -1) {
-              reply(socket, { type: 'alliance_result', ok: false, error: 'Already in this alliance' }, msg._reqId);
-            } else {
-              alliance.members.push(username);
-              user.colony.alliance.joinedId = allianceId;
-              DB.saveDB();
-              var colony = JSON.parse(JSON.stringify(user.colony));
-              colony.productionRates = ResourceSystem.getProductionRates(user.colony);
-              reply(socket, {
-                type: 'alliance_result', ok: true, colony: colony,
-                alliances: getAlliancesList()
-              }, msg._reqId);
-              log(ip, 'alliance_join ' + username + ' -> ' + allianceId);
-            }
+            alliance = normalizeAlliance(alliance, allianceId);
+            alliance.members[username] = { role: 'recruit', joinedAt: Date.now() };
+            user.colony.alliance.joinedId = allianceId;
+            DB.saveDB();
+            reply(socket, {
+              type: 'alliance_result', ok: true, colony: cloneColonyWithRates(user.colony),
+              alliances: getAlliancesList()
+            }, msg._reqId);
+            broadcastAll({ type: 'alliance_result', ok: true, alliances: getAlliancesList() });
+            log(ip, 'alliance_join ' + username + ' -> ' + allianceId);
           }
         }
       }
@@ -1406,26 +1540,148 @@ server.on('upgrade', function(req, socket, head) {
           var alls = DB.db.universe.alliances || {};
           var alliance = alls[joinedId];
           if (alliance) {
-            var idx = alliance.members.indexOf(username);
-            if (idx !== -1) alliance.members.splice(idx, 1);
-            // If founder leaves and there are other members, transfer founder
-            if (alliance.founder === username && alliance.members.length > 0) {
-              alliance.founder = alliance.members[0];
-            }
-            // Remove alliance if no members left
-            if (alliance.members.length === 0) {
+            alliance = normalizeAlliance(alliance, joinedId);
+            delete alliance.members[username];
+            // If founder leaves and others remain, transfer founder to highest-ranked member
+            if (alliance.founder === username) {
+              var remaining = Object.keys(alliance.members);
+              if (remaining.length > 0) {
+                remaining.sort(function(x, y) {
+                  return roleLevel(alliance.members[y].role) - roleLevel(alliance.members[x].role);
+                });
+                var newFounder = remaining[0];
+                alliance.founder = newFounder;
+                alliance.members[newFounder].role = 'founder';
+              } else {
+                delete alls[joinedId];
+              }
+            } else if (Object.keys(alliance.members).length === 0) {
               delete alls[joinedId];
             }
           }
           user.colony.alliance.joinedId = null;
           DB.saveDB();
-          var colony = JSON.parse(JSON.stringify(user.colony));
-          colony.productionRates = ResourceSystem.getProductionRates(user.colony);
           reply(socket, {
-            type: 'alliance_result', ok: true, colony: colony,
+            type: 'alliance_result', ok: true, colony: cloneColonyWithRates(user.colony),
             alliances: getAlliancesList()
           }, msg._reqId);
+          broadcastAll({ type: 'alliance_result', ok: true, alliances: getAlliancesList() });
           log(ip, 'alliance_leave ' + username);
+        }
+      }
+
+      // ── Alliance ranks (promote/demote) — founder only ──
+      if (msg.type === 'alliance_set_role') {
+        var joinedId = user.colony.alliance.joinedId;
+        if (!joinedId) {
+          reply(socket, { type: 'alliance_result', ok: false, error: 'Not in an alliance' }, msg._reqId);
+        } else {
+          var alls = DB.db.universe.alliances || {};
+          var alliance = alls[joinedId];
+          var targetRole = msg.role;
+          var validRoles = ['recruit', 'member', 'officer', 'commander'];
+          if (!alliance) {
+            reply(socket, { type: 'alliance_result', ok: false, error: 'Alliance not found' }, msg._reqId);
+          } else if (alliance.founder !== username) {
+            reply(socket, { type: 'alliance_result', ok: false, error: 'Only the founder can change roles' }, msg._reqId);
+          } else if (msg.targetUsername === username) {
+            reply(socket, { type: 'alliance_result', ok: false, error: 'Founder cannot change their own role' }, msg._reqId);
+          } else if (validRoles.indexOf(targetRole) === -1) {
+            reply(socket, { type: 'alliance_result', ok: false, error: 'Invalid role' }, msg._reqId);
+          } else if (!alliance.members[msg.targetUsername]) {
+            reply(socket, { type: 'alliance_result', ok: false, error: 'Target is not in this alliance' }, msg._reqId);
+          } else {
+            alliance.members[msg.targetUsername].role = targetRole;
+            DB.saveDB();
+            reply(socket, {
+              type: 'alliance_result', ok: true, colony: cloneColonyWithRates(user.colony),
+              alliances: getAlliancesList()
+            }, msg._reqId);
+            broadcastAll({ type: 'alliance_result', ok: true, alliances: getAlliancesList() });
+            log(ip, 'alliance_set_role ' + username + ' -> ' + msg.targetUsername + ' = ' + targetRole);
+          }
+        }
+      }
+
+      // ── Alliance chat (two channels) ──
+      if (msg.type === 'alliance_chat_send') {
+        var joinedId = user.colony.alliance.joinedId;
+        var channel = msg.channel === 'officers' ? 'officers' : 'alliance';
+        if (!joinedId) {
+          reply(socket, { type: 'alliance_result', ok: false, error: 'Not in an alliance' }, msg._reqId);
+        } else {
+          var alls = DB.db.universe.alliances || {};
+          var alliance = alls[joinedId];
+          if (!alliance) {
+            reply(socket, { type: 'alliance_result', ok: false, error: 'Alliance not found' }, msg._reqId);
+          } else if (channel === 'officers' && roleLevel(getRole(alliance, username)) < 2) {
+            reply(socket, { type: 'alliance_result', ok: false, error: 'Officer channel requires officer rank or higher' }, msg._reqId);
+          } else if (roleLevel(getRole(alliance, username)) < 1) {
+            reply(socket, { type: 'alliance_result', ok: false, error: 'Recruits can read chat but cannot post. Ask an officer to promote you.' }, msg._reqId);
+          } else {
+            var safeChatText = escapeHTML(String(msg.text || '').substring(0, 500));
+            if (safeChatText.trim().length > 0) {
+              alliance = normalizeAlliance(alliance, joinedId);
+              alliance.chat[channel].push({ username: escapeHTML(username), text: safeChatText, time: Date.now() });
+              if (alliance.chat[channel].length > 50) alliance.chat[channel] = alliance.chat[channel].slice(-50);
+              DB.saveDB();
+              var chatMsg = { type: 'alliance_chat', channel: channel, username: escapeHTML(username), text: safeChatText, time: Date.now() };
+              if (channel === 'officers') {
+                broadcastToAlliance(joinedId, chatMsg, function(info) {
+                  var rec = DB.db.users[info.username];
+                  if (!rec || !rec.colony || !rec.colony.alliance) return false;
+                  var a = alls[rec.colony.alliance.joinedId];
+                  return a ? roleLevel(getRole(a, info.username)) >= 2 : false;
+                });
+              } else {
+                broadcastToAlliance(joinedId, chatMsg);
+              }
+            }
+          }
+        }
+      }
+
+      // ── Founder broadcast mail ──
+      if (msg.type === 'alliance_broadcast') {
+        var joinedId = user.colony.alliance.joinedId;
+        if (!joinedId) {
+          reply(socket, { type: 'alliance_result', ok: false, error: 'Not in an alliance' }, msg._reqId);
+        } else {
+          var alls = DB.db.universe.alliances || {};
+          var alliance = alls[joinedId];
+          if (!alliance) {
+            reply(socket, { type: 'alliance_result', ok: false, error: 'Alliance not found' }, msg._reqId);
+          } else if (alliance.founder !== username) {
+            reply(socket, { type: 'alliance_result', ok: false, error: 'Only the founder can broadcast' }, msg._reqId);
+          } else {
+            var audience = msg.audience === 'officers' ? 'officers' : 'all';
+            var subject = String(msg.subject || '').substring(0, 80);
+            var body = String(msg.body || '').substring(0, 1500);
+            if (!subject.trim()) {
+              reply(socket, { type: 'alliance_result', ok: false, error: 'Subject required' }, msg._reqId);
+            } else {
+              var recipients = Object.keys(alliance.members).filter(function(uname) {
+                if (audience === 'all') return true;
+                return roleLevel(alliance.members[uname].role) >= 2;
+              });
+              var mailBody = '📢 Alliance Broadcast\nFrom: ' + username + '\nTo: ' + (audience === 'officers' ? 'Officers' : 'All Members') + '\nTime: ' + new Date().toUTCString() + '\n\n' + body;
+              recipients.forEach(function(recName) {
+                var rec = DB.db.users[recName];
+                if (rec && rec.colony) {
+                  pushMail(rec.colony, 'Alliance', '[Alliance] ' + subject, mailBody, 'alliance_broadcast');
+                }
+              });
+              DB.saveDB();
+              // Optional UX: post a system line into alliance chat
+              var sysLine = 'Founder sent a broadcast: ' + subject;
+              alliance = normalizeAlliance(alliance, joinedId);
+              alliance.chat.alliance.push({ username: 'System', text: escapeHTML(sysLine), time: Date.now() });
+              if (alliance.chat.alliance.length > 50) alliance.chat.alliance = alliance.chat.alliance.slice(-50);
+              broadcastToAlliance(joinedId, { type: 'alliance_chat', channel: 'alliance', username: 'System', text: escapeHTML(sysLine), time: Date.now() });
+              reply(socket, { type: 'alliance_result', ok: true, message: 'Broadcast sent to ' + recipients.length + ' recipient(s)' }, msg._reqId);
+              log(ip, 'alliance_broadcast ' + username + ' to ' + audience + ' (' + recipients.length + ')');
+            }
+          }
         }
       }
 
@@ -1574,6 +1830,7 @@ server.on('upgrade', function(req, socket, head) {
     } catch(e) {
       console.error('WebSocket error:', e);
     }
+    } // end while (drain frames)
   });
 
   socket.on('close', function() {
@@ -1592,6 +1849,10 @@ server.on('upgrade', function(req, socket, head) {
 
   // Ensure all galaxies carry universe coordinates (backfill for pre-existing DBs)
   Universe.backfillGalaxyCoords(DB.db.universe);
+
+  // Normalize alliances: legacy array members -> role map, ensure chat/motd exist
+  normalizeAlliances();
+  DB.saveDB();
 
   // Load persistent chat history from database
   try {

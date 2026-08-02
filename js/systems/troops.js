@@ -46,7 +46,7 @@ window.TroopSystem = (function () {
 
   function getPowerModifier(state) {
     let mod = 1 + (state.research.levels.military || 0) * 0.08;
-    const alliance = AllianceSystem.getJoinedAlliance(state);
+    const alliance = AllianceSystem.joined();
     if (alliance && alliance.perkType === "military") mod += alliance.perkValue;
     return mod;
   }
