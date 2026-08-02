@@ -12,6 +12,10 @@ function chance(prob) {
 }
 
 function launch(colony, nodeId) {
+  // Tech-tree gate: expeditions require Trade Pod Terminal Lv1
+  if ((colony.buildings.tradePodTerminal.level || 0) < 1) {
+    return { ok: false, reason: 'Requires Trade Pod Terminal Lv1' };
+  }
   // Calculate duration based on Trade Pod Terminal level
   const threatLevel = parseInt(nodeId.replace(/[^0-9]/g, '').slice(-1)) || 1;
   const duration = Math.max(25, 70 - (colony.buildings.tradePodTerminal.level || 0) * 4 + threatLevel * 6);

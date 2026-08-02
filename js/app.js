@@ -120,6 +120,32 @@ window.App = (function () {
         if (msg.alliances) {
           window.GameData.alliances = msg.alliances;
         }
+        // Merge server truth for balance/definitions (costs, times, tech tree) into client GameData
+        if (msg.gameData) {
+          var gd = msg.gameData;
+          if (gd.pacing) window.GameData.pacing = gd.pacing;
+          if (gd.buildings) {
+            Object.keys(gd.buildings).forEach(function (bk) {
+              var srv = gd.buildings[bk];
+              var cli = window.GameData.buildings[bk];
+              if (!cli) return;
+              if (srv.baseCost) cli.baseCost = srv.baseCost;
+              if (srv.timeBase !== undefined) cli.timeBase = srv.timeBase;
+              if (srv.requires) cli.requires = srv.requires;
+              if (srv.startLevel !== undefined) cli.startLevel = srv.startLevel;
+            });
+          }
+          if (gd.research) {
+            Object.keys(gd.research).forEach(function (rk) {
+              var srv = gd.research[rk];
+              var cli = window.GameData.research[rk];
+              if (!cli) return;
+              if (srv.baseCost) cli.baseCost = srv.baseCost;
+              if (srv.durationBase !== undefined) cli.durationBase = srv.durationBase;
+              if (srv.requires) cli.requires = srv.requires;
+            });
+          }
+        }
         if (c.events) {
           window.gameState.events = c.events;
         }

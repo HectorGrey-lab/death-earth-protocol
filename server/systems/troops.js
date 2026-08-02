@@ -13,6 +13,10 @@ function queueTrain(colony, troopKey, qty) {
   qty = Math.max(1, Math.min(9999, parseInt(qty, 10) || 1));
   const def = GAME.troops[troopKey];
   if (!def) return { ok: false, reason: 'Unknown troop type' };
+  // Tech-tree gate: training requires Training Facility Lv1
+  if ((colony.buildings.trainingFacility.level || 0) < 1) {
+    return { ok: false, reason: 'Requires Training Facility Lv1' };
+  }
   // Calculate cost for qty
   const cost = {};
   Object.keys(def.cost).forEach(k => {

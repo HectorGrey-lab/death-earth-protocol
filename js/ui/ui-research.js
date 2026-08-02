@@ -6,11 +6,19 @@ window.UIResearch = (function () {
     const dur = ResearchSystem.getResearchDuration(state, key, lvl);
     const hasLab = state.buildings && state.buildings.researchLab && state.buildings.researchLab.level >= 1;
     const canAfford = Utils.hasCost(state, cost);
+    // Tech-tree gate: server truth requirements override the basic lab check
+    const reqCheck = (def && def.requires) ? RequirementsClient.check(state, def.requires) : { ok: true };
     let requirementError = "";
+    let locked = false;
     if (state.research.active) {
       requirementError = "Research in progress";
+      locked = true;
     } else if (!hasLab) {
       requirementError = "Requires Research Lab Lv1";
+      locked = true;
+    } else if (!reqCheck.ok) {
+      requirementError = reqCheck.reason;
+      locked = true;
     } else if (!canAfford) {
       const missing = Object.keys(cost).filter(k => (state.resources[k]?.amount || 0) < cost[k]);
       requirementError = "Missing: " + missing.map(k => GameData.resources[k].name).join(", ");
@@ -25,7 +33,7 @@ window.UIResearch = (function () {
         <div class="small">${def.desc}</div>
         <div class="small">Cost: ${Utils.costToHtml(cost)}</div>
         <div class="small">Duration: ${Utils.formatTime(dur)}</div>
-        <button class="btn small" ${state.research.active ? "disabled" : ""} onclick="Network.send({type:'research', category:'${key}'}); window.App.render();">Start Research</button>
+        <button class="btn small" ${(state.research.active || locked) ? "disabled" : ""} onclick="Network.send({type:'research', category:'${key}'}); window.App.render();">Start Research</button>
         ${requirementError ? `<div class="small" style="color:#e68a2e;margin-top:4px;">${requirementError}</div>` : ""}
       </div>
     `;

@@ -31,7 +31,8 @@
         "isotopes": 10
       },
       "timeBase": 28,
-      "stat": "economy"
+      "stat": "economy",
+      "startLevel": 1
     },
     "trainingFacility": {
       "name": "Training Facility",
@@ -42,7 +43,13 @@
         "isotopes": 20
       },
       "timeBase": 35,
-      "stat": "training"
+      "stat": "training",
+      "startLevel": 0,
+      "requires": {
+        "buildings": {
+          "extractionGrid": 2
+        }
+      }
     },
     "communicationsHub": {
       "name": "Communications Hub",
@@ -53,7 +60,13 @@
         "isotopes": 20
       },
       "timeBase": 30,
-      "stat": "signal"
+      "stat": "signal",
+      "startLevel": 0,
+      "requires": {
+        "buildings": {
+          "extractionGrid": 2
+        }
+      }
     },
     "radarArray": {
       "name": "Radar Array",
@@ -64,7 +77,13 @@
         "isotopes": 20
       },
       "timeBase": 30,
-      "stat": "recon"
+      "stat": "recon",
+      "startLevel": 0,
+      "requires": {
+        "buildings": {
+          "communicationsHub": 1
+        }
+      }
     },
     "defenseBunker": {
       "name": "Warehouse",
@@ -74,7 +93,8 @@
         "crystal": 20
       },
       "timeBase": 40,
-      "stat": "storage"
+      "stat": "storage",
+      "startLevel": 1
     },
     "shieldGenerator": {
       "name": "Shield Generator",
@@ -85,7 +105,16 @@
         "isotopes": 30
       },
       "timeBase": 42,
-      "stat": "shield"
+      "stat": "shield",
+      "startLevel": 0,
+      "requires": {
+        "buildings": {
+          "radarArray": 2
+        },
+        "research": {
+          "defense": 1
+        }
+      }
     },
     "researchLab": {
       "name": "Research Lab",
@@ -96,7 +125,13 @@
         "isotopes": 20
       },
       "timeBase": 45,
-      "stat": "research"
+      "stat": "research",
+      "startLevel": 0,
+      "requires": {
+        "buildings": {
+          "communicationsHub": 1
+        }
+      }
     },
     "marketNexus": {
       "name": "Market Nexus",
@@ -107,7 +142,13 @@
         "isotopes": 25
       },
       "timeBase": 38,
-      "stat": "market"
+      "stat": "market",
+      "startLevel": 0,
+      "requires": {
+        "buildings": {
+          "communicationsHub": 2
+        }
+      }
     },
     "tradePodTerminal": {
       "name": "Trade Pod Terminal",
@@ -118,7 +159,13 @@
         "isotopes": 25
       },
       "timeBase": 36,
-      "stat": "expedition"
+      "stat": "expedition",
+      "startLevel": 0,
+      "requires": {
+        "buildings": {
+          "marketNexus": 1
+        }
+      }
     }
   },
   "troops": {
@@ -130,7 +177,7 @@
         "crystal": 8,
         "isotopes": 2
       },
-      "upkeep": 0.000003,
+      "upkeep": 3e-06,
       "power": 8,
       "defense": 4,
       "role": "Scout",
@@ -148,7 +195,7 @@
         "crystal": 10,
         "isotopes": 3
       },
-      "upkeep": 0.000004,
+      "upkeep": 4e-06,
       "power": 12,
       "defense": 8,
       "role": "Line",
@@ -164,7 +211,7 @@
         "crystal": 14,
         "isotopes": 4
       },
-      "upkeep": 0.000006,
+      "upkeep": 6e-06,
       "power": 18,
       "defense": 13,
       "role": "Assault",
@@ -180,7 +227,7 @@
         "crystal": 24,
         "isotopes": 7
       },
-      "upkeep": 0.000011,
+      "upkeep": 1.1e-05,
       "power": 28,
       "defense": 18,
       "role": "Siege",
@@ -198,7 +245,7 @@
         "crystal": 16,
         "isotopes": 4
       },
-      "upkeep": 0.000005,
+      "upkeep": 5e-06,
       "power": 14,
       "defense": 7,
       "role": "Harass",
@@ -216,7 +263,7 @@
         "crystal": 18,
         "isotopes": 4
       },
-      "upkeep": 0.000005,
+      "upkeep": 5e-06,
       "power": 17,
       "defense": 6,
       "role": "Precision",
@@ -234,7 +281,7 @@
         "crystal": 20,
         "isotopes": 5
       },
-      "upkeep": 0.000007,
+      "upkeep": 7e-06,
       "power": 13,
       "defense": 19,
       "role": "Defense",
@@ -252,7 +299,7 @@
         "crystal": 28,
         "isotopes": 9
       },
-      "upkeep": 0.000014,
+      "upkeep": 1.4e-05,
       "power": 36,
       "defense": 25,
       "role": "Armor",
@@ -270,7 +317,7 @@
         "crystal": 22,
         "isotopes": 6
       },
-      "upkeep": 0.000008,
+      "upkeep": 8e-06,
       "power": 16,
       "defense": 10,
       "role": "Tech",
@@ -288,7 +335,7 @@
         "crystal": 50,
         "isotopes": 15
       },
-      "upkeep": 0.000020,
+      "upkeep": 2e-05,
       "power": 55,
       "defense": 34,
       "role": "Prototype",
@@ -310,7 +357,12 @@
         "crystal": 90,
         "isotopes": 20
       },
-      "durationBase": 45
+      "durationBase": 45,
+      "requires": {
+        "buildings": {
+          "researchLab": 1
+        }
+      }
     },
     "military": {
       "name": "Military Research",
@@ -321,7 +373,13 @@
         "crystal": 100,
         "isotopes": 25
       },
-      "durationBase": 50
+      "durationBase": 50,
+      "requires": {
+        "buildings": {
+          "researchLab": 2,
+          "trainingFacility": 1
+        }
+      }
     },
     "defense": {
       "name": "Defense Research",
@@ -332,7 +390,13 @@
         "crystal": 95,
         "isotopes": 20
       },
-      "durationBase": 48
+      "durationBase": 48,
+      "requires": {
+        "buildings": {
+          "researchLab": 2,
+          "radarArray": 1
+        }
+      }
     }
   },
   "universe": {
@@ -408,5 +472,13 @@
       },
       "desc": "Repel 2 attacks."
     }
-  ]
+  ],
+  "pacing": {
+    "buildingMinL1": 60,
+    "buildingGrowth": 1.28,
+    "buildingWeightBase": 30,
+    "researchMinL1": 60,
+    "researchGrowth": 1.32,
+    "researchWeightBase": 45
+  }
 }

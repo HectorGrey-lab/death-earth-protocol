@@ -185,6 +185,36 @@ function getAlliancesList() {
   return result;
 }
 
+// ─── Client gameData (balance/definitions only — sent with colony_state so UI matches server truth) ──
+function getClientGameData() {
+  const g = gameData;
+  const out = {
+    pacing: g.pacing || {},
+    buildings: {},
+    research: {}
+  };
+  Object.keys(g.buildings || {}).forEach(k => {
+    const b = g.buildings[k];
+    out.buildings[k] = {
+      name: b.name,
+      baseCost: b.baseCost,
+      timeBase: b.timeBase,
+      requires: b.requires || null,
+      startLevel: b.startLevel || 0
+    };
+  });
+  Object.keys(g.research || {}).forEach(k => {
+    const r = g.research[k];
+    out.research[k] = {
+      name: r.name,
+      baseCost: r.baseCost,
+      durationBase: r.durationBase,
+      requires: r.requires || null
+    };
+  });
+  return out;
+}
+
 // ─── PvP Travel Time & Pending Attack Resolution ────────────────
 function calculateTravelTime(origin, target) {
   // Guard against NaN/undefined position values
@@ -581,8 +611,9 @@ function createInitialBuildings() {
   const bDefs = gameData.buildings || {};
   const b = {};
   Object.keys(bDefs).forEach(function(key) {
+    const start = (bDefs[key].startLevel !== undefined) ? bDefs[key].startLevel : 0;
     b[key] = {
-      level: 1,
+      level: start,
       integrity: 100,
       upgrading: null
     };
@@ -976,7 +1007,8 @@ server.on('upgrade', function(req, socket, head) {
               type: 'colony_state',
               colony: colony,
               universe: DB.db.universe,
-              alliances: getAlliancesList()
+              alliances: getAlliancesList(),
+              gameData: getClientGameData()
             })));
           }
           log(ip, 'WS auth (' + uname + ')');
@@ -1063,7 +1095,7 @@ server.on('upgrade', function(req, socket, head) {
         colonySeq++;
         var colony = JSON.parse(JSON.stringify(user.colony));
         colony.productionRates = ResourceSystem.getProductionRates(user.colony);
-        reply(socket, { type: 'colony_state', seq: colonySeq, colony: colony, universe: DB.db.universe, alliances: getAlliancesList() }, msg._reqId);
+        reply(socket, { type: 'colony_state', seq: colonySeq, colony: colony, universe: DB.db.universe, alliances: getAlliancesList(), gameData: getClientGameData() }, msg._reqId);
       }
 
       // ── Build ──

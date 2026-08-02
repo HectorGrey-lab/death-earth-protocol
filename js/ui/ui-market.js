@@ -47,16 +47,22 @@ window.UIMarket = (function () {
   }
 
   function render(state) {
+    const nexusLevel = state.buildings && state.buildings.marketNexus ? state.buildings.marketNexus.level || 0 : 0;
+    const marketLocked = nexusLevel < 1;
+    const lockNote = marketLocked
+      ? '<div class="small" style="color:#e68a2e;margin-top:6px;">Requires Market Nexus Lv1</div>'
+      : '';
     return `
       <div class="stack">
         <div class="three-col">
           <div class="card">
             <div class="panel-title">Resource Exchange</div>
             <div class="stack">
-              <select id="marketFrom" class="select">${Object.keys(GameData.resources).map(k => `<option value="${k}">${GameData.resources[k].name}</option>`).join("")}</select>
-              <select id="marketTo" class="select">${Object.keys(GameData.resources).map(k => `<option value="${k}">${GameData.resources[k].name}</option>`).join("")}</select>
-              <input id="marketAmount" class="input" type="number" min="10" value="50">
-              <button id="marketExchangeBtn" class="btn">Execute Exchange</button>
+              <select id="marketFrom" class="select" ${marketLocked ? "disabled" : ""}>${Object.keys(GameData.resources).map(k => `<option value="${k}">${GameData.resources[k].name}</option>`).join("")}</select>
+              <select id="marketTo" class="select" ${marketLocked ? "disabled" : ""}>${Object.keys(GameData.resources).map(k => `<option value="${k}">${GameData.resources[k].name}</option>`).join("")}</select>
+              <input id="marketAmount" class="input" type="number" min="10" value="50" ${marketLocked ? "disabled" : ""}>
+              <button id="marketExchangeBtn" class="btn" ${marketLocked ? "disabled" : ""}>Execute Exchange</button>
+              ${lockNote}
             </div>
           </div>
 

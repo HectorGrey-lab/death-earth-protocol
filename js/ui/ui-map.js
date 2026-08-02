@@ -430,10 +430,13 @@ window.UIMap = (function () {
         </div>
       `;
     } else if (node.type === "resource") {
+      const terminalLevel = state.buildings && state.buildings.tradePodTerminal ? state.buildings.tradePodTerminal.level || 0 : 0;
+      const expeditionLocked = terminalLevel < 1;
       actions = `
         <div class="row">
-          <button class="btn success" data-expedition="${node.id}">Launch Expedition</button>
+          <button class="btn success" data-expedition="${node.id}" ${expeditionLocked ? "disabled" : ""}>Launch Expedition</button>
         </div>
+        ${expeditionLocked ? '<div class="small" style="color:#e68a2e;margin-top:6px;">Requires Trade Pod Terminal Lv1</div>' : ""}
         <div class="intel-panel-block">
           <div class="panel-title">Recovery Outlook</div>
           <div class="small">Trade Pod Terminal level improves extraction return and artifact chance.</div>

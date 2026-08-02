@@ -9,6 +9,10 @@ function getRateModifier(colony) {
 }
 
 function exchange(colony, fromKey, toKey, amount) {
+  // Tech-tree gate: trading requires Market Nexus Lv1
+  if ((colony.buildings.marketNexus.level || 0) < 1) {
+    return { ok: false, reason: 'Requires Market Nexus Lv1' };
+  }
   amount = Math.max(10, parseInt(amount, 10) || 0);
   if (fromKey === toKey) return { ok: false, reason: 'Invalid pair' };
   if (!colony.resources[fromKey] || colony.resources[fromKey].amount < amount) {
@@ -30,6 +34,10 @@ function exchange(colony, fromKey, toKey, amount) {
 }
 
 function buyArtifact(colony, listingId) {
+  // Tech-tree gate: trading requires Market Nexus Lv1
+  if ((colony.buildings.marketNexus.level || 0) < 1) {
+    return { ok: false, reason: 'Requires Market Nexus Lv1' };
+  }
   // Find listing from game data
   const listings = [
     { id: 'm1', artifactId: 'relay-spindle', price: { ore: 100, solar: 70, crystal: 20, isotopes: 8 } },

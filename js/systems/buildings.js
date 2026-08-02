@@ -1,7 +1,8 @@
 window.BuildingSystem = (function () {
   function getUpgradeCost(buildingKey, level) {
     const def = GameData.buildings[buildingKey];
-    const mult = 1 + (level - 1) * 0.55;
+    const effectiveLevel = Math.max(1, level); // level 0 construction uses base cost
+    const mult = 1 + (effectiveLevel - 1) * 0.55;
     const cost = {};
     Object.keys(def.baseCost).forEach((k) => {
       cost[k] = Math.floor(def.baseCost[k] * mult);
@@ -11,7 +12,14 @@ window.BuildingSystem = (function () {
 
   function getUpgradeTime(buildingKey, level) {
     const def = GameData.buildings[buildingKey];
-    return Math.floor(def.timeBase * (1 + (level - 1) * 0.18));
+    const pacing = (GameData.pacing) || {};
+    const minL1 = pacing.buildingMinL1 || 60;
+    const growth = pacing.buildingGrowth || 1.28;
+    const weightBase = pacing.buildingWeightBase || 30;
+    const effectiveLevel = Math.max(1, level); // level 0 -> 1 construction also >= 60s
+    const weight = Math.max(0.6, Math.min(2.5, (def.timeBase || weightBase) / weightBase));
+    const t = Math.floor(minL1 * weight * Math.pow(growth, effectiveLevel - 1));
+    return Math.max(minL1, t);
   }
 
   function getRepairCost(buildingKey, level) {
@@ -26,6 +34,12 @@ window.BuildingSystem = (function () {
 
   function startUpgrade(state, buildingKey) {
     const b = state.buildings[buildingKey];
+    // Tech-tree prerequisites (mirror of server check)
+    const def = GameData.buildings[buildingKey];
+    if (def && def.requires) {
+      const req = RequirementsClient.check(state, def.requires);
+      if (!req.ok) return { ok: false, reason: req.reason };
+    }
     if (b.upgrading) return { ok: false, reason: "Already upgrading" };
     if (b.level >= 20) return { ok: false, reason: "Maximum level (20) reached" };
     const cost = getUpgradeCost(buildingKey, b.level);

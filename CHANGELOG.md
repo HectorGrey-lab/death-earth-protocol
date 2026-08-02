@@ -1,5 +1,35 @@
 # Dead Earth Protocol — Changelog & Fix History
 
+## 2026-08-02 — Progression Pacing & Tech Tree
+
+### Milestone
+Slower, gated progression: level-0 buildings are now truly "not built", research/training/market/expeditions unlock via a tech tree, and build times scale gently.
+
+### Phase 1 — Pacing constants (`game-data.json` → `pacing`)
+- `buildingMinL1: 60` · `buildingGrowth: 1.28` · `researchMinL1: 60` · `researchGrowth: 1.32` — weight-based time formulas (heavier buildings/research scale slower)
+- Server + client `getUpgradeTime` / `getResearchDuration` rewritten to use pacing; research time reduction clamped ≥ 0
+
+### Phase 2 — Tech tree prerequisites
+- `requires` added to buildings (`communicationsHub`, `trainingFacility` ← Extraction Grid L2; `researchLab`, `radarArray` ← CommHub L1; `marketNexus` ← CommHub L2; `tradePodTerminal` ← Nexus L1; `shieldGenerator` ← Radar L2 + Defense research L1) and research (`economy` ← Lab L1; `military` ← Lab L2 + Training Facility L1; `defense` ← Lab L2 + Radar L1)
+- New `server/systems/requirements.js` checker enforced in: build, research, troop training, market exchange/artifact, expeditions
+
+### Phase 3 — New colony start state
+- `createInitialBuildings()` uses `startLevel` (extractionGrid + defenseBunker start at L1; everything else at L0 = unbuilt)
+
+### Phase 4 — Level-0 construction math
+- `getUpgradeCost` uses `effectiveLevel = max(1, level)` — constructing from 0 costs base cost (same as L1→2)
+- Repair blocked on unbuilt (level 0) buildings
+
+### Phase 5 — Server gameData sync
+- `colony_state` now carries trimmed `gameData` (pacing, building/research cost/time/requires/startLevel); client merges into `window.GameData` so UI always matches server truth
+- Client fallback tech tree in `js/data.js` for pre-sync renders
+
+### Phase 6 — UI locked states
+- Research cards: lock reason + disabled button; Training roster: disabled Train buttons + "Requires Training Facility Lv1"; Market: disabled form + note; Map expeditions: disabled Launch button + note; Building modal: "Construct" label for level 0, requirement gate, Repair hidden when unbuilt
+
+### Phase 7 — Tests
+- New `progression-smoke-test.js` — 30 assertions covering pacing formulas, startLevel, level-0 cost math, repair guard, all 6 gate blocks + 3 pass cases, gameData payload (30/30 green)
+
 ## 2026-08-02 — Tunable Economy Speed (Railway env vars)
 
 ### Milestone

@@ -15,7 +15,10 @@ window.UIModal = (function () {
     const b = state.buildings[buildingKey];
     const cost = BuildingSystem.getUpgradeCost(buildingKey, b.level);
     const repairCost = BuildingSystem.getRepairCost(buildingKey, b.level);
-    const canRepair = b.integrity < 100;
+    const canRepair = b.integrity < 100 && b.level > 0; // can't repair something not built
+    const isConstruction = b.level < 1;
+    const reqCheck = (def && def.requires) ? RequirementsClient.check(state, def.requires) : { ok: true };
+    const locked = isConstruction && !reqCheck.ok && def.requires;
 
     let special = "";
     if (buildingKey === "extractionGrid") {
@@ -56,11 +59,12 @@ window.UIModal = (function () {
           <p>${def.effectText}</p>
           <div class="small">Integrity ${b.integrity}%</div>
           <div class="progress"><span style="width:${b.integrity}%"></span></div>
-          <div class="small" style="margin-top:8px;">Upgrade cost: ${Utils.costToHtml(cost)}</div>
-          <div class="small">Upgrade time: ${Utils.formatTime(BuildingSystem.getUpgradeTime(buildingKey, b.level))}</div>
+          <div class="small" style="margin-top:8px;">${isConstruction ? "Build cost" : "Upgrade cost"}: ${Utils.costToHtml(cost)}</div>
+          <div class="small">${isConstruction ? "Build time" : "Upgrade time"}: ${Utils.formatTime(BuildingSystem.getUpgradeTime(buildingKey, b.level))}</div>
           <div class="small">Status: ${b.upgrading ? `Upgrading • ${Utils.formatTime(b.upgrading.remaining)}` : "Operational"}</div>
+          ${locked ? `<div class="small" style="color:#e68a2e;margin-top:6px;">${reqCheck.reason}</div>` : ""}
           <div class="row" style="margin-top:10px;">
-            <button class="btn" ${b.upgrading ? "disabled" : ""} onclick="Network.build('${buildingKey}'); UIModal.close();">Upgrade</button>
+            <button class="btn" ${(b.upgrading || locked) ? "disabled" : ""} onclick="Network.build('${buildingKey}'); UIModal.close();">${isConstruction ? "Construct" : "Upgrade"}</button>
             ${canRepair ? `<button class="btn warn" onclick="Network.send({type:'building_repair',buildingId:'${buildingKey}'}); UIModal.close();">Repair (${Utils.costToHtml(repairCost)})</button>` : ""}
           </div>
         </div>

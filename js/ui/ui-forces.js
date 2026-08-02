@@ -19,6 +19,8 @@ window.UIForces = (function () {
   }
 
   function renderRoster(state) {
+    var trainingLevel = state.buildings && state.buildings.trainingFacility ? state.buildings.trainingFacility.level || 0 : 0;
+    var trainingLocked = trainingLevel < 1;
     return Object.keys(GameData.troops).map(function (key) {
       var t = GameData.troops[key];
       var count = state.troops.counts[key] || 0;
@@ -31,9 +33,11 @@ window.UIForces = (function () {
         '<div class="small">Train Time ' + Utils.formatTime(t.trainTime) + '</div>' +
         '<div class="small">' + Utils.costToHtml(t.cost) + '</div>' +
         '<div class="row" style="margin-top:8px;">' +
-          '<button class="btn small" onclick="Network.train(\'' + key + '\', 1);">Train 1</button>' +
-          '<button class="btn small" onclick="Network.train(\'' + key + '\', 5);">Train 5</button>' +
-        '</div></div>';
+          '<button class="btn small" ' + (trainingLocked ? 'disabled' : '') + ' onclick="Network.train(\'' + key + '\', 1);">Train 1</button>' +
+          '<button class="btn small" ' + (trainingLocked ? 'disabled' : '') + ' onclick="Network.train(\'' + key + '\', 5);">Train 5</button>' +
+        '</div>' +
+        (trainingLocked ? '<div class="small" style="color:#e68a2e;margin-top:6px;">Requires Training Facility Lv1</div>' : '') +
+        '</div>';
     }).join('');
   }
 

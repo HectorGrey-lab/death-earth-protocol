@@ -283,3 +283,36 @@ window.GameData = {
     { id: "mission-defense-2", name: "Hold the Line", type: "defenseWins", target: 2, reward: { crystal: 100, isotopes: 50 }, desc: "Repel 2 attacks." }
   ]
 };
+
+// ── Tech-tree fallback (server overrides these on first colony_state sync) ──
+(function () {
+  // Pacing defaults
+  GameData.pacing = GameData.pacing || {
+    buildingMinL1: 60, buildingGrowth: 1.28, buildingWeightBase: 30,
+    researchMinL1: 60, researchGrowth: 1.32, researchWeightBase: 45
+  };
+  // Building start levels + prerequisites
+  var bStart = { extractionGrid: 1, defenseBunker: 1 };
+  var bReq = {
+    communicationsHub: { buildings: { extractionGrid: 2 } },
+    trainingFacility: { buildings: { extractionGrid: 2 } },
+    researchLab: { buildings: { communicationsHub: 1 } },
+    radarArray: { buildings: { communicationsHub: 1 } },
+    shieldGenerator: { buildings: { radarArray: 2 }, research: { defense: 1 } },
+    marketNexus: { buildings: { communicationsHub: 2 } },
+    tradePodTerminal: { buildings: { marketNexus: 1 } }
+  };
+  Object.keys(GameData.buildings || {}).forEach(function (k) {
+    if (!GameData.buildings[k].startLevel) GameData.buildings[k].startLevel = bStart[k] || 0;
+    if (!GameData.buildings[k].requires) GameData.buildings[k].requires = bReq[k] || null;
+  });
+  // Research prerequisites
+  var rReq = {
+    economy: { buildings: { researchLab: 1 } },
+    military: { buildings: { researchLab: 2, trainingFacility: 1 } },
+    defense: { buildings: { researchLab: 2, radarArray: 1 } }
+  };
+  Object.keys(GameData.research || {}).forEach(function (k) {
+    if (!GameData.research[k].requires) GameData.research[k].requires = rReq[k] || null;
+  });
+})();
