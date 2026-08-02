@@ -23,8 +23,8 @@ const AllianceSystem = {
     return (window.GameData && GameData.alliances) || [];
   },
   getJoinedId() {
-    return window.gameState && window.gameState.colony && window.gameState.colony.alliance
-      ? window.gameState.colony.alliance.joinedId : null;
+    return window.gameState && window.gameState.alliance
+      ? window.gameState.alliance.joinedId : null;
   },
   joined() {
     const id = this.getJoinedId();
@@ -38,7 +38,7 @@ const AllianceSystem = {
     return m ? m.role : null;
   },
   myRole() {
-    return this.roleOf(window.gameState && window.gameState.username);
+    return this.roleOf(window.Network ? Network.username : null);
   },
   roleLevel(role) {
     const levels = { recruit: 0, member: 1, officer: 2, commander: 3, founder: 4 };
