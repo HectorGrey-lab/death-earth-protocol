@@ -92,9 +92,10 @@ window.Network = (function () {
         try { socket.close(); } catch (e) {}
         return;
       }
-      // Send ping frame (opcode 0x09) — raw WS ping, server responds with pong
+      // Send ping (JSON) — browser WebSocket API can't emit raw control
+      // frames, so the server replies with { type:'pong' } text message.
       try {
-        socket.send(new Uint8Array([0x89, 0x00]));
+        socket.send(JSON.stringify({ type: 'ping' }));
       } catch (e) {
         // Socket may have died between check and send
       }

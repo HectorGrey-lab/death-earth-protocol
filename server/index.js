@@ -1194,6 +1194,10 @@ server.on('upgrade', function(req, socket, head) {
       var user = DB.db.users[username];
       if (!user || !user.colony) return;
       // ── Chat ──
+      if (msg.type === 'ping') {
+        // JSON heartbeat — browsers can't emit raw WS ping frames
+        reply(socket, { type: 'pong', t: Date.now() }, msg._reqId);
+      }
       if (msg.type === 'chat') {
         // Cap and escape chat text
         var safeText = escapeHTML(msg.text.substring(0, 500));
