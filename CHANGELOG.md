@@ -1,5 +1,25 @@
 # Dead Earth Protocol — Changelog & Fix History
 
+## 2026-08-02 — Tunable Economy Speed (Railway env vars)
+
+### Milestone
+Production rates are now configurable from Railway env vars — slow the game down globally, soften per-level scaling, and gate isotopes — without touching code.
+
+### What Changed
+
+**Global speed multiplier (server/systems/resources.js)** — `ECONOMY_SPEED` env var (default `1.0`, clamp 0.05..5) scales ALL production rates. `ECONOMY_SPEED=0.2` → 20% production.
+
+**Per-level scaling softened + tunable** — extractionGrid and economy research were hardcoded at 8% per level. Now `ECONOMY_EXT_STEP` / `ECONOMY_RESEARCH_STEP` (default `0.05`, clamp 0..0.25) — gentler by default, and old behavior restorable with `0.08` on Railway.
+
+**Isotope rarity gate** — `ECONOMY_ISOTOPE_MULT` (default `1.0`, clamp 0.05..5) applies only to isotopes.
+
+**Safety** — all vars validated/clamped at module load; missing/empty/invalid values fall back to defaults, so the game behaves identically with no env vars except the intended 8%→5% step change.
+
+**Docs** — GAME-DEV-GUIDE.md gained an "Economy Tuning (Railway env vars)" table with suggested slow-game settings.
+
+### Verified
+`economy-smoke-test.js` (new, kept as rebalance tool): defaults → mult 1.35 @ ext5/eco3; `ECONOMY_SPEED=0.2` → exactly 20%; +`ECONOMY_ISOTOPE_MULT=0.6` → isotopes 60% of that; steps 0.08 → old mult; speed=100 → clamped to 5×. Tick still clamps to cap and drains isotope upkeep.
+
 ## 2026-08-02 — Combat & Resources Audit (Caps, NPC Defense Mails, PvP Stats, Combat Report Cards)
 
 ### Milestone

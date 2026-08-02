@@ -223,6 +223,22 @@ Delete `server/data/db.json` and restart the server. All players and colonies ar
 
 ---
 
+## Economy Tuning (Railway env vars)
+
+Production is tunable without code changes. Set these on Railway (Settings -> Variables) and redeploy:
+
+| Variable | Default | Clamp | Effect |
+|----------|---------|-------|--------|
+| `ECONOMY_SPEED` | `1.0` | 0.05..5 | Global multiplier on ALL production rates (0.2 = 20% speed) |
+| `ECONOMY_EXT_STEP` | `0.05` | 0..0.25 | Production scaling per extractionGrid level (was hardcoded 0.08) |
+| `ECONOMY_RESEARCH_STEP` | `0.05` | 0..0.25 | Production scaling per economy research level (was hardcoded 0.08) |
+| `ECONOMY_ISOTOPE_MULT` | `1.0` | 0.05..5 | Isotopes-only multiplier (rarity gate, e.g. 0.6) |
+
+Suggested slow-game settings: `ECONOMY_SPEED=0.20`, `ECONOMY_ISOTOPE_MULT=0.60`.
+To restore the old per-level scaling: `ECONOMY_EXT_STEP=0.08`, `ECONOMY_RESEARCH_STEP=0.08`.
+
+---
+
 ## Debugging Tips
 
 - **Browser console:** `F12` -> Console tab shows JS errors

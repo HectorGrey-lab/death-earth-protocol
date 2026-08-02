@@ -1,18 +1,36 @@
 /**
  * resources.js — Server-side resource production
+ *
+ * Tunable via env vars (set on Railway, no code changes needed):
+ *   ECONOMY_SPEED           global production multiplier   (default 1.0, clamp 0.05..5)
+ *   ECONOMY_EXT_STEP        production scaling per extractionGrid level (default 0.05, clamp 0..0.25)
+ *   ECONOMY_RESEARCH_STEP   production scaling per economy research level (default 0.05, clamp 0..0.25)
+ *   ECONOMY_ISOTOPE_MULT    isotopes-only multiplier       (default 1.0, clamp 0.05..5)
  */
 
 const GAME = require('../game-data.json');
 
+function clampNumber(raw, fallback, min, max) {
+  if (raw === undefined || raw === null || raw === '') return fallback;
+  const n = Number(raw);
+  if (!isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, n));
+}
+
+const ECONOMY_SPEED = clampNumber(process.env.ECONOMY_SPEED, 1, 0.05, 5);
+const EXT_STEP = clampNumber(process.env.ECONOMY_EXT_STEP, 0.05, 0, 0.25);
+const ECO_STEP = clampNumber(process.env.ECONOMY_RESEARCH_STEP, 0.05, 0, 0.25);
+const ISO_MULT = clampNumber(process.env.ECONOMY_ISOTOPE_MULT, 1, 0.05, 5);
+
 function getProductionRates(colony) {
   const extLevel = colony.buildings.extractionGrid.level || 0;
   const ecoResearch = colony.research.levels.economy || 0;
-  const mult = 1 + (extLevel - 1) * 0.08 + ecoResearch * 0.08;
+  const mult = 1 + (extLevel - 1) * EXT_STEP + ecoResearch * ECO_STEP;
   return {
-    ore: 1.1 * mult,
-    solar: 0.9 * mult,
-    crystal: 1.0 * mult,
-    isotopes: 2.2 * (1 + (extLevel - 1) * 0.08 + ecoResearch * 0.08)
+    ore: 1.1 * mult * ECONOMY_SPEED,
+    solar: 0.9 * mult * ECONOMY_SPEED,
+    crystal: 1.0 * mult * ECONOMY_SPEED,
+    isotopes: 2.2 * mult * ECONOMY_SPEED * ISO_MULT
   };
 }
 
