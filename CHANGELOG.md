@@ -1,5 +1,26 @@
 # Dead Earth Protocol — Changelog & Fix History
 
+## 2026-08-02 — Combat & Resources Audit (Caps, NPC Defense Mails, PvP Stats, Combat Report Cards)
+
+### Milestone
+Seven-item gameplay-consistency audit: resource caps now shrink when warehouse buildings drop, NPC attacks can't resolve in the same tick they spawn, NPC defense reports are mailed server-authoritatively, PvP `defenseWins` counts only real defender victories, casualties no longer force 1 loss per troop type, and both PvP/NPC reports render as structured combat-report cards.
+
+### What Changed
+
+**Resource caps (server/systems/resources.js)** — `updateCaps()` set `cap = Math.max(cap, newCap)`, so caps ratcheted up forever even after siege damage dropped warehouse levels. Now sets `cap = newCap` directly and clamps `amount` — siege a colony down and its storage shrinks.
+
+**NPC attack fairness (server/systems/combat.js)** — `tick()` spawned a random attack *before* processing, so on large offline `dt` a fresh attack could decrement to zero and resolve instantly in the same tick. Processing now runs first (collect due → resolve), then the spawn roll happens with a guaranteed full ETA.
+
+**NPC defense reports (server/systems/combat.js)** — `resolveIncoming()` now tracks casualties per troop type (`{troopKey: lost}`) and building damage hits (key, integrity before/after), then `sendDefenseReport()` writes a Defense-tab mail: subject `Defense Report: Threat L{level}` (+ `(Retaliation)`), sectioned plain-text body, `type: 'combat_report_v2'` + structured `data`, mailbox capped at 120 messages.
+
+**PvP stats bug (server/index.js)** — `defenseWins` incremented even when the attacker won. Now: attacker win → `att.attackWins++`, `def.defenseLosses++` (new counter, back-compat init); defender win → `def.defenseWins++` only.
+
+**PvP casualty rule (server/index.js)** — `Math.max(1, floor(count * rate))` forced every troop type present to lose ≥1. Now `Math.min(count, floor(count * rate))`; if both sides lost nothing, exactly 1 random unit from one side is sacrificed ("combat always costs something").
+
+**Battle report formatting (server/index.js)** — added `formatCombatReportText(perspective, context)` + `buildCombatReportData()`: readable sectioned report with report ID, UTC time, route with galaxy:sector:planet ids, outcome per perspective, power/shield/ratio, per-type casualties, loot + carry cap, building damage with level drops, and fleet return ETA. Defender subject now `Defense Report: <attacker>`.
+
+**Structured mail UI (js/ui/ui-mailbox.js + css/styles.css)** — messages with `type: 'combat_report_v2'` render as HTML combat cards (outcome banner, Power/Losses/Loot/Building Damage tables, fleet status) with all dynamic text escaped; older messages fall back to the `<pre>` renderer. New `.cr-*` styles added.
+
 ## 2026-07-31 — Map Improvements Phase 2 (Universe Coords, Player Markers, Occupied Bases, Nebula, Route Preview, Impact Rings, Sound)
 
 ### Milestone

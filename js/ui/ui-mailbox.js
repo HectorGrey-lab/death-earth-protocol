@@ -1,6 +1,77 @@
 window.UIMailbox = (function () {
   const tabs = ["Attack", "Defense", "Inbox", "Alliance", "System"];
 
+  function esc(m) { return String(m == null ? '' : m).replace(/[&<>"']/g, function(c) { return '&#' + c.charCodeAt(0) + ';'; }); }
+
+  // Render a structured combat report card (combat_report_v2) with full HTML escaping.
+  function renderCombatCard(m) {
+    const d = m.data || {};
+    const isPvp = d.kind === 'pvp';
+    const win = !!d.attackerWins;
+    const perspective = d.perspective || 'defender';
+    const outcome = isPvp
+      ? (perspective === 'attacker' ? (win ? 'VICTORY' : 'DEFEAT') : (win ? 'COLONY RAIDED' : 'DEFENDER VICTORY'))
+      : (d.defended ? 'DEFENDED' : 'DAMAGE TAKEN');
+    const outcomeClass = isPvp ? (win ? 'victory' : 'defeat') : (d.defended ? 'victory' : 'defeat');
+
+    function casRows(cas) {
+      const keys = Object.keys(cas || {});
+      if (keys.length === 0) return '<tr><td colspan="2" class="small">None</td></tr>';
+      return keys.map(k => `<tr><td>${esc(k)}</td><td>× ${esc(cas[k])}</td></tr>`).join('');
+    }
+
+    function lootRows(loot) {
+      const keys = ['ore', 'solar', 'crystal', 'isotopes'].filter(k => (loot[k] || 0) > 0);
+      if (keys.length === 0) return '<tr><td colspan="2" class="small">None</td></tr>';
+      return keys.map(k => `<tr><td>${esc(k)}</td><td>${esc(loot[k])}</td></tr>`).join('');
+    }
+
+    function bldgRows(bd) {
+      if (!bd || bd.length === 0) return '<tr><td colspan="2" class="small">None</td></tr>';
+      return bd.map(b => {
+        const lvl = (b.levelAfter !== undefined && b.levelBefore !== undefined && b.levelAfter < b.levelBefore)
+          ? ` (level ${esc(b.levelBefore)} → ${esc(b.levelAfter)})` : '';
+        return `<tr><td>${esc(b.key)}${lvl}</td><td>${esc(b.before)} → ${esc(b.after)}</td></tr>`;
+      }).join('');
+    }
+
+    return `
+      <div class="combat-report">
+        <div class="cr-header ${outcomeClass}"><strong>⚔ ${isPvp ? 'PvP BATTLE REPORT' : 'DEFENSE REPORT'}</strong> — ${esc(outcome)}</div>
+        <div class="small">${esc(new Date(m.time).toLocaleString())} · ID: ${esc(d.reportId || '')}</div>
+        <div class="cr-route">${esc(d.attackerPlanet || '?')} → ${esc(d.defenderPlanet || '?')}</div>
+        <table class="cr-table">
+          <tr><th colspan="2">Power</th></tr>
+          <tr><td>Attacker Power</td><td>${esc(d.attackerPower)}</td></tr>
+          <tr><td>Defender Power</td><td>${esc(d.defenderPower)}</td></tr>
+          <tr><td>Defender Shield</td><td>${esc(d.shieldNow)}</td></tr>
+          <tr><td>Ratio</td><td>${esc((d.ratio || 0).toFixed(3))} (threshold 0.330)</td></tr>
+        </table>
+        <table class="cr-table">
+          <tr><th colspan="2">Losses</th></tr>
+          ${casRows(d.attackerCasualties)}
+          ${casRows(d.defenderCasualties)}
+        </table>
+        <table class="cr-table">
+          <tr><th colspan="2">Loot (Carry Cap: ${esc(d.carryCap || 0)})</th></tr>
+          ${lootRows(d.loot)}
+        </table>
+        <table class="cr-table">
+          <tr><th colspan="2">Building Damage</th></tr>
+          ${bldgRows(d.buildingDamage)}
+        </table>
+        <div class="small cr-fleet">Fleet: ${d.survivorsReturning ? `Survivors returning (ETA ${esc(d.returnEta)}s)` : 'No survivors returning'}</div>
+      </div>`;
+  }
+
+  // Render a message body: structured card for combat_report_v2, <pre> fallback otherwise.
+  function renderBody(m) {
+    if (m.type === 'combat_report_v2' && m.data) {
+      return renderCombatCard(m);
+    }
+    return `<pre style="white-space:pre-wrap;font-family:inherit;">${esc(m.body)}</pre>`;
+  }
+
   function renderPage(state) {
     // Mark all messages as read when mailbox is opened
     if (state.mailbox && state.mailbox.messages) {
@@ -21,14 +92,14 @@ window.UIMailbox = (function () {
         <div class="mail-list" id="mailList">
           ${filtered.map(m => `
             <div class="mail-item ${selected && selected.id === m.id ? "selected" : ""}" data-mail-id="${m.id}">
-              <strong>${m.subject}</strong>
+              <strong>${esc(m.subject)}</strong>
               <div class="small">${new Date(m.time).toLocaleString()}</div>
             </div>
           `).join("") || `<div class="small">No messages in this tab.</div>`}
         </div>
         <div class="card" id="mailPreview">
           ${selected
-            ? `<h3>${selected.subject}</h3><div class="small">${new Date(selected.time).toLocaleString()}</div><hr class="sep"><pre style="white-space:pre-wrap;font-family:inherit;">${selected.body}</pre>`
+            ? `<h3>${esc(selected.subject)}</h3><div class="small">${new Date(selected.time).toLocaleString()}</div><hr class="sep">${renderBody(selected)}`
             : `<div class="small">Select a message.</div>`}
         </div>
       </div>
@@ -75,8 +146,7 @@ window.UIMailbox = (function () {
         var preview = document.getElementById('mailPreview');
         if (preview) {
           if (selected) {
-            function esc(m) { return String(m).replace(/[&<>"']/g, function(c) { return '&#' + c.charCodeAt(0) + ';'; }); }
-            preview.innerHTML = '<h3>' + esc(selected.subject) + '</h3><div class="small">' + new Date(selected.time).toLocaleString() + '</div><hr class="sep"><pre style="white-space:pre-wrap;font-family:inherit;">' + esc(selected.body) + '</pre>';
+            preview.innerHTML = '<h3>' + esc(selected.subject) + '</h3><div class="small">' + new Date(selected.time).toLocaleString() + '</div><hr class="sep">' + renderBody(selected);
           } else {
             preview.innerHTML = '<div class="small">Select a message.</div>';
           }

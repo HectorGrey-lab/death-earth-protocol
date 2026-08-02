@@ -24,7 +24,8 @@ function updateCaps(colony) {
     if (!resDef) return;
     const baseCap = resDef.capBase;
     const newCap = Math.floor(baseCap + bonus);
-    colony.resources[key].cap = Math.max(colony.resources[key].cap || 0, newCap);
+    // Set cap directly so sieged-down buildings shrink caps instead of ratcheting up forever
+    colony.resources[key].cap = newCap;
     colony.resources[key].amount = Math.min(colony.resources[key].amount, colony.resources[key].cap);
   });
 }

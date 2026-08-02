@@ -154,15 +154,7 @@ function tick(colony, dt) {
   if (!colony.combat) return;
   if (!colony.combat.incomingAttacks) return;
 
-  // Maybe spawn random attack (check before processing so new spawns don't get processed same tick)
-  const radarReduction = (colony.buildings.radarArray.level - 1) * 0.0015;
-  // Cap random chance at 1.0 even at large dt to avoid guaranteed spawns on offline catch-up
-  const rawChance = Math.min(1.0, Math.max(0.002, 0.01 * (dt > 10 ? Math.min(dt, 60) : dt) - radarReduction));
-  if (chance(rawChance)) {
-    scheduleIncomingAttack(colony, rand(1, 4), false);
-  }
-
-  // Process incoming attacks — collect due in separate array to avoid mutating-while-iterating
+  // Process incoming attacks FIRST — collect due in separate array to avoid mutating-while-iterating
   const due = [];
   const alive = [];
   colony.combat.incomingAttacks.forEach(function(a) {
@@ -175,6 +167,15 @@ function tick(colony, dt) {
   });
   colony.combat.incomingAttacks = alive;
   due.forEach(function(a) { resolveIncoming(colony, a); });
+
+  // THEN roll for a new random attack AFTER processing, so a freshly spawned
+  // attack always gets a full ETA and can never resolve in the same tick (large dt offline catch-up)
+  const radarReduction = (colony.buildings.radarArray.level - 1) * 0.0015;
+  // Cap random chance at 1.0 even at large dt to avoid guaranteed spawns on offline catch-up
+  const rawChance = Math.min(1.0, Math.max(0.002, 0.01 * (dt > 10 ? Math.min(dt, 60) : dt) - radarReduction));
+  if (chance(rawChance)) {
+    scheduleIncomingAttack(colony, rand(1, 4), false);
+  }
 }
 
 function resolveIncoming(colony, attack) {
@@ -182,7 +183,8 @@ function resolveIncoming(colony, attack) {
   const enemyPower = 80 + attack.threatLevel * 65;
   const defended = defense > enemyPower * 1.05;
 
-  // Casualties
+  // Casualties — track per troop type for the defense report
+  const casualties = {};
   const counts = colony.troops.counts || {};
   Object.keys(counts).forEach(key => {
     const count = counts[key];
@@ -190,22 +192,82 @@ function resolveIncoming(colony, attack) {
     const rate = defended ? 0.05 + attack.threatLevel * 0.02 : 0.12 + attack.threatLevel * 0.05;
     const actualRate = rate * (def && def.defense > 12 ? 0.75 : 1);
     const lost = Math.min(count, Math.floor(count * actualRate));
+    if (lost > 0) casualties[key] = lost;
     colony.troops.counts[key] = Math.max(0, (colony.troops.counts[key] || 0) - lost);
   });
 
-  // Building damage if not defended
+  // Building damage if not defended — track hits for the defense report
+  const buildingHits = [];
   if (!defended) {
     const keys = Object.keys(colony.buildings);
     const hits = rand(1, 3);
     for (let i = 0; i < hits; i++) {
       const k = keys[Math.floor(Math.random() * keys.length)];
       if (colony.buildings[k]) {
-        colony.buildings[k].integrity = Math.max(20, (colony.buildings[k].integrity || 100) - rand(8, 20));
+        const before = colony.buildings[k].integrity || 100;
+        const dmg = rand(8, 20);
+        colony.buildings[k].integrity = Math.max(20, before - dmg);
+        buildingHits.push({ key: k, before: before, after: colony.buildings[k].integrity, damage: before - colony.buildings[k].integrity });
       }
     }
   }
 
   if (defended) colony.combat.defenseWins = (colony.combat.defenseWins || 0) + 1;
+
+  // Mail the defense report (server-authoritative, persists for offline players)
+  sendDefenseReport(colony, attack, { defended: defended, casualties: casualties, buildingHits: buildingHits });
+}
+
+function sendDefenseReport(colony, attack, result) {
+  const lvl = attack.threatLevel || 1;
+  const retLabel = attack.retaliation ? ' (Retaliation)' : '';
+  const lines = [];
+  lines.push('🛡 DEFENSE REPORT — Threat L' + lvl + retLabel);
+  lines.push('Time: ' + new Date().toUTCString());
+  lines.push('Outcome: ' + (result.defended ? '✅ DEFENDED' : '❌ DAMAGE TAKEN'));
+  lines.push('');
+  lines.push('Losses');
+  const casKeys = Object.keys(result.casualties);
+  if (casKeys.length === 0) {
+    lines.push('  None');
+  } else {
+    casKeys.forEach(k => {
+      const name = (GAME.troops[k] && GAME.troops[k].name) || k;
+      lines.push('  ' + name + ': ' + result.casualties[k]);
+    });
+  }
+  lines.push('');
+  lines.push('Building Damage');
+  if (result.buildingHits.length === 0) {
+    lines.push('  None');
+  } else {
+    result.buildingHits.forEach(h => {
+      const name = (GAME.buildings[h.key] && GAME.buildings[h.key].name) || h.key;
+      lines.push('  ' + name + ': integrity ' + h.before + ' → ' + h.after);
+    });
+  }
+  const body = lines.join('\n');
+
+  if (!colony.mailbox) colony.mailbox = { messages: [], selectedTab: 'Inbox', selectedMessageId: null };
+  if (!colony.mailbox.messages) colony.mailbox.messages = [];
+  colony.mailbox.messages.unshift({
+    id: 'def_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+    tab: 'Defense',
+    subject: 'Defense Report: Threat L' + lvl + (attack.retaliation ? ' (Retaliation)' : ''),
+    body: body,
+    time: Date.now(),
+    isNew: true,
+    type: 'combat_report_v2',
+    data: {
+      kind: 'npc_defense',
+      threatLevel: lvl,
+      retaliation: !!attack.retaliation,
+      defended: result.defended,
+      casualties: result.casualties,
+      buildingDamage: result.buildingHits
+    }
+  });
+  colony.mailbox.messages = colony.mailbox.messages.slice(0, 120);
 }
 
 module.exports = { scout, raid, scheduleIncomingAttack, tick, getTotalPower, getTotalDefense };

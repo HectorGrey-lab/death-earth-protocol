@@ -262,25 +262,48 @@ function resolvePendingAttack(pa) {
   var atkLossRate = Math.min(0.8, Math.max(0.05, attackerWins ? (1 - ratio) * 0.6 : 0.5));
   var defLossRate = Math.min(0.8, Math.max(0.05, attackerWins ? ratio * 0.7 : (1 - ratio) * 0.3));
 
-  // Attacker casualties
+  // Attacker casualties — no forced minimum per troop type
   var atkCas = {};
   Object.keys(fleetTroops).forEach(function(key) {
     var count = fleetTroops[key] || 0;
-    var lost = Math.min(count, Math.max(1, Math.floor(count * atkLossRate)));
+    var lost = Math.min(count, Math.floor(count * atkLossRate));
     if (lost > 0) { atkCas[key] = lost; fleetTroops[key] = count - lost; if (fleetTroops[key] <= 0) delete fleetTroops[key]; }
   });
 
-  // Defender casualties
+  // Defender casualties — no forced minimum per troop type
   var defCounts = def.colony.troops.counts || {};
   var defCas = {};
   Object.keys(defCounts).forEach(function(key) {
     var count = defCounts[key] || 0;
-    var lost = Math.min(count, Math.max(1, Math.floor(count * defLossRate)));
+    var lost = Math.min(count, Math.floor(count * defLossRate));
     if (lost > 0) { defCas[key] = lost; def.colony.troops.counts[key] = Math.max(0, count - lost); if (def.colony.troops.counts[key] <= 0) delete def.colony.troops.counts[key]; }
   });
 
+  // Combat always costs something: if both sides lost nothing, sacrifice 1 random unit from one side
+  var atkTotalLost = Object.keys(atkCas).reduce(function(s, k) { return s + atkCas[k]; }, 0);
+  var defTotalLost = Object.keys(defCas).reduce(function(s, k) { return s + defCas[k]; }, 0);
+  if (atkTotalLost === 0 && defTotalLost === 0) {
+    var allAtk = Object.keys(fleetTroops).filter(function(k) { return fleetTroops[k] > 0; });
+    var allDef = Object.keys(defCounts).filter(function(k) { return defCounts[k] > 0; });
+    if (allAtk.length > 0 || allDef.length > 0) {
+      var pickSide = allDef.length > 0 && (allAtk.length === 0 || Math.random() < 0.5);
+      if (pickSide) {
+        var dk = allDef[Math.floor(Math.random() * allDef.length)];
+        defCas[dk] = 1;
+        def.colony.troops.counts[dk] = Math.max(0, (def.colony.troops.counts[dk] || 0) - 1);
+        if (def.colony.troops.counts[dk] <= 0) delete def.colony.troops.counts[dk];
+      } else if (allAtk.length > 0) {
+        var ak = allAtk[Math.floor(Math.random() * allAtk.length)];
+        atkCas[ak] = 1;
+        fleetTroops[ak] = Math.max(0, (fleetTroops[ak] || 0) - 1);
+        if (fleetTroops[ak] <= 0) delete fleetTroops[ak];
+      }
+    }
+  }
+
   // Loot (attacker win only)
   var loot = {};
+  var carryCap = 0;
   if (attackerWins) {
     var carry = 0;
     Object.keys(fleetTroops).forEach(function(key) {
@@ -288,6 +311,7 @@ function resolvePendingAttack(pa) {
       var d = gameData.troops[key];
       carry += count * (d && d.carryCapacity ? d.carryCapacity : 10);
     });
+    carryCap = carry;
     var types = ['ore','solar','crystal','isotopes'];
     var pool = carry;
     types.forEach(function(rt) {
@@ -302,6 +326,7 @@ function resolvePendingAttack(pa) {
 
     // Building damage — only siegeMech can damage buildings
     // Each mech deals 0.1 building damage; when integrity ≤ 0, building drops 1 level
+    var bldgDamage = [];
     var siegeCount = fleetTroops['siegeMech'] || 0;
     if (siegeCount > 0 && attackerWins) {
       var totalDmg = Math.floor(siegeCount * 0.1);
@@ -325,22 +350,29 @@ function resolvePendingAttack(pa) {
             if (targetKey) { targetKey = null; k = bldgKeys[Math.floor(Math.random() * bldgKeys.length)]; b = def.colony.buildings[k]; }
             if (!b || !b.level || b.level <= 0) continue;
           }
-          b.integrity = (b.integrity || 100) - dmgPerTarget;
+          var beforeInt = b.integrity || 100;
+          var beforeLvl = b.level;
+          b.integrity = beforeInt - dmgPerTarget;
           while (b.integrity <= 0 && b.level > 0) {
             b.level--;
             if (b.level > 0) b.integrity = 100;
           }
           if (b.level <= 0) b.level = 0;
+          bldgDamage.push({ key: k, before: beforeInt, after: b.integrity, levelBefore: beforeLvl, levelAfter: b.level });
         }
       }
     }
   }
 
-  // Stats
-  if (!att.colony.combat) att.colony.combat = { scoutsCompleted:0, attackWins:0, defenseWins:0, incomingAttacks:[], raidHistory:[] };
-  if (!def.colony.combat) def.colony.combat = { scoutsCompleted:0, attackWins:0, defenseWins:0, incomingAttacks:[], raidHistory:[] };
-  if (attackerWins) { att.colony.combat.attackWins = (att.colony.combat.attackWins||0)+1; def.colony.combat.defenseWins = (def.colony.combat.defenseWins||0)+1; }
-  else { def.colony.combat.defenseWins = (def.colony.combat.defenseWins||0)+1; }
+  // Stats — defenseWins only counts when the defender actually wins
+  if (!att.colony.combat) att.colony.combat = { scoutsCompleted:0, attackWins:0, defenseWins:0, defenseLosses:0, incomingAttacks:[], raidHistory:[] };
+  if (!def.colony.combat) def.colony.combat = { scoutsCompleted:0, attackWins:0, defenseWins:0, defenseLosses:0, incomingAttacks:[], raidHistory:[] };
+  if (attackerWins) {
+    att.colony.combat.attackWins = (att.colony.combat.attackWins||0)+1;
+    def.colony.combat.defenseLosses = (def.colony.combat.defenseLosses||0)+1;
+  } else {
+    def.colony.combat.defenseWins = (def.colony.combat.defenseWins||0)+1;
+  }
 
   // Fleet return — survivors head home
   if (Object.keys(fleetTroops).length > 0) {
@@ -369,28 +401,54 @@ function resolvePendingAttack(pa) {
     delete att.colony.troops.fleets[pa.fleetId];
   }
 
-  DB.saveDB();
-
   // Save combat report to mailboxes (persists for offline users)
-  function makeMailMsg(tab, subject, body) {
-    return { id: 'cmbt_' + Date.now() + '_' + Math.random().toString(36).substr(2,4), tab: tab, subject: subject, body: body, time: Date.now(), isNew: true };
+  function makeMailMsg(tab, subject, body, type, data) {
+    return { id: 'cmbt_' + Date.now() + '_' + Math.random().toString(36).substr(2,4), tab: tab, subject: subject, body: body, time: Date.now(), isNew: true, type: type, data: data };
   }
   if (!att.colony.mailbox) att.colony.mailbox = { messages: [], selectedTab: 'Inbox', selectedMessageId: null };
   if (!def.colony.mailbox) def.colony.mailbox = { messages: [], selectedTab: 'Inbox', selectedMessageId: null };
-  var atkBody = '⚔ Attack against ' + pa.defender + '\n' +
-    (attackerWins ? '✅ VICTORY' : '❌ DEFEAT') + '\n' +
-    'Fleet power: ' + (pa.atkPower || 0) + '\n' +
-    'Attacker losses: ' + JSON.stringify(atkCas) + '\n' +
-    (attackerWins && Object.keys(loot).length ? 'Loot: ' + JSON.stringify(loot) : '') + '\n' +
-    'Travel time: ' + (pa.travelTime || '?') + 's';
-  var defBody = '⚔ Incoming attack from ' + pa.attacker + '\n' +
-    (!attackerWins ? '✅ DEFENDER VICTORY' : '❌ COLONY RAIDED') + '\n' +
-    'Defender losses: ' + JSON.stringify(defCas) + '\n' +
-    'Defender shield: ' + ((def.colony.buildings.shieldGenerator && def.colony.buildings.shieldGenerator.level || 0) * 25);
-  att.colony.mailbox.messages.unshift(makeMailMsg('Attack', 'Attack Report: ' + pa.defender, atkBody));
-  def.colony.mailbox.messages.unshift(makeMailMsg('Defense', 'Combat Report: ' + pa.attacker, defBody));
+
+  var reportId = 'pvp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+  var defPosId = (def.colony.position && def.colony.position.galaxy ? def.colony.position : { galaxy: def.homeGalaxy, sector: def.homeSector, planet: def.homePlanet });
+  var attPosId = pa.origin || { galaxy: att.homeGalaxy, sector: att.homeSector, planet: att.homePlanet };
+  var survivorsReturning = Object.keys(fleetTroops).length > 0;
+  var returnEta = survivorsReturning ? Math.round((pa.travelTime || 30)) : 0;
+
+  var reportCtx = {
+    reportId: reportId,
+    timestamp: new Date().toUTCString(),
+    attackerName: pa.attacker,
+    attackerPlanet: att.colony.planetName || (pa.attacker + "'s Planet"),
+    defenderName: pa.defender,
+    defenderPlanet: def.colony.planetName || (pa.defender + "'s Planet"),
+    originId: attPosId,
+    targetId: defPosId,
+    outboundTravel: pa.travelTime || 0,
+    returnEta: returnEta,
+    survivorsReturning: survivorsReturning,
+    attackerPower: pa.atkPower || 0,
+    defenderPower: defPowerNow,
+    shieldNow: shieldNow,
+    ratio: ratio,
+    attackerWins: attackerWins,
+    atkCas: atkCas,
+    defCas: defCas,
+    loot: loot,
+    carryCap: carryCap,
+    bldgDamage: typeof bldgDamage !== 'undefined' ? bldgDamage : []
+  };
+
+  var atkBody = formatCombatReportText('attacker', reportCtx);
+  var defBody = formatCombatReportText('defender', reportCtx);
+  var atkData = buildCombatReportData('attacker', reportCtx);
+  var defData = buildCombatReportData('defender', reportCtx);
+
+  att.colony.mailbox.messages.unshift(makeMailMsg('Attack', 'Attack Report: ' + pa.defender, atkBody, 'combat_report_v2', atkData));
+  def.colony.mailbox.messages.unshift(makeMailMsg('Defense', 'Defense Report: ' + pa.attacker, defBody, 'combat_report_v2', defData));
   if (att.colony.mailbox.messages.length > 120) att.colony.mailbox.messages = att.colony.mailbox.messages.slice(0, 120);
   if (def.colony.mailbox.messages.length > 120) def.colony.mailbox.messages = def.colony.mailbox.messages.slice(0, 120);
+
+  DB.saveDB();
 
   // Send results
   var atkCol = JSON.parse(JSON.stringify(att.colony));
@@ -413,6 +471,101 @@ function resolvePendingAttack(pa) {
           'Casualties suffered: '+JSON.stringify(defCas)] });
     }
   });
+}
+
+// ── Combat report formatting ──
+
+function fmtPos(pos) {
+  return (pos && pos.galaxy) ? (pos.galaxy + ':' + pos.sector + ':' + pos.planet) : '?:?:?';
+}
+
+function fmtCasualties(cas, side) {
+  const keys = Object.keys(cas);
+  if (keys.length === 0) return '  ' + side + ': None';
+  let out = '  ' + side + ':';
+  keys.forEach(k => {
+    const name = (gameData.troops[k] && gameData.troops[k].name) || k;
+    out += '\n    ' + name + ' × ' + cas[k];
+  });
+  return out;
+}
+
+function fmtLoot(loot) {
+  const keys = ['ore', 'solar', 'crystal', 'isotopes'].filter(k => (loot[k] || 0) > 0);
+  if (keys.length === 0) return '  None';
+  return '  ' + keys.map(k => {
+    const name = (gameData.resources[k] && gameData.resources[k].name) || k;
+    return name + ': ' + loot[k];
+  }).join(' | ');
+}
+
+function formatCombatReportText(perspective, ctx) {
+  const win = ctx.attackerWins;
+  const outcome = perspective === 'attacker'
+    ? (win ? '✅ VICTORY' : '❌ DEFEAT')
+    : (win ? '❌ COLONY RAIDED' : '✅ DEFENDER VICTORY');
+  const lines = [];
+  lines.push('⚔ PvP BATTLE REPORT (ID: ' + ctx.reportId + ')');
+  lines.push('Time: ' + ctx.timestamp);
+  lines.push('Route: ' + ctx.attackerPlanet + ' (' + fmtPos(ctx.originId) + ') → ' + ctx.defenderPlanet + ' (' + fmtPos(ctx.targetId) + ')');
+  lines.push('Outcome: ' + outcome);
+  lines.push('');
+  lines.push('Power');
+  lines.push('- Attacker Power: ' + ctx.attackerPower);
+  lines.push('- Defender Power: ' + ctx.defenderPower);
+  lines.push('- Defender Shield: ' + ctx.shieldNow);
+  lines.push('- Ratio: ' + ctx.ratio.toFixed(3) + ' (threshold: 0.330)');
+  lines.push('');
+  lines.push('Losses');
+  lines.push(fmtCasualties(ctx.atkCas, 'Attacker'));
+  lines.push(fmtCasualties(ctx.defCas, 'Defender'));
+  lines.push('');
+  lines.push('Loot (Carry Cap: ' + ctx.carryCap + ')');
+  lines.push(fmtLoot(ctx.loot));
+  lines.push('');
+  lines.push('Building Damage');
+  if (!ctx.bldgDamage || ctx.bldgDamage.length === 0) {
+    lines.push('  None');
+  } else {
+    ctx.bldgDamage.forEach(d => {
+      const name = (gameData.buildings[d.key] && gameData.buildings[d.key].name) || d.key;
+      let lvlDrop = '';
+      if (d.levelAfter !== undefined && d.levelBefore !== undefined && d.levelAfter < d.levelBefore) lvlDrop = ' (level ' + d.levelBefore + ' → ' + d.levelAfter + ')';
+      lines.push('  ' + name + ': integrity ' + d.before + ' → ' + d.after + lvlDrop);
+    });
+  }
+  lines.push('');
+  lines.push('Fleet Status');
+  lines.push('- Survivors returning: ' + (ctx.survivorsReturning ? 'Yes (ETA ' + ctx.returnEta + 's)' : 'No'));
+  return lines.join('\n');
+}
+
+function buildCombatReportData(perspective, ctx) {
+  return {
+    kind: 'pvp',
+    perspective: perspective,
+    reportId: ctx.reportId,
+    timestamp: ctx.timestamp,
+    attacker: ctx.attackerName,
+    attackerPlanet: ctx.attackerPlanet,
+    defender: ctx.defenderName,
+    defenderPlanet: ctx.defenderPlanet,
+    origin: ctx.originId,
+    target: ctx.targetId,
+    outboundTravel: ctx.outboundTravel,
+    returnEta: ctx.returnEta,
+    survivorsReturning: ctx.survivorsReturning,
+    attackerWins: ctx.attackerWins,
+    attackerPower: ctx.attackerPower,
+    defenderPower: ctx.defenderPower,
+    shieldNow: ctx.shieldNow,
+    ratio: ctx.ratio,
+    attackerCasualties: ctx.atkCas,
+    defenderCasualties: ctx.defCas,
+    loot: ctx.loot,
+    carryCap: ctx.carryCap,
+    buildingDamage: ctx.bldgDamage || []
+  };
 }
 
 function getStarterResources() {
