@@ -228,7 +228,7 @@ function connectWS(token) {
   const upd2 = await f.waitForPred(m2 => m2.type === 'alliance_update' && m2.alliancePublic && m2.alliancePublic.perms && m2.alliancePublic.perms.officer.canEditMotd === true, 'perms update broadcast');
   expect(upd2.alliancePublic.perms.commander.canKickMembers === true, 'commander perms broadcast in alliance_update');
   expect(upd2.alliancePublic.perms.officer.canBroadcastOfficers === true, 'officer broadcast perm broadcast');
-  expect(upd2.alliancePublic.perms.commander.canKickRecruits === false, 'commander canKickRecruits stays default false');
+  expect(upd2.alliancePublic.perms.commander.canKickRecruits === true, 'commander canKickRecruits defaults true (spec Phase 1)');
 
   // 7. Perms gating: recruit cannot set_perms, commander cannot either (founder only)
   rc.send({ type: 'alliance_set_perms', perms: { officer: { canEditMotd: true } } });
@@ -265,14 +265,19 @@ function connectWS(token) {
   const cBcastAll = await c.waitForPred(m2 => m2.type === 'alliance_result' && /officers/i.test(m2.error || ''), 'commander all-broadcast denied');
   expect(cBcastAll.ok === false, 'officer-rank cannot broadcast to all');
 
-  // 11. Kick gating: commander can kick member (canKickMembers on) but NOT recruit (commander.canKickRecruits default false)
-  //     Note: new joiners are 'recruit' — promote ax_member to 'member' so the canKickMembers path applies
+  // 11. Kick gating: commander defaults canKickRecruits=true (Phase 1) AND canKickMembers on -> can kick both.
+  //     Recruit has no kick perms -> denied. Note: new joiners are 'recruit' — promote ax_member to 'member'
+  //     so the canKickMembers path also applies.
   f.send({ type: 'alliance_set_role', targetUsername: 'ax_member', role: 'member' });
   const promMember = await f.waitForPred(m2 => m2.type === 'alliance_result' && m2.ok && m2.alliances && m2.alliances.find(a => a.id === allId) && m2.alliances.find(a => a.id === allId).members.some(x => x.username === 'ax_member' && x.role === 'member'), 'promote member');
   expect(promMember.ok === true, 'member promoted to member role');
+  // Recruit (no kick perms) is denied first — before the recruit itself gets kicked
+  rc.send({ type: 'alliance_kick', targetUsername: 'ax_commander' });
+  const k3 = await rc.waitForPred(m2 => m2.type === 'alliance_result' && /permission/i.test(m2.error || ''), 'recruit kick denied');
+  expect(k3.ok === false, 'recruit cannot kick anyone');
   c.send({ type: 'alliance_kick', targetUsername: 'ax_recruit' });
-  const k1 = await c.waitForPred(m2 => m2.type === 'alliance_result' && /permission/i.test(m2.error || ''), 'commander recruit kick denied');
-  expect(k1.ok === false, 'commander cannot kick recruit (commander.canKickRecruits false)');
+  const k1 = await c.waitForPred(m2 => m2.type === 'alliance_result' && m2.ok && /kicked/i.test(m2.message || ''), 'commander recruit kick allowed');
+  expect(k1.ok === true, 'commander can kick recruit (commander.canKickRecruits defaults true)');
   c.send({ type: 'alliance_kick', targetUsername: 'ax_member' });
   const k2 = await c.waitForPred(m2 => m2.type === 'alliance_result' && m2.ok && /kicked/i.test(m2.message || ''), 'commander member kick allowed');
   expect(k2.ok === true, 'commander kicks member (canKickMembers on)');
@@ -297,8 +302,8 @@ function connectWS(token) {
 
   // 14. Founder can kick anyone (commander)
   f.send({ type: 'alliance_kick', targetUsername: 'ax_commander' });
-  const k3 = await f.waitForPred(m2 => m2.type === 'alliance_result' && m2.ok && /kicked/i.test(m2.message || ''), 'founder kick commander');
-  expect(k3.ok === true, 'founder kicks commander');
+  const k4 = await f.waitForPred(m2 => m2.type === 'alliance_result' && m2.ok && /kicked/i.test(m2.message || ''), 'founder kick commander');
+  expect(k4.ok === true, 'founder kicks commander');
   c.send({ type: 'get_colony' });
   const cState = await c.waitForPred(m2 => m2.type === 'colony_state', 'commander colony_state after kick');
   expect(cState.colony.alliance.joinedId === null, 'kicked commander colony cleared');

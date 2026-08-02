@@ -48,6 +48,10 @@ const Resources = require('./server/systems/resources');
 }
 
 // 2+3. NPC combat tick: process-then-spawn, defense mail written
+// Note: env must be set BEFORE requiring combat.js (constants read at load).
+// Use 'all' mode here so the existing mail assertions still hold; the
+// 'important' default mode is covered by dedicated tests further below.
+process.env.NPC_DEFENSE_MAIL_MODE = 'all';
 const Combat = require('./server/systems/combat');
 const GAME = require('./server/game-data.json');
 function makeColony() {

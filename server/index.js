@@ -90,18 +90,64 @@ function computeLeaderboard() {
   return data;
 }
 
+function computeAllianceLeaderboard() {
+  const users = DB.db.users || {};
+  const alls = DB.db.universe.alliances || {};
+  const out = { population: [], raider: [], attacker: [], defence: [] };
+
+  // Build members list per allianceId from USER colonies (authoritative)
+  const membersByAlliance = {};
+  Object.keys(users).forEach(username => {
+    const u = users[username];
+    if (!u || !u.colony || !u.colony.alliance) return;
+    const aid = u.colony.alliance.joinedId;
+    if (!aid) return;
+    if (!membersByAlliance[aid]) membersByAlliance[aid] = [];
+    membersByAlliance[aid].push(username);
+  });
+
+  Object.keys(membersByAlliance).forEach(aid => {
+    const a = alls[aid];
+    const allianceName = a && a.name ? escapeHTML(a.name) : ('Alliance ' + aid);
+    let pop = 0, raids = 0, atk = 0, def = 0;
+
+    membersByAlliance[aid].forEach(username => {
+      const u = users[username];
+      if (!u || !u.colony) return;
+      const c = u.colony;
+      pop += ResourceSystem.getPopulation(c);
+      raids += (c.combat && c.combat.attackWins) || 0;
+      atk += CombatSystem.getTotalPower(c);
+      def += CombatSystem.getTotalDefense(c);
+    });
+
+    out.population.push({ name: allianceName, score: pop, allianceId: aid, members: membersByAlliance[aid].length });
+    out.raider.push({ name: allianceName, score: raids, allianceId: aid, members: membersByAlliance[aid].length });
+    out.attacker.push({ name: allianceName, score: atk, allianceId: aid, members: membersByAlliance[aid].length });
+    out.defence.push({ name: allianceName, score: def, allianceId: aid, members: membersByAlliance[aid].length });
+  });
+
+  Object.keys(out).forEach(k => {
+    out[k].sort((a, b) => b.score - a.score);
+    out[k] = out[k].slice(0, 20);
+  });
+
+  return out;
+}
+
 function sendLeaderboardTo(socket) {
   try {
     socket.write(wsEncodeFrame(JSON.stringify({
       type: 'leaderboard',
-      data: computeLeaderboard()
+      data: computeLeaderboard(),
+      alliances: computeAllianceLeaderboard()
     })));
   } catch(e) {}
 }
 
 function broadcastLeaderboard() {
   var data = computeLeaderboard();
-  var msg = JSON.stringify({ type: 'leaderboard', data: data });
+  var msg = JSON.stringify({ type: 'leaderboard', data: data, alliances: computeAllianceLeaderboard() });
   wsClients.forEach(function(info, socket) {
     try { socket.write(wsEncodeFrame(msg)); } catch(e) {}
   });
@@ -181,8 +227,8 @@ const DEFAULT_PERMS = {
     canKickRecruits: false, canViewAudit: true
   },
   commander: {
-    canUseOfficerChat: true, canEditMotd: false, canBroadcastOfficers: false,
-    canKickRecruits: false, canViewAudit: true,
+    canUseOfficerChat: true, canEditMotd: true, canBroadcastOfficers: true,
+    canKickRecruits: true, canViewAudit: true,
     canKickMembers: false, canPromoteToOfficer: false
   }
 };

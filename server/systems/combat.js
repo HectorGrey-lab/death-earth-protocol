@@ -3,6 +3,17 @@
  */
 const GAME = require('../game-data.json');
 
+// ─── NPC attack tuning (env-tunable, see README/changelog) ───
+function clampNumber(val, def, min, max) {
+  const n = parseFloat(val);
+  if (isNaN(n)) return def;
+  return Math.min(max, Math.max(min, n));
+}
+const NPC_ATTACKS_PER_HOUR = clampNumber(process.env.NPC_ATTACKS_PER_HOUR, 0.8, 0, 10);
+const NPC_ATTACK_COOLDOWN_SEC = clampNumber(process.env.NPC_ATTACK_COOLDOWN_SEC, 1800, 0, 86400); // default 30m
+const NPC_DEFENSE_MAIL_MODE = process.env.NPC_DEFENSE_MAIL_MODE || 'important'; // 'all' | 'important'
+const NPC_DEFENSE_MAIL_MAX = 25; // keep only this many npc_defense messages in the Defense tab
+
 function rand(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -123,9 +134,10 @@ function raid(colony, nodeId) {
     colony.combat.attackWins = (colony.combat.attackWins || 0) + 1;
   }
 
-  // Maybe schedule retaliation attack
-  const retaliationChance = 0.2 + threatLevel * 0.08 + (success ? 0.1 : 0);
-  if (chance(retaliationChance)) {
+  // Maybe schedule retaliation attack (nerfed: was 0.2 + threat*0.08 + 0.1, now ~0.06-0.13)
+  const retaliationChance = 0.06 + threatLevel * 0.04 + (success ? 0.03 : 0);
+  if (chance(retaliationChance) && canNpcAttack(colony)) {
+    markNpcAttack(colony);
     scheduleIncomingAttack(colony, threatLevel + (success ? 0 : 1), true);
   }
 
@@ -150,9 +162,47 @@ function scheduleIncomingAttack(colony, threatLevel, retaliation) {
   });
 }
 
+function canNpcAttack(colony) {
+  if (!colony.combat) return true;
+  const last = colony.combat.lastNpcAttackAt || 0;
+  return (Date.now() - last) >= NPC_ATTACK_COOLDOWN_SEC * 1000;
+}
+
+function markNpcAttack(colony) {
+  if (!colony.combat) colony.combat = {};
+  colony.combat.lastNpcAttackAt = Date.now();
+}
+
+function pruneNpcDefenseMail(colony) {
+  if (!colony.mailbox || !Array.isArray(colony.mailbox.messages)) return;
+  // Keep only the newest NPC_DEFENSE_MAIL_MAX npc_defense messages in the Defense tab
+  const npcDefIdx = [];
+  colony.mailbox.messages.forEach((m, i) => {
+    if (m && m.data && m.data.kind === 'npc_defense') npcDefIdx.push(i);
+  });
+  if (npcDefIdx.length > NPC_DEFENSE_MAIL_MAX) {
+    // messages are newest-first, so npcDefIdx is ordered newest→oldest:
+    // drop everything beyond the newest NPC_DEFENSE_MAIL_MAX
+    const toDrop = new Set(npcDefIdx.slice(NPC_DEFENSE_MAIL_MAX));
+    colony.mailbox.messages = colony.mailbox.messages.filter((m, i) => !toDrop.has(i));
+  }
+}
+
+function addColonyLog(colony, text) {
+  if (!colony.log) colony.log = [];
+  colony.log.unshift({ text: text, time: Date.now() });
+  colony.log = colony.log.slice(0, 40);
+}
+
 function tick(colony, dt) {
   if (!colony.combat) return;
   if (!colony.combat.incomingAttacks) return;
+
+  // One-time cleanup: prune old NPC defense mail spam (spec F)
+  if (!colony.combat._defenseMailPruned) {
+    colony.combat._defenseMailPruned = true;
+    pruneNpcDefenseMail(colony);
+  }
 
   // Process incoming attacks FIRST — collect due in separate array to avoid mutating-while-iterating
   const due = [];
@@ -170,10 +220,20 @@ function tick(colony, dt) {
 
   // THEN roll for a new random attack AFTER processing, so a freshly spawned
   // attack always gets a full ETA and can never resolve in the same tick (large dt offline catch-up)
-  const radarReduction = (colony.buildings.radarArray.level - 1) * 0.0015;
-  // Cap random chance at 1.0 even at large dt to avoid guaranteed spawns on offline catch-up
-  const rawChance = Math.min(1.0, Math.max(0.002, 0.01 * (dt > 10 ? Math.min(dt, 60) : dt) - radarReduction));
-  if (chance(rawChance)) {
+  if (!canNpcAttack(colony)) return; // per-colony cooldown — no machine-gunning
+
+  // Rate-based chance: ~0.8 NPC attacks/hour by default (was 0.01/dt ~= 36/hour)
+  const dtSafe = dt > 10 ? Math.min(dt, 60) : dt;
+  const perSec = NPC_ATTACKS_PER_HOUR / 3600;
+  let baseChance = perSec * dtSafe;
+  // Radar reduces chance multiplicatively (lvl 1 = no reduction, lvl 5 = ~35% floor)
+  const radarLvl = (colony.buildings && colony.buildings.radarArray && colony.buildings.radarArray.level) || 0;
+  const radarFactor = Math.min(1, Math.max(0.35, 1 - (radarLvl - 1) * 0.08));
+  let finalChance = baseChance * radarFactor;
+  // Cap to avoid guaranteed spawns on dt spikes
+  finalChance = Math.min(0.25, finalChance);
+  if (chance(finalChance)) {
+    markNpcAttack(colony);
     scheduleIncomingAttack(colony, rand(1, 4), false);
   }
 }
@@ -248,6 +308,16 @@ function sendDefenseReport(colony, attack, result) {
   }
   const body = lines.join('\n');
 
+  // ── Defense mail spam reduction (spec E) ──
+  // 'important' mode: only mail when not defended, or threat >= 3, or retaliation.
+  // Otherwise drop the mail and log a brief system entry so the player still sees it.
+  const isImportant = !result.defended || lvl >= 3 || !!attack.retaliation;
+  if (NPC_DEFENSE_MAIL_MODE === 'important' && !isImportant) {
+    addColonyLog(colony, '🛡 NPC raid repelled — Threat L' + lvl + ', no casualties.');
+    pruneNpcDefenseMail(colony);
+    return;
+  }
+
   if (!colony.mailbox) colony.mailbox = { messages: [], selectedTab: 'Inbox', selectedMessageId: null };
   if (!colony.mailbox.messages) colony.mailbox.messages = [];
   colony.mailbox.messages.unshift({
@@ -268,6 +338,11 @@ function sendDefenseReport(colony, attack, result) {
     }
   });
   colony.mailbox.messages = colony.mailbox.messages.slice(0, 120);
+  pruneNpcDefenseMail(colony);
 }
 
-module.exports = { scout, raid, scheduleIncomingAttack, tick, getTotalPower, getTotalDefense };
+module.exports = {
+  scout, raid, scheduleIncomingAttack, tick, getTotalPower, getTotalDefense,
+  canNpcAttack, markNpcAttack, pruneNpcDefenseMail, addColonyLog,
+  clampNumber, NPC_ATTACKS_PER_HOUR, NPC_ATTACK_COOLDOWN_SEC, NPC_DEFENSE_MAIL_MODE
+};

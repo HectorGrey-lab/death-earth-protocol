@@ -264,6 +264,16 @@ window.UICore = (function () {
     }
   }
 
+  function updateAttackGlow(state) {
+    // Red border overlay when a PLAYER (PvP) attack is incoming — NPC attacks have no attacker field
+    var hasPvPIncoming = !!(state.combat && state.combat.incomingAttacks && state.combat.incomingAttacks.some(function (a) { return !!a.attacker; }));
+    if (hasPvPIncoming) {
+      showAttackGlow();
+    } else {
+      hideAttackGlow();
+    }
+  }
+
   function renderAll(state) {
     renderHeader(state);
     renderNav(state);
@@ -273,6 +283,7 @@ window.UICore = (function () {
     UIResources.render(state);
     renderPageFrame(state);
     renderActivePage(state);
+    updateAttackGlow(state);
     // Set up collapsible sidebar panels on mobile after content is rendered
     setTimeout(initCollapsiblePanels, 0);
     // Re-bind window resize for collapsible
@@ -288,6 +299,7 @@ window.UICore = (function () {
     renderQueues(state);
     renderSystemLog(state);
     UIResources.render(state);
+    updateAttackGlow(state);
   }
 
   function showAttackGlow() {

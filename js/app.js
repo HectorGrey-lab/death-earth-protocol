@@ -54,7 +54,7 @@ window.App = (function () {
     });
     Network.on('leaderboard', function (msg) {
       if (msg.data) {
-        UILeaderboard.setData(msg.data);
+        UILeaderboard.setData(msg.data, msg.alliances || null);
         if (window.gameState && window.gameState.ui && window.gameState.ui.currentPage === 'leaderboard') {
           render();
         }
@@ -95,6 +95,17 @@ window.App = (function () {
         }
         if (c.combat) {
           window.gameState.combat = c.combat;
+        }
+        // Drain server-side colony.log entries (e.g. repelled NPC raids that skip mail) into the system log
+        if (Array.isArray(c.log)) {
+          if (!window._seenColonyLogs) window._seenColonyLogs = {};
+          c.log.forEach(function (le) {
+            if (!le || !le.text || !le.time) return;
+            var fp = le.text + '@' + le.time;
+            if (window._seenColonyLogs[fp]) return;
+            window._seenColonyLogs[fp] = true;
+            MailboxSystem.addLog(window.gameState, le.text, 'system');
+          });
         }
         if (c.mailbox) {
           // On initial load, seed the mailbox from server. On periodic syncs (every ~5s),

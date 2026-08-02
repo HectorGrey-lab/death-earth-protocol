@@ -1,6 +1,30 @@
 # Dead Earth Protocol — Changelog & Fix History
 
-## 2026-08-02 — Alliance Extras + Forces UI v2
+## 2026-08-02 — Alliance Perms Defaults + Alliance Leaderboard + PvP Alert + NPC Attack Tuning
+
+### Milestone
+Quality-of-life batch: commander permissions now default on (kick recruits, edit MOTD, officer broadcasts), alliances appear on the leaderboard with a scope toggle, incoming player attacks trigger a red-screen alert, and NPC raids got a major frequency nerf with defense-mail spam reduction.
+
+### Phase 1 — Alliance permission defaults (server)
+- Commander defaults flipped on: `canEditMotd`, `canBroadcastOfficers`, `canKickRecruits` → `true` (was `false`); officer defaults unchanged. `normalizePerms` continues to clamp every key to a boolean.
+
+### Phase 2 — Alliance leaderboard (server + client)
+- `computeAllianceLeaderboard()` — aggregates members from user colonies (authoritative), scores each alliance by population / raider (attackWins) / attacker (troop power) / defence (troop defense), top 20 per category with `{name, score, allianceId, members}`
+- WS `leaderboard` payload now carries `alliances` (both `sendLeaderboardTo` and `broadcastLeaderboard`)
+- `js/ui/ui-leaderboard.js` — Commanders / Alliances scope toggle; `js/app.js` passes `msg.alliances`; `.lb-scope` pill styles in `css/styles.css`
+
+### Phase 3 — PvP incoming-attack red border (client)
+- `js/ui/ui-core.js` `updateAttackGlow(state)` in `renderAll` — red overlay while a **player** attack is inbound (`combat.incomingAttacks` entries with an `attacker` field); NPC raids don't trigger it
+
+### Phase 4 — NPC attack tuning + defense mail spam (server)
+- **Env-tunable rate**: `NPC_ATTACKS_PER_HOUR` (default 0.8/hr — was ~36/hr), `NPC_ATTACK_COOLDOWN_SEC` (default 1800s per-colony), `NPC_DEFENSE_MAIL_MODE` (`'important'` default), 25-message `npc_defense` mail cap
+- **Retaliation nerf**: chance ~0.2–0.38 → ~0.06–0.13, and gated by the NPC cooldown
+- **Radar**: spawn chance reduced multiplicatively (`1 − (lvl−1)·0.08`, floor 0.35)
+- **Mail mode `'important'`**: repelled low-threat NPC raids (threat < 3, no retaliation) skip the mailbox and write a brief `colony.log` entry instead — player still sees it in the system log (client drains + dedups); high-threat / retaliation / undefended raids still mail
+- **Prune**: `npc_defense` messages capped at newest 25 (one-time cleanup + on every send)
+
+### Tests
+- `npc-tuning-smoke-test.js` (new, 30 assertions); `audit-smoke-test.js` runs in `NPC_DEFENSE_MAIL_MODE='all'` so existing mail assertions hold; `alliance-extra-smoke-test.js` updated for new commander defaults (kick tests reordered + recruit-denial before kick); `alliance-smoke-test.js` predicate tightened to skip stale pre-join auth `colony_state` (was a flaky waiter race)
 
 ### Milestone
 Alliance management matured (MOTD, audit log, granular permissions, member kicks, officer broadcasts) and the Forces tab got a real fleet builder: custom training quantities, numeric fleet composition with live stats, and transit safety.

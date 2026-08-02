@@ -1478,6 +1478,11 @@ hr.sep {
 
 /* ─── Leaderboard ─── */
 .lb-container { display: flex; flex-direction: column; min-height: 300px; }
+.lb-scopes { display: flex; gap: 6px; margin-bottom: 8px; }
+.lb-scope { flex: 1; padding: 7px 10px; background: rgba(255,180,90,0.05); border: 1px solid rgba(255,180,90,0.15); border-radius: 8px; color: #d8b088; font-size: 13px; cursor: pointer; text-align: center; }
+.lb-scope.active { background: rgba(255,180,90,0.14); border-color: rgba(255,180,90,0.4); color: #ffb45a; font-weight: 600; }
+.lb-scope:hover { border-color: rgba(255,180,90,0.3); }
+.lb-members { display: block; font-size: 11px; color: #8899aa; margin-top: 2px; }
 .lb-tabs { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
 .lb-tab { flex: 1; min-width: 100px; padding: 8px 10px; background: rgba(88,214,255,0.06); border: 1px solid rgba(88,214,255,0.12); border-radius: 8px; color: #88bbdd; font-size: 13px; cursor: pointer; text-align: center; }
 .lb-tab.active { background: rgba(88,214,255,0.15); border-color: rgba(88,214,255,0.35); color: #58d6ff; font-weight: 600; }

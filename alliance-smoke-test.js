@@ -251,8 +251,10 @@ function connectWS(token) {
   expect(/recipient/.test(bcast.message), 'broadcast sent to recipients (' + bcast.message + ')');
 
   // 11. Security fix: colony_state universe payload must NOT contain alliances or chat
+  //     Predicate requires the alliances list so it can't match the recruit's stale
+  //     pre-join auth colony_state (alliances: []) buffered from connect time.
   rc.send({ type: 'get_colony' });
-  const state = await rc.waitForPred(m => m.type === 'colony_state', 'recruit colony_state');
+  const state = await rc.waitForPred(m => m.type === 'colony_state' && Array.isArray(m.alliances) && m.alliances.length >= 1, 'recruit colony_state with alliances');
   expect(!state.universe.alliances, 'colony_state universe does not leak alliances');
   expect(!state.universe.chat, 'colony_state universe does not leak chat');
   expect(Array.isArray(state.alliances) && state.alliances.length >= 1, 'colony_state still carries public alliances list');
