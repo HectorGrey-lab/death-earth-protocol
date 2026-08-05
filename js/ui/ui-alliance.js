@@ -107,7 +107,8 @@ window.UIAlliance = (function () {
 
     function chatBlock(channel, title, msgs, canUse) {
       var lines = (msgs || []).map(function (m) {
-        var who = m.username === 'System' ? `<span class="faint">System</span>` : `<strong>${esc(m.username)}</strong>`;
+        var whoName = m.username === 'System' ? 'System' : (m.displayName || m.username);
+        var who = m.username === 'System' ? `<span class="faint">System</span>` : `<strong title="${esc(m.username)}">${esc(whoName)}</strong>`;
         return `<div class="alliance-chat-line"><span class="chat-time">${fmtTime(m.time)}</span> ${who}: ${esc(m.text)}</div>`;
       }).join('');
       var input = canUse

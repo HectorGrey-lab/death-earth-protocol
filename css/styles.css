@@ -1194,6 +1194,76 @@ hr.sep {
   }
 }
 
+/* ── Options page ─────────────────────────────────────────────── */
+.opt-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.opt-section {
+  padding: 12px;
+}
+.opt-acc {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.opt-acc-item {
+  border: 1px solid var(--border, #2a3550);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.opt-acc-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: rgba(255,255,255,0.02);
+  border: none;
+  color: var(--text, #c8d8e8);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 9px 10px;
+  cursor: pointer;
+  text-align: left;
+}
+.opt-acc-head:hover { background: rgba(255,255,255,0.06); }
+.opt-acc-caret { color: #58d6ff; font-size: 10px; transition: transform 0.15s; }
+.opt-acc-body {
+  padding: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  border-top: 1px solid var(--border, #2a3550);
+  color: #a8b8c8;
+}
+.opt-acc-body p { margin: 0 0 6px; }
+.opt-acc-body p:last-child { margin-bottom: 0; }
+.opt-list { margin: 0; padding-left: 16px; }
+.opt-list li { margin-bottom: 6px; }
+.opt-meta { font-size: 11px; color: #7a8aa0; }
+.opt-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+.opt-form .btn { align-self: flex-start; }
+.opt-label {
+  font-size: 11px;
+  color: #9aacbe;
+  display: block;
+  width: 100%;
+}
+.opt-label input {
+  width: 100%;
+  margin-top: 4px;
+  box-sizing: border-box;
+}
+.opt-msg { font-size: 11px; color: #58d6ff; }
+.opt-danger .panel-title { color: #ff6b6b; }
+.opt-danger .btn.danger { background: #a33; }
+
 @media (max-width: 1180px) {
   .tactical-map-layout,
   .intel-stat-grid {
@@ -1728,6 +1798,28 @@ hr.sep {
 /* =========================
    MOBILE — Small phone (max 480px) — consolidated
    ========================= */
+@media (max-width: 720px) {
+  /* Mobile-only: hide HUD widgets on every page EXCEPT Command Center (data-page="home") */
+  .hud-resource, .hud-queue, .hud-shield, .hud-relay, .hud-systemlog { display: none !important; }
+
+  body[data-page="home"] .hud-resource,
+  body[data-page="home"] .hud-queue,
+  body[data-page="home"] .hud-shield,
+  body[data-page="home"] .hud-relay,
+  body[data-page="home"] .hud-systemlog {
+    display: block !important;
+  }
+
+  /* ── Options page mobile polish ── */
+  .opt-grid { grid-template-columns: 1fr; gap: 8px; }
+  .opt-section { padding: 10px; }
+  .opt-acc-head { min-height: 44px; font-size: 12px; padding: 10px 12px; }
+  .opt-acc-body { padding: 12px; font-size: 12px; }
+  .opt-form .btn { min-height: 44px; font-size: 13px; padding: 10px 16px; }
+  .opt-label input { min-height: 44px; font-size: 14px; padding: 8px; }
+  .opt-danger { border-color: rgba(255, 90, 90, 0.5) !important; background: rgba(60, 15, 15, 0.35) !important; }
+}
+
 @media (max-width: 480px) {
   .app-shell { padding: 4px; }
   .panel { padding: 6px; border-radius: 10px; }

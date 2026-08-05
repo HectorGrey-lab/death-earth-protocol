@@ -36,7 +36,11 @@ window.UILeaderboard = (function () {
         : '';
       return '<div class="lb-row' + cls + '">' +
         '<span class="lb-rank">' + (medal || '#' + (i + 1)) + '</span>' +
-        '<span class="lb-name">' + escLB(e.name) + members + '</span>' +
+        '<span class="lb-name">' + (activeScope === 'alliances'
+          ? escLB(e.name) + members
+          : (e.displayName
+              ? '<span title="' + escLB(e.name) + '">' + escLB(e.displayName) + '</span>'
+              : escLB(e.name)) + members) + '</span>' +
         '<span class="lb-score">' + formatScore(e.score) + '</span>' +
         '</div>';
     }).join('') : '<div class="small" style="padding:20px;text-align:center;">No data yet.</div>';

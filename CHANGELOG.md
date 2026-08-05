@@ -1,5 +1,42 @@
 # Dead Earth Protocol — Changelog & Fix History
 
+## 2026-08-05 — Mobile UI Cleanup + Options Tab (Help, Logout, Edit Profile, Delete Account)
+
+### Milestone
+The HUD no longer clutters non-Command pages on mobile, and a new Options tab centralises account self-service: Starter Guide/Help accordion, logout with token invalidation, profile editing (display name + base name), and full account deletion with a typed-confirmation gate. Display names propagate through chat, PMs, and the leaderboard.
+
+### Phase 1 — Options nav tab + routing (client)
+- `game.html` — new `nav-btn[data-page="options"]` after Leaderboard; `ui-options.js` script loaded before `app.js`
+- `js/ui/ui-core.js` — `options` page in `PAGE_META`, router case delegating to `UIOptions.render()/bind()`, `body[data-page]` attribute set in `renderAll`
+
+### Phase 2 — Mobile HUD hiding (CSS)
+- `css/styles.css` `@media (max-width: 720px)` — `.hud-shield/.hud-queue/.hud-systemlog/.hud-relay` hidden unless `body[data-page="home"]`; sidebar panels reflow to a single column; Command page keeps the full HUD
+
+### Phase 3 — Help / Starter Guide accordion (client)
+- `js/ui/ui-options.js` — collapsible accordion rendered from `window.GameData.helpSections` (pushed with `colony_state.gamedata`); first-run / Help button opens it
+
+### Phase 4 — Logout (client + server)
+- Client sends `logout`, clears `de_token`/`de_username`, redirects to `/login`
+- Server invalidates the session token (removes from token map), replies `logout_ok`, closes the socket
+
+### Phase 5 — Edit Profile (client + server)
+- `profile_update` WS message — validates display name (3–20 chars) and base name (3–24 chars) against `^[A-Za-z0-9 _-]+$`, collapses whitespace, enforces display-name uniqueness
+- Persists `colony.profile {displayName, baseName}` + `colony.planetName`; replies fresh `colony_state`; modal UI in Options tab
+
+### Phase 6 — Delete Account (client + server)
+- Danger zone with `type DELETE` confirmation gate (client modal + server-side confirm check)
+- Server: leaves/disbands alliance, unclaims owned planets (`colonizedBy: null`), cancels pending attacks, removes mailbox + chat history entries, deletes the user, saves, replies `delete_account_result`, closes socket
+- Client clears storage and redirects to `/login`
+
+### Phase 7 — Display-name propagation + mobile polish (client + server)
+- Chat messages, PM subjects, leaderboard entries carry `displayName` (username as `title` tooltip); `ui-chat.js` `nameOf()` helper prefers display name
+- Options mobile polish: single-column forms, 44px tap targets, centered confirm modal
+
+### Fixes along the way
+- `server/admin.js` — admin POST write-routes returned `undefined` from `handleBody`, so the request fell through to static file serving and double-wrote the response (`ERR_HTTP_HEADERS_SENT` crash). All four routes now `return true` after async handling.
+- `server/index.js` — global socket `error` handler + `broadcastAll`/`broadcastPresence`/`broadcastLeaderboard` skip `destroyed`/non-writable sockets, preventing crashes when a logout/delete closes a socket mid-broadcast.
+- New `options-smoke-test.js` (19 assertions: profile validation, displayName in chat/leaderboard, logout token invalidation, delete-account confirm gate + cleanup).
+
 ## 2026-08-02 — Alliance Perms Defaults + Alliance Leaderboard + PvP Alert + NPC Attack Tuning
 
 ### Milestone

@@ -45,7 +45,7 @@ const chatHistory = [];
 function broadcastAll(msg) {
   const data = JSON.stringify(msg);
   wsClients.forEach((info, socket) => {
-    try { socket.write(wsEncodeFrame(data)); } catch(e) {}
+    try { if (!socket.destroyed && socket.writable) socket.write(wsEncodeFrame(data)); } catch(e) {}
   });
 }
 
@@ -62,21 +62,26 @@ function computeLeaderboard() {
     var u = users[name];
     if (!u || !u.colony) return;
     var c = u.colony;
+    var displayName = (c.profile && c.profile.displayName) ? escapeHTML(c.profile.displayName) : null;
 
     data.population.push({
       name: escapeHTML(name),
+      displayName: displayName,
       score: ResourceSystem.getPopulation(c)
     });
     data.raider.push({
       name: escapeHTML(name),
+      displayName: displayName,
       score: (c.combat && c.combat.attackWins) || 0
     });
     data.attacker.push({
       name: escapeHTML(name),
+      displayName: displayName,
       score: CombatSystem.getTotalPower(c)
     });
     data.defence.push({
       name: escapeHTML(name),
+      displayName: displayName,
       score: CombatSystem.getTotalDefense(c)
     });
   });
@@ -167,10 +172,10 @@ function broadcastPresence() {
     });
   });
   var msg = JSON.stringify({ type: 'presence', players: players });
-  wsClients.forEach(function(info, socket) {
-    try { socket.write(wsEncodeFrame(msg)); } catch(e) {}
-  });
-}
+    wsClients.forEach(function(info, socket) {
+      try { if (!socket.destroyed && socket.writable) socket.write(wsEncodeFrame(msg)); } catch(e) {}
+    });
+  }
 
 // ─── Admin Console ──────────────────────────────────────────
 const adminAuth = Admin.init(DB, gameData, process.env.ADMIN_PASSWORD);
@@ -848,7 +853,8 @@ function createInitialColony(username, planetName, galaxyId, sectorId, planetId)
     missions: {}, // Will be populated from GameData.missions
     queue: [],
     lastTick: Date.now(),
-    shield: { current: 120, max: 120 }
+    shield: { current: 120, max: 120 },
+    profile: { displayName: username, baseName: planetName || username + "'s Planet" }
   };
 }
 
@@ -1236,6 +1242,10 @@ server.on('upgrade', function(req, socket, head) {
     } catch(e) {}
   }
 
+  // Swallow write-after-end / reset errors from sockets that were ended
+  // while a broadcast loop still holds them (logout, delete_account, idle close).
+  socket.on('error', function() {});
+
   socket.on('data', function(chunk) {
     resetIdleTimeout();
     buffer = Buffer.concat([buffer, chunk]);
@@ -1294,7 +1304,9 @@ server.on('upgrade', function(req, socket, head) {
         // Cap and escape chat text
         var safeText = escapeHTML(msg.text.substring(0, 500));
         var safeUser = escapeHTML(username);
+        var displayName = (user.colony.profile && user.colony.profile.displayName) ? escapeHTML(user.colony.profile.displayName) : null;
         var chatMsg = { type: 'chat', username: safeUser, text: safeText, time: Date.now() };
+        if (displayName) chatMsg.displayName = displayName;
         chatHistory.push(chatMsg);
         if (chatHistory.length > 20) chatHistory.splice(0, chatHistory.length - 20);
         broadcastAll(chatMsg);
@@ -1317,6 +1329,121 @@ server.on('upgrade', function(req, socket, head) {
         var colony = JSON.parse(JSON.stringify(user.colony));
         colony.productionRates = ResourceSystem.getProductionRates(user.colony);
         reply(socket, { type: 'colony_state', seq: colonySeq, colony: colony, universe: getPublicUniverse(), alliances: getAlliancesList(), gameData: getClientGameData() }, msg._reqId);
+      }
+
+      // ── Profile update (display name + base name) ──
+      if (msg.type === 'profile_update') {
+        var cleanName = function(s, maxLen) {
+          return String(s || '').trim().replace(/\s+/g, ' ').substring(0, maxLen);
+        };
+        var dn = cleanName(msg.displayName, 20);
+        var bn = cleanName(msg.baseName, 24);
+        var nameRe = /^[A-Za-z0-9 _-]+$/;
+        if (dn.length < 3 || dn.length > 20) {
+          reply(socket, { type: 'profile_update_result', ok: false, error: 'Display name must be 3-20 characters' }, msg._reqId);
+        } else if (bn.length < 3 || bn.length > 24) {
+          reply(socket, { type: 'profile_update_result', ok: false, error: 'Base name must be 3-24 characters' }, msg._reqId);
+        } else if (!nameRe.test(dn) || !nameRe.test(bn)) {
+          reply(socket, { type: 'profile_update_result', ok: false, error: 'Names may only contain letters, numbers, spaces, _ and -' }, msg._reqId);
+        } else {
+          if (!user.colony.profile) user.colony.profile = {};
+          user.colony.profile.displayName = escapeHTML(dn);
+          user.colony.profile.baseName = escapeHTML(bn);
+          user.colony.planetName = escapeHTML(bn);
+          DB.saveDB();
+          colonySeq++;
+          var colony = JSON.parse(JSON.stringify(user.colony));
+          colony.productionRates = ResourceSystem.getProductionRates(user.colony);
+          reply(socket, {
+            type: 'profile_update_result', ok: true, colony: colony,
+            universe: getPublicUniverse(), alliances: getAlliancesList(), gameData: getClientGameData()
+          }, msg._reqId);
+          broadcastPresence();
+          log(ip, 'profile_update ' + username + ' display=' + dn + ' base=' + bn);
+        }
+      }
+
+      // ── Logout (invalidate token) ──
+      if (msg.type === 'logout') {
+        var u = DB.db.users[username];
+        if (u) {
+          u.token = null;
+          u.tokenExpires = 0;
+          DB.saveDB();
+        }
+        try {
+          socket.write(wsEncodeFrame(JSON.stringify({ type: 'logout_ok' })));
+          socket.end();
+        } catch (e) {}
+        log(ip, 'logout ' + username);
+        return;
+      }
+
+      // ── Delete account (permanent) ──
+      if (msg.type === 'delete_account') {
+        if (msg.confirm !== 'DELETE') {
+          reply(socket, { type: 'delete_account_result', ok: false, error: 'Confirmation text must be DELETE' }, msg._reqId);
+        } else {
+          // Leave / disband any alliance the user belongs to
+          var joinedId = user.colony.alliance && user.colony.alliance.joinedId;
+          if (joinedId) {
+            var alls = DB.db.universe.alliances || {};
+            var alliance = alls[joinedId];
+            if (alliance) {
+              alliance = normalizeAlliance(alliance, joinedId);
+              delete alliance.members[username];
+              if (alliance.founder === username) {
+                var remaining = Object.keys(alliance.members);
+                if (remaining.length > 0) {
+                  remaining.sort(function(x, y) {
+                    return roleLevel(alliance.members[y].role) - roleLevel(alliance.members[x].role);
+                  });
+                  var newFounder = remaining[0];
+                  alliance.founder = newFounder;
+                  alliance.members[newFounder].role = 'founder';
+                } else {
+                  delete alls[joinedId];
+                }
+              } else if (Object.keys(alliance.members).length === 0) {
+                delete alls[joinedId];
+              }
+            }
+          }
+          // Cancel in-transit attacks involving this user
+          for (var pi = pendingAttacks.length - 1; pi >= 0; pi--) {
+            if (pendingAttacks[pi].attacker === username || pendingAttacks[pi].defender === username) {
+              pendingAttacks.splice(pi, 1);
+            }
+          }
+          // Release claimed planets owned by the user
+          var uni = DB.db.universe;
+          if (uni && uni.galaxies) {
+            (uni.galaxies || []).forEach(function(gal) {
+              (gal.sectors || []).forEach(function(sec) {
+                (sec.planets || []).forEach(function(planet) {
+                  if (planet && planet.colonizedBy === username) {
+                    planet.isPlayerBase = false;
+                    planet.isColonized = false;
+                    planet.colonizedBy = null;
+                    planet.baseLevel = null;
+                  }
+                });
+              });
+            });
+          }
+          // Remove the user
+          delete DB.db.users[username];
+          DB.saveDB();
+          try {
+            socket.write(wsEncodeFrame(JSON.stringify({ type: 'delete_account_result', ok: true })));
+            socket.end();
+          } catch (e) {}
+          broadcastAll({ type: 'system', message: escapeHTML(username) + ' has left the universe' });
+          broadcastAll({ type: 'alliance_result', ok: true, alliances: getAlliancesList() });
+          broadcastPresence();
+          log(ip, 'delete_account ' + username);
+          return;
+        }
       }
 
       // ── Build ──
@@ -1523,10 +1650,11 @@ server.on('upgrade', function(req, socket, head) {
           var pm = {
             id: 'pm_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
             tab: 'Inbox',
-            subject: 'From: ' + safeUsername,
+            subject: 'From: ' + ((user.colony && user.colony.profile && user.colony.profile.displayName) ? escapeHTML(user.colony.profile.displayName) : safeUsername),
             body: safeText,
             time: Date.now(),
             from: escapeHTML(username),
+            fromDisplayName: (user.colony && user.colony.profile && user.colony.profile.displayName) ? escapeHTML(user.colony.profile.displayName) : null,
             isNew: true
           };
           // Add to target's mailbox
@@ -1723,10 +1851,14 @@ server.on('upgrade', function(req, socket, head) {
             var safeChatText = escapeHTML(String(msg.text || '').substring(0, 500));
             if (safeChatText.trim().length > 0) {
               alliance = normalizeAlliance(alliance, joinedId);
-              alliance.chat[channel].push({ username: escapeHTML(username), text: safeChatText, time: Date.now() });
+              var aDn = (user.colony.profile && user.colony.profile.displayName) ? escapeHTML(user.colony.profile.displayName) : null;
+              var aChatMsg = { username: escapeHTML(username), text: safeChatText, time: Date.now() };
+              if (aDn) aChatMsg.displayName = aDn;
+              alliance.chat[channel].push(aChatMsg);
               if (alliance.chat[channel].length > 50) alliance.chat[channel] = alliance.chat[channel].slice(-50);
               DB.saveDB();
               var chatMsg = { type: 'alliance_chat', channel: channel, username: escapeHTML(username), text: safeChatText, time: Date.now() };
+              if (aDn) chatMsg.displayName = aDn;
               if (channel === 'officers') {
                 broadcastToAlliance(joinedId, chatMsg, function(info) {
                   var rec = DB.db.users[info.username];

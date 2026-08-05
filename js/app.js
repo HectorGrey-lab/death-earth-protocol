@@ -61,6 +61,53 @@ window.App = (function () {
       }
     });
 
+    Network.on('profile_update_result', function (msg) {
+      var msgEl = Utils.el && Utils.el("optProfileMsg");
+      if (msg && msg.ok) {
+        if (msgEl) msgEl.textContent = '✓ Profile saved';
+        window._loginUser = (window.gameState.profile && window.gameState.profile.displayName) || window._loginUser;
+        if (msg.colony) {
+          // Feed the fresh colony state through the same path as colony_state
+          window.gameState.commander.planetName = msg.colony.planetName;
+          window.gameState.profile = msg.colony.profile || window.gameState.profile;
+          if (msg.colony.profile && msg.colony.profile.displayName) {
+            window.gameState.commander.name = 'Commander ' + msg.colony.profile.displayName;
+          }
+        }
+        if (msg.universe && msg.universe.galaxies) {
+          window.gameState.universe.galaxies = msg.universe.galaxies;
+        }
+        if (msg.alliances) {
+          window.GameData.alliances = msg.alliances;
+        }
+        var dnView = Utils.el && Utils.el("optDisplayNameView");
+        var bnView = Utils.el && Utils.el("optBaseNameView");
+        if (dnView && window.gameState.profile) dnView.textContent = window.gameState.profile.displayName;
+        if (bnView) bnView.textContent = window.gameState.commander.planetName;
+        if (window.UIModal && window.UIModal.close) window.UIModal.close();
+        render();
+      } else if (msgEl) {
+        msgEl.textContent = '✗ ' + ((msg && msg.error) || 'Failed to save profile');
+      }
+    });
+
+    Network.on('delete_account_result', function (msg) {
+      if (msg && msg.ok) {
+        try { localStorage.removeItem("de_token"); localStorage.removeItem("de_username"); } catch(e) {}
+        window.location.href = "/login";
+      } else {
+        var msgEl = Utils.el && Utils.el("optDeleteMsg");
+        if (msgEl) msgEl.textContent = '✗ ' + ((msg && msg.error) || 'Delete failed');
+        var delBtn = Utils.el && Utils.el("optDeleteBtn");
+        if (delBtn) delBtn.disabled = false;
+      }
+    });
+
+    Network.on('logout_ok', function () {
+      try { localStorage.removeItem("de_token"); localStorage.removeItem("de_username"); } catch(e) {}
+      window.location.href = "/login";
+    });
+
     Network.init();
 
     setTimeout(function () {
@@ -86,6 +133,10 @@ window.App = (function () {
           if (window.gameState.research.levels.defense === undefined) window.gameState.research.levels.defense = 0;
         }
         window.gameState.commander.planetName = c.planetName;
+        window.gameState.profile = c.profile || { displayName: '', baseName: c.planetName || '' };
+        if (!window.gameState.commander.name || /^Commander /.test(window.gameState.commander.name)) {
+          window.gameState.commander.name = 'Commander ' + (c.profile && c.profile.displayName ? c.profile.displayName : (window._loginUser || ''));
+        }
 
         if (c.missions) {
           window.gameState.missions = c.missions;

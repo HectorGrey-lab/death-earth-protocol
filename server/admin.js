@@ -143,7 +143,7 @@ function handleAdminAPI(method, url, req, res, DB, GAME) {
   }
 
   if (resource === 'players' && method === 'POST' && username && action === 'resources') {
-    return handleBody(req, res, (data) => {
+    handleBody(req, res, (data) => {
       const user = DB.db.users[username];
       if (!user || !user.colony) return sendJSON(res, { ok: false, error: 'Player not found' }, 404);
 
@@ -172,10 +172,11 @@ function handleAdminAPI(method, url, req, res, DB, GAME) {
         isotopes: Math.floor(colony.resources.isotopes?.amount || 0)
       }});
     });
+    return true; // response written async; claim the route
   }
 
   if (resource === 'players' && method === 'POST' && username && action === 'buildings') {
-    return handleBody(req, res, (data) => {
+    handleBody(req, res, (data) => {
       const user = DB.db.users[username];
       if (!user || !user.colony) return sendJSON(res, { ok: false, error: 'Player not found' }, 404);
 
@@ -190,10 +191,11 @@ function handleAdminAPI(method, url, req, res, DB, GAME) {
 
       sendJSON(res, { ok: true });
     });
+    return true;
   }
 
   if (resource === 'players' && method === 'POST' && username && action === 'troops') {
-    return handleBody(req, res, (data) => {
+    handleBody(req, res, (data) => {
       const user = DB.db.users[username];
       if (!user || !user.colony) return sendJSON(res, { ok: false, error: 'Player not found' }, 404);
 
@@ -208,10 +210,11 @@ function handleAdminAPI(method, url, req, res, DB, GAME) {
 
       sendJSON(res, { ok: true });
     });
+    return true;
   }
 
   if (resource === 'players' && method === 'POST' && username && action === 'add-troops') {
-    return handleBody(req, res, (data) => {
+    handleBody(req, res, (data) => {
       const user = DB.db.users[username];
       if (!user || !user.colony) return sendJSON(res, { ok: false, error: 'Player not found' }, 404);
 
@@ -226,6 +229,7 @@ function handleAdminAPI(method, url, req, res, DB, GAME) {
 
       sendJSON(res, { ok: true });
     });
+    return true;
   }
 
   if (resource === 'save' && method === 'POST') {

@@ -10,7 +10,8 @@ window.UICore = (function () {
     market: { title: "Market Nexus", subtitle: "Resource exchange, artifact trade, and transaction activity." },
     chat: { title: "Global Chat", subtitle: "Communicate with all players across the galaxy." },
     mailbox: { title: "Mailbox", subtitle: "Combat reports, system notices, alliance messages, and logs." },
-    leaderboard: { title: "Leaderboard", subtitle: "Top commanders across population, raids, attacks, and defence." }
+    leaderboard: { title: "Leaderboard", subtitle: "Top commanders across population, raids, attacks, and defence." },
+    options: { title: "Options", subtitle: "Help, profile, and account settings." }
   };
 
   // ── Mobile detection ──
@@ -257,6 +258,10 @@ window.UICore = (function () {
         target.innerHTML = UILeaderboard.renderPage(state);
         setTimeout(function() { UILeaderboard.bindPage(state); }, 0);
         break;
+      case "options":
+        target.innerHTML = UIOptions.render(state);
+        UIOptions.bind(state);
+        break;
       default:
         target.innerHTML = UIHome.render(state);
         UIHome.bind(state);
@@ -275,6 +280,7 @@ window.UICore = (function () {
   }
 
   function renderAll(state) {
+    document.body.setAttribute('data-page', state.ui.currentPage || 'home');
     renderHeader(state);
     renderNav(state);
     renderShield(state);

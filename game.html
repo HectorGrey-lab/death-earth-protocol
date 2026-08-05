@@ -61,26 +61,27 @@
       <button class="nav-btn" data-page="mailbox" aria-label="Mailbox">Mailbox <span id="mailCount" class="mail-badge" style="display:none;"></span></button>
       <button class="nav-btn" data-page="chat" aria-label="Global Chat">Global Chat</button>
       <button class="nav-btn" data-page="leaderboard" aria-label="Leaderboard">Leaderboard</button>
+      <button class="nav-btn" data-page="options" aria-label="Options">Options</button>
     </nav>
 
     <div class="dashboard-grid">
       <aside class="sidebar">
-        <section class="panel">
+        <section class="panel hud-resource hud-relay">
           <div class="panel-title">Resource Network</div>
           <div id="resourcePanel"></div>
         </section>
 
-        <section class="panel">
+        <section class="panel hud-shield">
           <div class="panel-title">Shield Status</div>
           <div id="shieldPanel"></div>
         </section>
 
-        <section class="panel">
+        <section class="panel hud-queue">
           <div class="panel-title">Queue Relay</div>
           <div id="queuePanel"></div>
         </section>
 
-        <section class="panel">
+        <section class="panel hud-systemlog">
                   <div class="panel-title">System Log</div>
                   <div id="systemLogPanel"></div>
                 </section>
@@ -154,6 +155,7 @@
   <script src="js/network.js"></script>
   <script src="js/ui/ui-chat.js"></script>
   <script src="js/ui/ui-leaderboard.js"></script>
+  <script src="js/ui/ui-options.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

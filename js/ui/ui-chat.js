@@ -2,6 +2,10 @@ window.UIChat = (function () {
   var messages = [];
   var onlineCount = 0;
 
+  function nameOf(m) {
+    return (m && m.displayName) ? m.displayName : (m ? m.username : '');
+  }
+
   function render() {
     var html = messages.map(function (m) {
       var isOwn = m.username === (window.Network ? Network.username : '');
@@ -11,7 +15,7 @@ window.UIChat = (function () {
       var bubbleBg = isOwn ? 'background:rgba(30,50,75,0.95);border-color:rgba(88,214,255,0.3);' : 'background:rgba(20,30,45,0.95);border-color:rgba(60,80,110,0.4);';
       var time = m.time ? new Date(m.time).toLocaleTimeString() : '';
       return '<div class="chat-msg' + (isOwn ? ' chat-own' : '') + '" style="max-width:85%;display:flex;flex-direction:column;' + ownAlign + '">' +
-        '<div class="chat-name" style="font-size:12px;color:#58d6ff;font-weight:500;margin-bottom:2px;padding:0 4px;' + nameAlign + '">' + esc(m.username) + '</div>' +
+        '<div class="chat-name" style="font-size:12px;color:#58d6ff;font-weight:500;margin-bottom:2px;padding:0 4px;' + nameAlign + '">' + esc(nameOf(m)) + '</div>' +
         '<div class="chat-bubble" style="' + bubbleBg + 'border:1px solid;border-radius:10px;padding:8px 12px;word-wrap:break-word;"><div class="chat-text" style="color:#c8d8e8;font-size:13px;line-height:1.4;">' + esc(m.text) + '</div></div>' +
         '<div class="chat-time" style="font-size:11px;color:#667788;margin-top:2px;padding:0 4px;' + timeAlign + '">' + time + '</div></div>';
     }).join('') || '<div class="small" style="padding:12px;text-align:center;">No messages yet.</div>';
@@ -39,7 +43,7 @@ window.UIChat = (function () {
       var bubbleBg = isOwn ? 'background:rgba(30,50,75,0.95);border-color:rgba(88,214,255,0.3);' : 'background:rgba(20,30,45,0.95);border-color:rgba(60,80,110,0.4);';
       var time = m.time ? new Date(m.time).toLocaleTimeString() : '';
       return '<div class="chat-msg' + (isOwn ? ' chat-own' : '') + '" style="max-width:85%;display:flex;flex-direction:column;' + ownAlign + '">' +
-        '<div class="chat-name" style="font-size:12px;color:#58d6ff;font-weight:500;margin-bottom:2px;padding:0 4px;' + nameAlign + '">' + esc(m.username) + '</div>' +
+        '<div class="chat-name" style="font-size:12px;color:#58d6ff;font-weight:500;margin-bottom:2px;padding:0 4px;' + nameAlign + '">' + esc(nameOf(m)) + '</div>' +
         '<div class="chat-bubble" style="' + bubbleBg + 'border:1px solid;border-radius:10px;padding:8px 12px;word-wrap:break-word;"><div class="chat-text" style="color:#c8d8e8;font-size:13px;line-height:1.4;">' + esc(m.text) + '</div></div>' +
         '<div class="chat-time" style="font-size:11px;color:#667788;margin-top:2px;padding:0 4px;' + timeAlign + '">' + time + '</div></div>';
     }).join('') || '<div class="small" style="padding:20px;text-align:center;">No messages yet. Be the first to say something!</div>';
@@ -60,6 +64,7 @@ window.UIChat = (function () {
 
   function addMessage(msg) {
     var entry = { username: msg.username || 'System', text: msg.text || msg.message || '', time: msg.time || Date.now() };
+    if (msg.displayName) entry.displayName = msg.displayName;
     messages.push(entry);
     if (messages.length > 20) messages = messages.slice(-20);
     if (window.gameState) {
@@ -79,7 +84,7 @@ window.UIChat = (function () {
           var div = document.createElement('div');
           div.className = 'chat-msg' + (isOwn ? ' chat-own' : '');
           div.style.cssText = 'max-width:85%;display:flex;flex-direction:column;' + ownAlign;
-          div.innerHTML = '<div class="chat-name" style="font-size:12px;color:#58d6ff;font-weight:500;margin-bottom:2px;padding:0 4px;' + nameAlign + '">' + esc(entry.username) + '</div><div class="chat-bubble" style="' + bubbleBg + 'border:1px solid;border-radius:10px;padding:8px 12px;word-wrap:break-word;"><div class="chat-text" style="color:#c8d8e8;font-size:13px;line-height:1.4;">' + esc(entry.text) + '</div></div><div class="chat-time" style="font-size:11px;color:#667788;margin-top:2px;padding:0 4px;' + timeAlign + '">' + time + '</div>';
+          div.innerHTML = '<div class="chat-name" style="font-size:12px;color:#58d6ff;font-weight:500;margin-bottom:2px;padding:0 4px;' + nameAlign + '">' + esc(nameOf(entry)) + '</div><div class="chat-bubble" style="' + bubbleBg + 'border:1px solid;border-radius:10px;padding:8px 12px;word-wrap:break-word;"><div class="chat-text" style="color:#c8d8e8;font-size:13px;line-height:1.4;">' + esc(entry.text) + '</div></div><div class="chat-time" style="font-size:11px;color:#667788;margin-top:2px;padding:0 4px;' + timeAlign + '">' + time + '</div>';
           chatMsgs.appendChild(div);
           chatMsgs.scrollTop = chatMsgs.scrollHeight;
         }
