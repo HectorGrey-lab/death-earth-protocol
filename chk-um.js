@@ -21,11 +21,10 @@ window.UIMailbox = (function () {
     }
 
     function lootRows(loot) {
-          loot = loot || {};
-          const keys = ['ore', 'solar', 'crystal', 'isotopes'].filter(k => (loot[k] || 0) > 0);
-          if (keys.length === 0) return '<tr><td colspan="2" class="small">None</td></tr>';
-          return keys.map(k => `<tr><td>${esc(k)}</td><td>${esc(loot[k])}</td></tr>`).join('');
-        }
+      const keys = ['ore', 'solar', 'crystal', 'isotopes'].filter(k => (loot[k] || 0) > 0);
+      if (keys.length === 0) return '<tr><td colspan="2" class="small">None</td></tr>';
+      return keys.map(k => `<tr><td>${esc(k)}</td><td>${esc(loot[k])}</td></tr>`).join('');
+    }
 
     function bldgRows(bd) {
       if (!bd || bd.length === 0) return '<tr><td colspan="2" class="small">None</td></tr>';
