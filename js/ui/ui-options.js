@@ -1,6 +1,6 @@
 /* UIOptions — Options tab: Help/Starter Guide, Edit Profile, Logout, Delete Account */
 window.UIOptions = (function () {
-  function esc(m) { return Utils.esc(m); }
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;'); }
 
   // ── Help / Starter Guide data (driven by GameData) ──────────────
   function helpSections() {
