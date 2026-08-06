@@ -50,19 +50,42 @@
     </header>
 
     <nav class="panel command-nav" role="navigation" aria-label="Command Navigation">
-      <button class="nav-btn" data-page="home" aria-label="Command Center">Command Center</button>
-      <button class="nav-btn" data-page="map" aria-label="World Map">World Map</button>
+      <button class="nav-btn" data-page="home" data-mobile-primary="1" aria-label="Command Center">Command Center</button>
+      <button class="nav-btn" data-page="map" data-mobile-primary="1" aria-label="World Map">World Map</button>
       <button class="nav-btn" data-page="buildings" aria-label="Buildings">Buildings</button>
       <button class="nav-btn" data-page="forces" aria-label="Forces">Forces</button>
       <button class="nav-btn" data-page="research" aria-label="Research">Research</button>
       <button class="nav-btn" data-page="missions" aria-label="Missions">Missions</button>
       <button class="nav-btn" data-page="alliance" aria-label="Alliance">Alliance</button>
       <button class="nav-btn" data-page="market" aria-label="Market">Market</button>
-      <button class="nav-btn" data-page="mailbox" aria-label="Mailbox">Mailbox <span id="mailCount" class="mail-badge" style="display:none;"></span></button>
+      <button class="nav-btn" data-page="mailbox" data-mobile-primary="1" aria-label="Mailbox">Mailbox <span id="mailCount" class="mail-badge" style="display:none;"></span></button>
       <button class="nav-btn" data-page="chat" aria-label="Global Chat">Global Chat</button>
       <button class="nav-btn" data-page="leaderboard" aria-label="Leaderboard">Leaderboard</button>
-      <button class="nav-btn" data-page="options" aria-label="Options">Options</button>
+      <button class="nav-btn" data-page="options" data-mobile-primary="1" aria-label="Options">Options</button>
+      <button class="nav-btn nav-more" id="navMoreBtn" aria-label="More menu">More</button>
     </nav>
+
+    <div id="navDrawer" class="nav-drawer hidden" aria-hidden="true">
+      <div class="nav-drawer-backdrop" data-nav-close="1"></div>
+      <div class="nav-drawer-panel panel" role="dialog" aria-label="More navigation">
+        <div class="nav-drawer-header">
+          <strong>Navigation</strong>
+          <button class="btn small danger" data-nav-close="1">Close</button>
+        </div>
+
+        <div class="nav-drawer-list" id="navDrawerList">
+          <!-- Secondary pages live here; primary tabs stay in the top bar on mobile -->
+          <button class="nav-drawer-item" data-page="buildings">Buildings</button>
+          <button class="nav-drawer-item" data-page="forces">Forces</button>
+          <button class="nav-drawer-item" data-page="research">Research</button>
+          <button class="nav-drawer-item" data-page="missions">Missions</button>
+          <button class="nav-drawer-item" data-page="alliance">Alliance</button>
+          <button class="nav-drawer-item" data-page="market">Market</button>
+          <button class="nav-drawer-item" data-page="chat">Global Chat</button>
+          <button class="nav-drawer-item" data-page="leaderboard">Leaderboard</button>
+        </div>
+      </div>
+    </div>
 
     <div class="dashboard-grid">
       <aside class="sidebar">

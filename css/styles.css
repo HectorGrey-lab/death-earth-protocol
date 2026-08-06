@@ -114,6 +114,9 @@ button, input, select { font: inherit; }
   background: linear-gradient(180deg, rgba(88,214,255,0.18), rgba(88,214,255,0.07));
 }
 
+/* More-navigation drawer: hidden on desktop, opened via JS on mobile only */
+.nav-drawer { display: none; }
+
 .mail-badge {
   background: #ff4444;
   color: #fff;
@@ -1818,9 +1821,75 @@ hr.sep {
   .opt-form .btn { min-height: 44px; font-size: 13px; padding: 10px 16px; }
   .opt-label input { min-height: 44px; font-size: 14px; padding: 8px; }
   .opt-danger { border-color: rgba(255, 90, 90, 0.5) !important; background: rgba(60, 15, 15, 0.35) !important; }
-}
 
-@media (max-width: 480px) {
+    /* ── Mobile nav: shrink to primary tabs + "More" drawer ── */
+    .command-nav {
+      display: flex;
+      gap: 8px;
+      flex-wrap: nowrap;
+      overflow: hidden;
+    }
+    /* Hide all nav buttons by default on mobile... */
+    .command-nav .nav-btn { display: none; }
+    /* ...except primary ones and the More button */
+    .command-nav .nav-btn[data-mobile-primary="1"],
+    .command-nav .nav-btn.nav-more {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+    }
+    .command-nav .nav-btn.nav-more {
+      margin-left: auto;
+    }
+
+    /* Drawer */
+    .nav-drawer.hidden { display: none; }
+    .nav-drawer {
+      display: block;
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+    }
+    .nav-drawer-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+    }
+    .nav-drawer-panel {
+      position: absolute;
+      right: 0;
+      top: 0;
+      height: 100%;
+      width: min(320px, 85vw);
+      overflow: auto;
+      border-left: 1px solid var(--border);
+    }
+    .nav-drawer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .nav-drawer-list {
+      display: grid;
+      gap: 10px;
+    }
+    .nav-drawer-item {
+      width: 100%;
+      text-align: left;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .nav-drawer-item:active { filter: brightness(1.15); }
+      }
+
+      @media (max-width: 480px) {
   .app-shell { padding: 4px; }
   .panel { padding: 6px; border-radius: 10px; }
   .top-header { padding: 6px; gap: 4px; }

@@ -26,11 +26,43 @@ window.App = (function () {
     UICore.renderAll(window.gameState);
   }
 
+  function closeNavDrawer() {
+    var drawer = document.getElementById("navDrawer");
+    if (drawer) {
+      drawer.classList.add("hidden");
+      drawer.setAttribute("aria-hidden", "true");
+    }
+  }
+
+  function openNavDrawer() {
+    var drawer = document.getElementById("navDrawer");
+    if (!drawer) return;
+    drawer.classList.remove("hidden");
+    drawer.setAttribute("aria-hidden", "false");
+  }
+
   function bindNav() {
-    document.querySelectorAll(".nav-btn").forEach(function (btn) {
+    // Bind ALL elements carrying data-page: top-bar nav buttons + drawer items
+    document.querySelectorAll("[data-page]").forEach(function (btn) {
       btn.onclick = function () {
         window.gameState.ui.currentPage = btn.dataset.page;
+        closeNavDrawer();
         render();
+      };
+    });
+
+    // "More" button opens the drawer (mobile only)
+    var moreBtn = document.getElementById("navMoreBtn");
+    if (moreBtn) {
+      moreBtn.onclick = function () {
+        openNavDrawer();
+      };
+    }
+
+    // Any element with data-nav-close hides the drawer (backdrop + Close button)
+    document.querySelectorAll("[data-nav-close]").forEach(function (el) {
+      el.onclick = function () {
+        closeNavDrawer();
       };
     });
   }
@@ -166,8 +198,9 @@ window.App = (function () {
             window.gameState.mailbox = c.mailbox;
           }
         }
-        // Default to Inbox tab so PMs are visible
-        if (window.gameState.mailbox) {
+        // Default to Inbox tab so PMs are visible — ONLY on first init or when
+        // selectedTab is missing/invalid. Do NOT override user selection on periodic syncs.
+        if (window.gameState.mailbox && !window.gameState.mailbox.selectedTab) {
           window.gameState.mailbox.selectedTab = 'Inbox';
         }
 

@@ -1,5 +1,21 @@
 # Dead Earth Protocol — Changelog & Fix History
 
+## 2026-08-06 — Mobile nav "More" drawer + mailbox Defense tab fix
+
+### Milestone
+On mobile the long 12-button nav row is collapsed to four primary tabs (Command Center, World Map, Mailbox, Options) plus a "More" button that opens a slide-in drawer holding the rest. Desktop nav is unchanged. Also fixed the mailbox Defense tab "feel unclickable" bug: periodic `colony_state` syncs were resetting `selectedTab` to `Inbox`, overriding the user's selection — now it only defaults once.
+
+### Phase 1 — Mailbox selectedTab fix (js/app.js)
+- In `Network.on("colony_state")`, the unconditional `mailbox.selectedTab = 'Inbox'` is now gated: it only sets a default when `selectedTab` is missing/invalid, so selections (Attack/Defense/Inbox) survive periodic syncs. New mail (`mailbox_update`) still intentionally switches to Inbox.
+
+### Phase 2 — Mobile hamburger "More" drawer
+- `game.html` — `data-mobile-primary="1"` on home/map/mailbox/options; added `#navMoreBtn` and a `#navDrawer` (backdrop + panel + header + item list for buildings/forces/research/missions/alliance/market/chat/leaderboard). Existing nav buttons kept (hidden on mobile via CSS).
+- `css/styles.css` — desktop `.nav-drawer{display:none}`; `@media(max-width:720px)` collapses `.command-nav` to primary tabs + More, and styles the fixed right-side drawer (backdrop, panel `min(320px,85vw)`, header, item grid).
+- `js/app.js` — `bindNav()` now binds all `[data-page]` (top bar + drawer), wires More→open, `[data-nav-close]`→close (backdrop + Close button), and closes the drawer on any route change.
+
+### Phase 3 — Regression checks
+- Mail tabs no longer snap to Inbox unless new mail arrives; `isNew` badge behavior unchanged; `UICore.renderNav` active highlighting still driven by `dataset.page`.
+
 ## 2026-08-06 — Options tab render fix (deployed)
 
 ### Fix
