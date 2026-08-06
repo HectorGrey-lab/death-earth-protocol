@@ -1,20 +1,54 @@
 window.App = (function () {
   // Preserve client-side read state when server replaces the mailbox object
   function _mergeMailboxReadState(oldBox, newBox) {
-    if (!newBox) return newBox;
-    var readIds = {};
-    if (oldBox && oldBox.messages) {
-      for (var i = 0; i < oldBox.messages.length; i++) {
-        if (!oldBox.messages[i].isNew) readIds[oldBox.messages[i].id] = true;
+      if (!newBox) return newBox;
+      var readIds = {};
+      if (oldBox && oldBox.messages) {
+        for (var i = 0; i < oldBox.messages.length; i++) {
+          if (!oldBox.messages[i].isNew) readIds[oldBox.messages[i].id] = true;
+        }
       }
-    }
-    if (newBox.messages) {
-      for (var j = 0; j < newBox.messages.length; j++) {
-        if (readIds[newBox.messages[j].id]) newBox.messages[j].isNew = false;
+      if (newBox.messages) {
+        for (var j = 0; j < newBox.messages.length; j++) {
+          if (readIds[newBox.messages[j].id]) newBox.messages[j].isNew = false;
+        }
       }
+      return newBox;
     }
-    return newBox;
-  }
+
+    // Merge incoming server mailbox into the local one WITHOUT dropping the
+    // client's read state, selectedTab, or selectedMessageId. New messages
+    // (defense/attack reports, PMs, NPC raids) get prepended; already-seen ones
+    // are left alone.
+    function _mergeMailbox(local, incoming) {
+      if (!incoming) return local;
+      if (!incoming.messages) return local;
+      if (!local) local = { messages: [], selectedTab: 'Inbox', selectedMessageId: null };
+      if (!local.messages) local.messages = [];
+
+      var seen = {};
+      for (var i = 0; i < local.messages.length; i++) seen[local.messages[i].id] = true;
+
+      var fresh = [];
+      for (var j = 0; j < incoming.messages.length; j++) {
+        var m = incoming.messages[j];
+        if (m && !seen[m.id]) {
+          // Preserve already-marked-read on re-delivered ids is handled below;
+          // new ids keep server-side isNew.
+          fresh.push(m);
+          seen[m.id] = true;
+        }
+      }
+
+      if (fresh.length) {
+        local.messages = fresh.concat(local.messages).slice(0, 120);
+        // Fresh messages came straight from the server (isNew=true). Re-delivered
+        // ids keep their existing local read state. Return local — NOT the
+        // incoming box — so selectedTab/selectedMessageId/read state survive.
+        return local;
+      }
+      return local;
+    }
 
   function render() {
     // Skip full re-render on chat ONLY if already rendered (preserves input)
@@ -191,11 +225,16 @@ window.App = (function () {
           });
         }
         if (c.mailbox) {
-          // On initial load, seed the mailbox from server. On periodic syncs (every ~5s),
-          // skip it — push events (mailbox_update, private_message_result, alliance_result)
-          // already deliver every change in real-time.
-          if (!window._colonyInitialized) {
-            window.gameState.mailbox = c.mailbox;
+          // Merge server mailbox into local state on EVERY sync so defense/
+          // attack reports and NPC raid mails written server-side surface
+          // without a full reload. Merge (not replace) preserves the client's
+          // read state, selectedTab, and selectedMessageId.
+          var preLen = (window.gameState.mailbox && window.gameState.mailbox.messages) ? window.gameState.mailbox.messages.length : 0;
+          window.gameState.mailbox = _mergeMailbox(window.gameState.mailbox, c.mailbox) || window.gameState.mailbox;
+          var postLen = (window.gameState.mailbox && window.gameState.mailbox.messages) ? window.gameState.mailbox.messages.length : 0;
+          // If new mail arrived while the player is viewing the Mailbox, refresh it now.
+          if (postLen > preLen && window.gameState.ui && window.gameState.ui.currentPage === 'mailbox') {
+            window._mailboxDirty = true;
           }
         }
         // Default to Inbox tab so PMs are visible — ONLY on first init or when
@@ -285,6 +324,12 @@ window.App = (function () {
         }
 
         UICore.renderTick(window.gameState);
+        // New mail arrived while viewing Mailbox — re-render the page so the
+        // fresh messages (e.g. defense reports) appear immediately.
+        if (window._mailboxDirty) {
+          window._mailboxDirty = false;
+          render();
+        }
       }
     });
 
@@ -586,12 +631,17 @@ window.App = (function () {
         return;
       }
       if (msg.colony) {
-        var c = msg.colony;
-        s.resources = c.resources;
-        s.troops = c.troops;
-        s.buildings = c.buildings;
-        if (c.combat) s.combat = c.combat;
-        if (c.research) s.research = c.research;
+              var c = msg.colony;
+              s.resources = c.resources;
+              s.troops = c.troops;
+              s.buildings = c.buildings;
+              if (c.combat) s.combat = c.combat;
+              if (c.research) s.research = c.research;
+              if (c.mailbox) {
+                // Defense/attack combat reports come through the colony payload —
+                // merge them into the mailbox so they show up without a reload.
+                s.mailbox = _mergeMailbox(s.mailbox, c.mailbox) || s.mailbox;
+              }
         if (s.troops && s.troops.fleets) {
           s.fleets = s.troops.fleets;
           FleetSystem.reconcile(s);

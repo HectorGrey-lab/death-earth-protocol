@@ -79,13 +79,23 @@ window.UIMailbox = (function () {
         state.mailbox.messages[i].isNew = false;
       }
     }
+    // Per-tab counts: how many messages live in each tab (0 shown only for the active tab)
+    var counts = { Attack: 0, Defense: 0, Inbox: 0, Alliance: 0, System: 0 };
+    if (state.mailbox && state.mailbox.messages) {
+      for (var c = 0; c < state.mailbox.messages.length; c++) {
+        var t = state.mailbox.messages[c].tab;
+        if (counts[t] !== undefined) counts[t]++;
+      }
+    }
     const filtered = state.mailbox.messages.filter(m => m.tab === state.mailbox.selectedTab);
     const selected = filtered.find(m => m.id === state.mailbox.selectedMessageId) || filtered[0] || null;
 
     return `
       <div class="mail-tabs" id="mailTabs">
         ${tabs.map(tab => `
-          <button class="btn small ${state.mailbox.selectedTab === tab ? "success" : ""}" data-mail-tab="${tab}">${tab}</button>
+          <button class="btn small ${state.mailbox.selectedTab === tab ? "success" : ""}" data-mail-tab="${tab}">
+            ${tab}${counts[tab] > 0 ? ` <span class="mail-tab-count">${counts[tab]}</span>` : ""}
+          </button>
         `).join("")}
       </div>
       <div class="mail-layout">

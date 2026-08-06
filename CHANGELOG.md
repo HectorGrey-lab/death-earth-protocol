@@ -1,5 +1,17 @@
 # Dead Earth Protocol — Changelog & Fix History
 
+## 2026-08-06 — Mailbox: defense reports now appear live + per-tab counters
+
+### Fix — Defense/attack reports invisible until reload
+Defense reports were written to the server colony mailbox but never reached the live client: the client dropped `msg.colony.mailbox` in the `attack_result` handler, and periodic `colony_state` syncs skipped the mailbox entirely after first load. Fixed in `js/app.js`:
+- New `_mergeMailbox(local, incoming)` — merges server mail into local state by id, prepending only fresh messages, preserving read state, `selectedTab`, and `selectedMessageId`.
+- `colony_state` handler now merges the server mailbox on EVERY sync (was: first load only) — NPC raid defense reports surface within a sync tick.
+- `attack_result` handler merges `msg.colony.mailbox` — PvP defense/attack reports appear immediately without a reload.
+- If new mail lands while the player is viewing Mailbox, the page re-renders right away (`_mailboxDirty`).
+
+### Feature — Per-tab message counters
+`js/ui/ui-mailbox.js` + `css/styles.css`: each tab button (Attack/Defense/Inbox/Alliance/System) now shows a count badge of how many messages live in that tab (hidden when 0). Accent-colored pill; white pill on the active tab.
+
 ## 2026-08-06 — Mobile nav "More" drawer + mailbox Defense tab fix
 
 ### Milestone
