@@ -1,5 +1,10 @@
 # Dead Earth Protocol — Changelog & Fix History
 
+## 2026-08-06 — Options tab render fix (deployed)
+
+### Fix
+- `js/ui/ui-options.js` — Options tab crashed on open (`Utils.esc is not a function`): the module delegated to a helper that doesn't exist in `Utils`. Replaced with the project's standard inline `esc()` used by every other UI module. Live browser verification caught the crash; the raw-WS smoke suite cannot exercise client render, so this was only visible in the browser.
+
 ## 2026-08-05 — Mobile UI Cleanup + Options Tab (Help, Logout, Edit Profile, Delete Account)
 
 ### Milestone
