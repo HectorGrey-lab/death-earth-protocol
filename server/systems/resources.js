@@ -71,8 +71,8 @@ function tick(colony, dt) {
 }
 
 function getPopulation(colony) {
-  return Object.values(colony.buildings).reduce((sum, b) => sum + (b.level || 0) * 6, 0) +
-         Object.values(colony.troops.counts || {}).reduce((a, b) => a + b, 0);
+  // Population is infrastructure-only: total building levels
+  return Object.values(colony.buildings || {}).reduce((sum, b) => sum + (b.level || 0), 0);
 }
 
 function getBasePower(colony) {

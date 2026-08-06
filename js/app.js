@@ -701,7 +701,7 @@ window.App = (function () {
       fleets: {},
       research: { levels: { economy: 0, military: 0, defense: 0 }, active: null, completedTotal: 0 },
       commander: { name: loggedUser ? "Commander " + loggedUser : "Commander Unknown", factionTitle: "No Faction", emblem: "\u25B3", theme: "cyan", planetName: "Unknown Planet" },
-      universe: { galaxies: [], zoomLevel: "universe", activeGalaxyId: null, activeSectorId: null, activePlanetId: null, showUniverseView: false, fleets: [], discoveredPlanets: {}, hasWarpGate: false, camera: { zoom: 1, panX: 0, panY: 0 } },
+      universe: { galaxies: [], zoomLevel: "universe", activeGalaxyId: null, activeSectorId: null, activePlanetId: null, showUniverseView: true, fleets: [], discoveredPlanets: {}, hasWarpGate: false, camera: { zoom: 1, panX: 0, panY: 0 } },
       events: { active: null, history: [] },
       combat: { scoutsCompleted: 0, attackWins: 0, defenseWins: 0, incomingAttacks: [], lastScouted: 0, raidHistory: [] },
       expeditions: { active: null, completed: [], queue: [] },

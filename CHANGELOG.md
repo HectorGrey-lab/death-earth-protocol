@@ -1,5 +1,18 @@
 # Dead Earth Protocol — Changelog & Fix History
 
+## 2026-08-06 — Population = buildings only + map: remove Tactical mode, add Galaxies button
+
+### A) Population is now infrastructure-only
+- `server/systems/resources.js`: `getPopulation()` now returns the **total of building levels** (no troop counts, no x6 multiplier). Leaderboard automatically reflects it (no server structure change).
+- `js/systems/buildings.js`: client HUD/home `getPopulation()` updated to the same definition so the header "POPULATION" matches the leaderboard.
+- `js/ui/ui-leaderboard.js`: category label "Population (Buildings)" + subtitle "Total building levels".
+
+### B) Map always shows Universe view + new Galaxies button
+- `js/app.js`: `showUniverseView` defaults to `true`.
+- `js/ui/ui-map.js`: `render()`/`bind()` always render/bind the Universe viewport — the Tactical map mode and its "◄ Back to Tactical Map / 🌌 Explore Universe" toggle are removed (`renderTacticalMap`/`bindTacticalMap` left in place but unused).
+- New **🌌 Galaxies** button in the camera controls jumps straight to the galaxy list from any zoom level (clears sector/planet selection, keeps galaxy highlighted).
+- Renamed "◀ Back" → "◀ Back (Up)".
+
 ## 2026-08-06 — Mailbox: defense reports now appear live + per-tab counters
 
 ### Fix — Defense/attack reports invisible until reload

@@ -1,6 +1,6 @@
 window.UILeaderboard = (function () {
   var categories = [
-    { id: 'population', label: 'Population', icon: '👥' },
+    { id: 'population', label: 'Population (Buildings)', icon: '👥' },
     { id: 'raider', label: 'Raider', icon: '⚔️' },
     { id: 'attacker', label: 'Attacker', icon: '💥' },
     { id: 'defence', label: 'Defence', icon: '🛡️' }
@@ -50,7 +50,7 @@ window.UILeaderboard = (function () {
       '<div class="lb-tabs">' + tabs + '</div>' +
       '<div class="lb-header"><strong>' + header.icon + ' ' + header.label + '</strong>' +
       '<span class="small">' + (activeScope === 'alliances' ? 'Combined team totals' :
-        header.id === 'population' ? 'Largest colonies' :
+        header.id === 'population' ? 'Total building levels' :
         header.id === 'raider' ? 'Most successful raids' :
         header.id === 'attacker' ? 'Highest attack power' :
         'Strongest defences') + '</span></div>' +

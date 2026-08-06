@@ -70,7 +70,8 @@ window.BuildingSystem = (function () {
   }
 
   function getPopulation(state) {
-    return 40 + Object.values(state.buildings).reduce((sum, b) => sum + b.level * 6, 0) + TroopSystem.getTotalTroops(state);
+    // Population is infrastructure-only: total building levels (matches server)
+    return Object.values(state.buildings || {}).reduce((sum, b) => sum + (b.level || 0), 0);
   }
 
   function tick(state, dt) {

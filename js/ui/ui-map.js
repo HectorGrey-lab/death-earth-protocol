@@ -1363,7 +1363,8 @@ window.UIMap = (function () {
         <div class="stack">
           <div class="galaxy-camera-controls">
             <button class="btn small" id="uvZoomInBtn" ${canGalZoomIn ? '' : 'disabled'}>Zoom In</button>
-            <button class="btn small" id="uvZoomOutBtn" ${canGalZoomOut ? '' : 'disabled'}>◀ Back</button>
+            <button class="btn small" id="uvZoomOutBtn" ${canGalZoomOut ? '' : 'disabled'}>◀ Back (Up)</button>
+            <button class="btn small" id="uvGalaxiesBtn" ${zoom === 'universe' ? 'disabled' : ''}>🌌 Galaxies</button>
             <button class="btn small" id="uvGoHomeBtn">⌂ Home</button>
             <button class="btn small" id="uvResetBtn">Reset</button>
             <button class="btn small ${SoundSystem.enabled ? 'active-sound' : ''}" id="uvSoundBtn" title="Toggle map sounds">🔊 ${SoundSystem.enabled ? 'On' : 'Off'}</button>
@@ -1403,43 +1404,19 @@ window.UIMap = (function () {
   // ══════════════════════════════════════════════
 
   function render(state) {
-    const showUniverse = state.universe && state.universe.showUniverseView;
-
-    // Toggle button is rendered in both modes
-    const toggleBtn = `
-      <div class="map-mode-toggle">
-        <button class="btn small" id="toggleUniverseView" style="margin-bottom:8px;">
-          ${showUniverse ? '◄ Back to Tactical Map' : '🌌 Explore Universe'}
-        </button>
-      </div>
-    `;
-
-    if (showUniverse) {
-      return toggleBtn + renderUniverseViewport(state);
-    } else {
-      return toggleBtn + renderTacticalMap(state);
-    }
+    if (!state.universe) state.universe = {};
+    state.universe.showUniverseView = true;
+    return renderUniverseViewport(state);
   }
 
   // ══════════════════════════════════════════════
-  //  BIND — both modes
+  //  BIND — Universe mode only (Tactical mode removed)
   // ══════════════════════════════════════════════
 
   function bind(state) {
-    // ── Mode toggle ──
-    const toggleBtn = document.getElementById('toggleUniverseView');
-    if (toggleBtn) {
-      toggleBtn.onclick = function () {
-        state.universe.showUniverseView = !state.universe.showUniverseView;
-        window.App.render();
-      };
-    }
-
-    if (state.universe && state.universe.showUniverseView) {
-      bindUniverseView(state);
-    } else {
-      bindTacticalMap(state);
-    }
+    if (!state.universe) state.universe = {};
+    state.universe.showUniverseView = true;
+    bindUniverseView(state);
   }
 
   // ── Bind universe view ──
@@ -1547,18 +1524,30 @@ window.UIMap = (function () {
     }
 
     if (zoomOutBtn) {
-      zoomOutBtn.onclick = function () {
-        if (state.universe.zoomLevel === 'sector') {
-          state.universe.zoomLevel = 'galaxy';
-          state.universe.activePlanetId = null;
-        } else if (state.universe.zoomLevel === 'galaxy') {
-          state.universe.zoomLevel = 'universe';
-          state.universe.activeGalaxyId = null;
-          state.universe.activeSectorId = null;
+          zoomOutBtn.onclick = function () {
+            if (state.universe.zoomLevel === 'sector') {
+              state.universe.zoomLevel = 'galaxy';
+              state.universe.activePlanetId = null;
+            } else if (state.universe.zoomLevel === 'galaxy') {
+              state.universe.zoomLevel = 'universe';
+              state.universe.activeGalaxyId = null;
+              state.universe.activeSectorId = null;
+            }
+            window.App.render();
+          };
         }
-        window.App.render();
-      };
-    }
+
+        // Galaxies button — jump straight to the galaxy list from any zoom level
+        const galaxiesBtn = document.getElementById('uvGalaxiesBtn');
+        if (galaxiesBtn) {
+          galaxiesBtn.onclick = function () {
+            state.universe.zoomLevel = 'universe';
+            // Clear deeper selections so the universe list is clean
+            state.universe.activeSectorId = null;
+            state.universe.activePlanetId = null;
+            window.App.render();
+          };
+        }
 
     if (resetBtn) {
       resetBtn.onclick = function () {
