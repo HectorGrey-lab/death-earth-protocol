@@ -1,5 +1,8 @@
 # Dead Earth Protocol — Changelog & Fix History
 
+## 2026-08-06 — Queue Relay: building upgrades now shown
+- `js/ui/ui-core.js` `renderQueues()`: the Queue Relay panel previously showed troop training, expeditions, and research — but not building upgrades. Added a **Construction** line per actively-upgrading building (`state.buildings[k].upgrading` — server-authoritative), showing building name → target level + ETA. Now the left Queue Relay mirrors the Command Center "Active Operations" queue counts.
+
 ## 2026-08-06 — Population = buildings only + map: remove Tactical mode, add Galaxies button
 
 ### A) Population is now infrastructure-only

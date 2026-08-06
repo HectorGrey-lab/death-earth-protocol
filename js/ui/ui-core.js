@@ -126,6 +126,18 @@ window.UICore = (function () {
 
   function renderQueues(state) {
     const el = Utils.el("queuePanel");
+
+    const buildQueue = Object.keys(state.buildings || {}).map(key => {
+      const b = state.buildings[key];
+      if (!b || !b.upgrading) return "";
+      return `
+        <div class="queue-item">
+          <div><strong>Construction</strong> • ${GameData.buildings[key].name} → Lv${b.upgrading.targetLevel}</div>
+          <div class="small">ETA ${Utils.formatTime(b.upgrading.remaining)}</div>
+        </div>
+      `;
+    }).join("");
+
     const troopQueue = state.troops.queue.map(q => `
       <div class="queue-item">
         <div><strong>Training</strong> • ${GameData.troops[q.troopKey].name} x${q.qty}</div>
@@ -150,8 +162,8 @@ window.UICore = (function () {
       </div>
     ` : "";
 
-    el.innerHTML = troopQueue || expQueue || research
-      ? `${research}${troopQueue}${expQueue}`
+    el.innerHTML = troopQueue || expQueue || research || buildQueue
+      ? `${research}${buildQueue}${troopQueue}${expQueue}`
       : `<div class="small">No active queue items.</div>`;
   }
 
