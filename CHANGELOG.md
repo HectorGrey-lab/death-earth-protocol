@@ -12,6 +12,9 @@ Defense reports were written to the server colony mailbox but never reached the 
 ### Feature — Per-tab message counters
 `js/ui/ui-mailbox.js` + `css/styles.css`: each tab button (Attack/Defense/Inbox/Alliance/System) now shows a count badge of how many messages live in that tab (hidden when 0). Accent-colored pill; white pill on the active tab.
 
+### Fix — Defense report render crash (found by live verification)
+Rendering the Defense tab threw `TypeError: Cannot read properties of undefined (reading 'ore')` — NPC defense mails carry a `data` payload with no `loot` field, but `lootRows()` read `loot[k]` directly. Fixed to guard `loot = loot || {}` in `js/ui/ui-mailbox.js`. The defense report now renders fully (subject, combat card, losses, loot "None").
+
 ## 2026-08-06 — Mobile nav "More" drawer + mailbox Defense tab fix
 
 ### Milestone
